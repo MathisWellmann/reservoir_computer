@@ -27,15 +27,15 @@ fn main() {
         series.iter().skip(1).zip(series.iter()).map(|(a, b)| (a / b).ln()).collect();
     info!("got {} datapoints", series.len());
 
-    const N: usize = 150; // reservoir size of hidden neurons
+    const N: usize = 160; // reservoir size of hidden neurons
     const M: usize = 1; // input and output dimension
     const TRAINING_WINDOW: usize = 10_000;
 
     // For each node in the reservoir, select k nodesn the network without
     // replacement and use those as inputs to the current node.
-    let fixed_in_degree_k = 20;
+    let fixed_in_degree_k = 5;
     let input_sparsity = 0.3;
-    let input_scaling = 0.1;
+    let input_scaling = 0.5;
     let input_bias = 0.0;
     // The spectral radius determines how fast the influence of an input
     // dies out in a reservoir with time, and how stable the reservoir activations
@@ -57,9 +57,11 @@ fn main() {
     let mut rng = WyRand::new();
     let mut weights: Vec<Vec<f32>> = vec![vec![0.0; N]; N];
     for j in 0..weights.len() {
-        // Choose random input node
-        let i = rng.generate_range(0..N);
-        weights[i][j] = rng.generate::<f32>() * 2.0 - 1.0;
+        for _ in 0..fixed_in_degree_k {
+            // Choose random input node
+            let i = rng.generate_range(0..N);
+            weights[i][j] = rng.generate::<f32>() * 2.0 - 1.0;
+        }
     }
     let mut reservoir: DMatrix<f32> = DMatrix::from_vec_generic(
         Dim::from_usize(N),
