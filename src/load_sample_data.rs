@@ -1,6 +1,7 @@
 use std::fs::File;
 
 /// Load the sample data from csv file
+/// output are price returns
 pub(crate) fn load_sample_data() -> Vec<f32> {
     let f = File::open("data/Bitmex_XBTUSD_1M.csv").unwrap();
 
