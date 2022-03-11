@@ -27,20 +27,21 @@ fn main() {
         series.iter().skip(1).zip(series.iter()).map(|(a, b)| (a / b).ln()).collect();
     info!("got {} datapoints", series.len());
 
-    const N: usize = 300; // reservoir size of hidden neurons
+    const N: usize = 150; // reservoir size of hidden neurons
     const M: usize = 1; // input and output dimension
     const TRAINING_WINDOW: usize = 10_000;
 
     // For each node in the reservoir, select k nodesn the network without
     // replacement and use those as inputs to the current node.
-    let fixed_in_degree_k = 50;
+    let fixed_in_degree_k = 20;
     let input_sparsity = 0.3;
     let input_scaling = 0.1;
+    let input_bias = 0.0;
     // The spectral radius determines how fast the influence of an input
     // dies out in a reservoir with time, and how stable the reservoir activations
     // are. The spectral radius should be greater in tasks requiring longer
     // memory of the input.
-    let spectral_radius = 0.95;
+    let spectral_radius = 0.9;
     // The leaking rate a can be regarded as the speed of the reservoir update
     // dynamics discretized in time. This can be adapted online to deal with
     // time wrapping of the signals. Set the leaking rate to match the speed of
@@ -113,7 +114,9 @@ fn main() {
         step_wise_design.set_column(j, &state);
 
         let a = (1.0 - alpha) * &state;
-        let mut b = &reservoir * &state + &input_matrix * *val;
+        let unit_vec: Matrix<f32, Dynamic, Const<1>, VecStorage<f32, Dynamic, Const<1>>> =
+            Matrix::from_element_generic(Dim::from_usize(N), Dim::from_usize(1), 1.0);
+        let mut b = &reservoir * &state + &input_matrix * *val + input_bias * unit_vec;
         b.iter_mut().for_each(|v| *v = v.tanh());
         state = a + alpha * b;
 
@@ -125,7 +128,7 @@ fn main() {
     let design_t = step_wise_design.transpose();
     // Use regularizaion whenever there is a danger of overfitting or feedback
     // instability
-    let regularization_coeff: f32 = 0.2;
+    let regularization_coeff: f32 = 0.0;
     let identity_m: DMatrix<f32> =
         DMatrix::from_diagonal_element_generic(Dim::from_usize(N), Dim::from_usize(N), 1.0);
     let b = step_wise_design * &design_t + regularization_coeff * identity_m;
