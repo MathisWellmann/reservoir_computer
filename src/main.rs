@@ -37,8 +37,9 @@ fn main() {
 
     let t0 = Instant::now();
 
-    let leaking_rate = 0.1;
-    let mut rc = ESN::new(40, 4, 0.6, 0.0, 0.0, 0.95, leaking_rate, 0.1, Some(1));
+    let leaking_rate = 0.15;
+    let regularization_coeff = 0.0;
+    let mut rc = ESN::new(10, 4, 0.5, 0.1, 0.0, 0.90, leaking_rate, regularization_coeff, None);
     rc.train(&values.iter().take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>());
 
     let mut targets: Series = Vec::with_capacity(1_000_000);
@@ -51,24 +52,21 @@ fn main() {
         targets.push((i as f64, *val));
 
         let predicted_out = rc.readout_matrix() * &state;
-        let pred = predicted_out.get(0).unwrap();
+        let last_prediction = *predicted_out.get(0).unwrap();
 
         if i == TRAINING_WINDOW {
-            predictions.push((i as f64, *pred));
+            predictions.push((i as f64, last_prediction));
         }
         // TO begin forecasting, replace target input with it's own prediction
         let val: f64 = if i > TRAINING_WINDOW {
-            predictions.push((i as f64, *pred));
-            *pred
+            predictions.push((i as f64, last_prediction));
+            last_prediction
         } else {
-            train_predictions.push((i as f64, *pred));
+            train_predictions.push((i as f64, last_prediction));
             *val
         };
 
-        let a = (1.0 - leaking_rate) * &state;
-        let mut b = rc.reservoir() * &state + rc.input_matrix() * val;
-        b.iter_mut().for_each(|v| *v = v.tanh());
-        state = a + leaking_rate * b;
+        state = rc.state_update(val, &state)
     }
 
     info!("t_diff: {}ms", t0.elapsed().as_millis());
@@ -79,6 +77,7 @@ fn main() {
 }
 
 fn plot(targets: &Series, train_preds: &Series, test_preds: &Series, filename: &str) {
+    info!("train_preds: {:?}", train_preds);
     let ts_min = targets[0].0;
     let ts_max = targets[targets.len() - 1].0;
     let mut target_min: f64 = targets[0].1;
