@@ -10,7 +10,7 @@ use std::time::Instant;
 use plotters::prelude::*;
 use time_series_generator::generate_sine_wave;
 
-use crate::esn::ESN;
+use crate::esn::{Params, ESN};
 
 type Series = Vec<(f64, f64)>;
 
@@ -37,9 +37,18 @@ fn main() {
 
     let t0 = Instant::now();
 
-    let leaking_rate = 0.15;
-    let regularization_coeff = 0.0;
-    let mut rc = ESN::new(10, 4, 0.5, 0.1, 0.0, 0.90, leaking_rate, regularization_coeff, None);
+    let params = Params {
+        reservoir_size: 10,
+        fixed_in_degree_k: 4,
+        input_sparsity: 0.5,
+        input_scaling: 0.1,
+        input_bias: 0.0,
+        spectral_radius: 0.9,
+        leaking_rate: 0.15,
+        regularization_coeff: 0.1,
+        seed: None,
+    };
+    let mut rc = ESN::new(params);
     rc.train(&values.iter().take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>());
 
     let mut targets: Series = Vec::with_capacity(1_000_000);
