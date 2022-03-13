@@ -9,6 +9,7 @@ pub(crate) struct ReservoirComputer {
     reservoir_size: usize,
     leaking_rate: f32,
     input_bias: f32,
+    regularization_coeff: f32,
     input_matrix: Matrix<f32, Dynamic, Const<1>, VecStorage<f32, Dynamic, Const<1>>>,
     reservoir: DMatrix<f32>,
     readout_matrix: Matrix<f32, Const<1>, Dynamic, VecStorage<f32, Const<1>, Dynamic>>,
@@ -23,17 +24,22 @@ impl ReservoirComputer {
     /// input_sparsity: the connection probability within the reservoir
     /// input_scaling: multiplies the input weights
     /// input_bias: adds a bias to inputs
+    ///
     /// leaking_rate:
-    ///     The leaking rate a can be regarded as the speed of the reservoir
-    /// update     dynamics discretized in time. This can be adapted online
-    /// to deal with     time wrapping of the signals. Set the leaking rate
-    /// to match the speed of     the dynamics of input / target This sort
-    /// of acts as a EMA smoothing     filter, so other MAs could be used
-    /// such as ALMA spectral_radius:
-    ///     The spectral radius determines how fast the influence of an input
-    ///     dies out in a reservoir with time, and how stable the reservoir
-    /// activations     are. The spectral radius should be greater in tasks
-    /// requiring longer     memory of the input.
+    /// The leaking rate a can be regarded as the speed of the reservoir
+    /// update dynamics discretized in time. This can be adapted online
+    /// to deal with time wrapping of the signals. Set the leaking rate
+    /// to match the speed of the dynamics of input / target This sort
+    /// of acts as a EMA smoothing filter, so other MAs could be used
+    /// such as ALMA
+    ///
+    /// spectral_radius:
+    /// The spectral radius determines how fast the influence of an input
+    /// dies out in a reservoir with time, and how stable the reservoir
+    /// activations are. The spectral radius should be greater in tasks
+    /// requiring longer memory of the input.
+    ///
+    /// regularization_coeff:
     /// seed: optional RNG seed
     pub(crate) fn new(
         reservoir_size: usize,
@@ -43,6 +49,7 @@ impl ReservoirComputer {
         input_bias: f32,
         spectral_radius: f32,
         leaking_rate: f32,
+        regularization_coeff: f32,
         seed: Option<u64>,
     ) -> Self {
         let mut rng = match seed {
@@ -76,11 +83,11 @@ impl ReservoirComputer {
                     0.0
                 }
             });
-        let mut readout_matrix: Matrix<f32, Const<1>, Dynamic, VecStorage<f32, Const<1>, Dynamic>> =
+        let readout_matrix: Matrix<f32, Const<1>, Dynamic, VecStorage<f32, Const<1>, Dynamic>> =
             Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(reservoir_size), |_, _| {
                 rng.generate::<f32>() * 2.0 - 1.0
             });
-        let mut state: Matrix<f32, Dynamic, Const<1>, VecStorage<f32, Dynamic, Const<1>>> =
+        let state: Matrix<f32, Dynamic, Const<1>, VecStorage<f32, Dynamic, Const<1>>> =
             Matrix::from_fn_generic(Dim::from_usize(reservoir_size), Dim::from_usize(1), |_, _| {
                 rng.generate::<f32>() * 2.0 - 1.0
             });
@@ -97,6 +104,7 @@ impl ReservoirComputer {
             reservoir_size,
             leaking_rate,
             input_bias,
+            regularization_coeff,
         }
     }
 
@@ -142,13 +150,12 @@ impl ReservoirComputer {
         let design_t = step_wise_design.transpose();
         // Use regularizaion whenever there is a danger of overfitting or feedback
         // instability
-        let regularization_coeff: f32 = 0.0;
         let identity_m: DMatrix<f32> = DMatrix::from_diagonal_element_generic(
             Dim::from_usize(self.reservoir_size),
             Dim::from_usize(self.reservoir_size),
             1.0,
         );
-        let b = step_wise_design * &design_t + regularization_coeff * identity_m;
+        let b = step_wise_design * &design_t + self.regularization_coeff * identity_m;
         let b = b.transpose();
         self.readout_matrix = step_wise_target * &design_t * b;
     }

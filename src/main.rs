@@ -8,6 +8,7 @@ mod reservoir;
 use std::time::Instant;
 
 use plotters::prelude::*;
+use time_series_generator::generate_sine_wave;
 
 use crate::reservoir::ReservoirComputer;
 
@@ -23,47 +24,44 @@ fn main() {
 
     info!("loading sample data");
     let series = load_sample_data::load_sample_data();
-    let rets: Vec<f32> =
+    /*
+    let values: Vec<f32> =
         series.iter().skip(1).zip(series.iter()).map(|(a, b)| (a / b).ln()).collect();
+    */
+    let mut values: Vec<f32> = generate_sine_wave(100).iter().map(|v| *v as f32).collect();
+    values.append(&mut values.clone());
+    values.append(&mut values.clone());
     info!("got {} datapoints", series.len());
 
-    const TRAINING_WINDOW: usize = 10_000;
+    const TRAINING_WINDOW: usize = 200;
 
     let t0 = Instant::now();
 
-    let leaking_rate = 0.01;
-    let mut rc = ReservoirComputer::new(20, 5, 0.3, 0.0, 0.0, 0.95, leaking_rate, Some(1));
-    rc.train(&rets.iter().take(TRAINING_WINDOW).cloned().collect::<Vec<f32>>());
+    let leaking_rate = 0.1;
+    let mut rc = ReservoirComputer::new(40, 4, 0.6, 0.0, 0.0, 0.95, leaking_rate, 0.1, Some(1));
+    rc.train(&values.iter().take(TRAINING_WINDOW).cloned().collect::<Vec<f32>>());
 
     let mut targets: Series = Vec::with_capacity(1_000_000);
     let mut predictions: Series = Vec::with_capacity(1_000_000);
 
-    let mut curr_val = series[0];
-    let mut curr_pred = series[0];
-    info!("curr_pred: {}", curr_pred);
-    targets.push((0_f32, curr_val));
-
     let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
 
     let mut state = rc.state();
-    for (i, val) in rets.iter().enumerate().skip(1).take(TRAINING_WINDOW * 2) {
-        curr_val *= val.exp();
-        targets.push((i as f32, curr_val));
+    for (i, val) in values.iter().enumerate().skip(1).take(TRAINING_WINDOW * 2) {
+        targets.push((i as f32, *val));
 
         let predicted_out = rc.readout_matrix() * &state;
         let pred = predicted_out.get(0).unwrap();
-        curr_pred *= pred.exp();
 
         if i == TRAINING_WINDOW {
-            curr_pred = series[TRAINING_WINDOW];
-            predictions.push((i as f32, curr_pred));
+            predictions.push((i as f32, *pred));
         }
         // TO begin forecasting, replace target input with it's own prediction
         let val: f32 = if i > TRAINING_WINDOW {
-            predictions.push((i as f32, curr_pred));
+            predictions.push((i as f32, *pred));
             *pred
         } else {
-            train_predictions.push((i as f32, curr_pred));
+            train_predictions.push((i as f32, *pred));
             *val
         };
 
