@@ -1,22 +1,20 @@
 use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, SymmetricEigen, VecStorage};
 use nanorand::{Rng, WyRand};
 
-/// The Reseoir Computer
-/// N is the number of reservoir nodes
-/// M is the input and output dimension
+/// The Reseoir Computer, Echo State Network
 #[derive(Debug)]
-pub(crate) struct ReservoirComputer {
+pub(crate) struct ESN {
     reservoir_size: usize,
-    leaking_rate: f32,
-    input_bias: f32,
-    regularization_coeff: f32,
-    input_matrix: Matrix<f32, Dynamic, Const<1>, VecStorage<f32, Dynamic, Const<1>>>,
-    reservoir: DMatrix<f32>,
-    readout_matrix: Matrix<f32, Const<1>, Dynamic, VecStorage<f32, Const<1>, Dynamic>>,
-    state: Matrix<f32, Dynamic, Const<1>, VecStorage<f32, Dynamic, Const<1>>>,
+    leaking_rate: f64,
+    input_bias: f64,
+    regularization_coeff: f64,
+    input_matrix: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
+    reservoir: DMatrix<f64>,
+    readout_matrix: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>,
+    state: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
 }
 
-impl ReservoirComputer {
+impl ESN {
     /// Create a new reservoir, with random initiallization
     /// # Arguments
     /// reservoir_size: number of nodes in the reservoir
@@ -44,27 +42,27 @@ impl ReservoirComputer {
     pub(crate) fn new(
         reservoir_size: usize,
         fixed_in_degree_k: usize,
-        input_sparsity: f32,
-        input_scaling: f32,
-        input_bias: f32,
-        spectral_radius: f32,
-        leaking_rate: f32,
-        regularization_coeff: f32,
+        input_sparsity: f64,
+        input_scaling: f64,
+        input_bias: f64,
+        spectral_radius: f64,
+        leaking_rate: f64,
+        regularization_coeff: f64,
         seed: Option<u64>,
     ) -> Self {
         let mut rng = match seed {
             Some(seed) => WyRand::new_seed(seed),
             None => WyRand::new(),
         };
-        let mut weights: Vec<Vec<f32>> = vec![vec![0.0; reservoir_size]; reservoir_size];
+        let mut weights: Vec<Vec<f64>> = vec![vec![0.0; reservoir_size]; reservoir_size];
         for j in 0..weights.len() {
             for _ in 0..fixed_in_degree_k {
                 // Choose random input node
                 let i = rng.generate_range(0..reservoir_size);
-                weights[i][j] = rng.generate::<f32>() * 2.0 - 1.0;
+                weights[i][j] = rng.generate::<f64>() * 2.0 - 1.0;
             }
         }
-        let mut reservoir: DMatrix<f32> = DMatrix::from_vec_generic(
+        let mut reservoir: DMatrix<f64> = DMatrix::from_vec_generic(
             Dim::from_usize(reservoir_size),
             Dim::from_usize(reservoir_size),
             weights.iter().cloned().flatten().collect(),
@@ -75,21 +73,21 @@ impl ReservoirComputer {
         let spec_rad = eigen.eigenvalues.abs().max();
         reservoir *= (1.0 / spec_rad) * spectral_radius;
 
-        let input_matrix: Matrix<f32, Dynamic, Const<1>, VecStorage<f32, Dynamic, Const<1>>> =
+        let input_matrix: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
             Matrix::from_fn_generic(Dim::from_usize(reservoir_size), Dim::from_usize(1), |_, _| {
-                if rng.generate::<f32>() < input_sparsity {
-                    rng.generate::<f32>() * input_scaling
+                if rng.generate::<f64>() < input_sparsity {
+                    rng.generate::<f64>() * input_scaling
                 } else {
                     0.0
                 }
             });
-        let readout_matrix: Matrix<f32, Const<1>, Dynamic, VecStorage<f32, Const<1>, Dynamic>> =
+        let readout_matrix: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
             Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(reservoir_size), |_, _| {
-                rng.generate::<f32>() * 2.0 - 1.0
+                rng.generate::<f64>() * 2.0 - 1.0
             });
-        let state: Matrix<f32, Dynamic, Const<1>, VecStorage<f32, Dynamic, Const<1>>> =
+        let state: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
             Matrix::from_fn_generic(Dim::from_usize(reservoir_size), Dim::from_usize(1), |_, _| {
-                rng.generate::<f32>() * 2.0 - 1.0
+                rng.generate::<f64>() * 2.0 - 1.0
             });
         debug!(
             "input_matrix: {}\nreservoir: {}\nreadout_matrix: {}\nstate: {}",
@@ -108,19 +106,19 @@ impl ReservoirComputer {
         }
     }
 
-    pub(crate) fn train(&mut self, values: &[f32]) {
-        let mut step_wise_design: DMatrix<f32> = DMatrix::from_fn_generic(
+    pub(crate) fn train(&mut self, values: &[f64]) {
+        let mut step_wise_design: DMatrix<f64> = DMatrix::from_fn_generic(
             Dim::from_usize(self.reservoir_size),
             Dim::from_usize(values.len()),
             |_, _| 0.0,
         );
         let mut step_wise_predictions: Matrix<
-            f32,
+            f64,
             Const<1>,
             Dynamic,
-            VecStorage<f32, Const<1>, Dynamic>,
+            VecStorage<f64, Const<1>, Dynamic>,
         > = Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(values.len()), |_, _| 0.0);
-        let step_wise_target: Matrix<f32, Const<1>, Dynamic, VecStorage<f32, Const<1>, Dynamic>> =
+        let step_wise_target: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
             Matrix::from_vec_generic(
                 Dim::from_usize(1),
                 Dim::from_usize(values.len()),
@@ -133,7 +131,7 @@ impl ReservoirComputer {
             step_wise_design.set_column(j, &self.state);
 
             let a = (1.0 - self.leaking_rate) * &self.state;
-            let unit_vec: Matrix<f32, Dynamic, Const<1>, VecStorage<f32, Dynamic, Const<1>>> =
+            let unit_vec: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
                 Matrix::from_element_generic(
                     Dim::from_usize(self.reservoir_size),
                     Dim::from_usize(1),
@@ -150,7 +148,7 @@ impl ReservoirComputer {
         let design_t = step_wise_design.transpose();
         // Use regularizaion whenever there is a danger of overfitting or feedback
         // instability
-        let identity_m: DMatrix<f32> = DMatrix::from_diagonal_element_generic(
+        let identity_m: DMatrix<f64> = DMatrix::from_diagonal_element_generic(
             Dim::from_usize(self.reservoir_size),
             Dim::from_usize(self.reservoir_size),
             1.0,
@@ -162,23 +160,23 @@ impl ReservoirComputer {
 
     pub(crate) fn readout_matrix(
         &self,
-    ) -> &Matrix<f32, Const<1>, Dynamic, VecStorage<f32, Const<1>, Dynamic>> {
+    ) -> &Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> {
         &self.readout_matrix
     }
 
-    pub(crate) fn reservoir(&self) -> &DMatrix<f32> {
+    pub(crate) fn reservoir(&self) -> &DMatrix<f64> {
         &self.reservoir
     }
 
     pub(crate) fn input_matrix(
         &self,
-    ) -> &Matrix<f32, Dynamic, Const<1>, VecStorage<f32, Dynamic, Const<1>>> {
+    ) -> &Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> {
         &self.input_matrix
     }
 
     pub(crate) fn state(
         &self,
-    ) -> Matrix<f32, Dynamic, Const<1>, VecStorage<f32, Dynamic, Const<1>>> {
+    ) -> Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> {
         self.state.clone()
     }
 }

@@ -2,17 +2,17 @@
 extern crate log;
 
 mod errors;
+mod esn;
 mod load_sample_data;
-mod reservoir;
 
 use std::time::Instant;
 
 use plotters::prelude::*;
 use time_series_generator::generate_sine_wave;
 
-use crate::reservoir::ReservoirComputer;
+use crate::esn::ESN;
 
-type Series = Vec<(f32, f32)>;
+type Series = Vec<(f64, f64)>;
 
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
@@ -23,23 +23,23 @@ fn main() {
     pretty_env_logger::init();
 
     info!("loading sample data");
-    let series = load_sample_data::load_sample_data();
     /*
-    let values: Vec<f32> =
+    let series = load_sample_data::load_sample_data();
+    let values: Vec<f64> =
         series.iter().skip(1).zip(series.iter()).map(|(a, b)| (a / b).ln()).collect();
     */
-    let mut values: Vec<f32> = generate_sine_wave(100).iter().map(|v| *v as f32).collect();
+    let mut values: Vec<f64> = generate_sine_wave(100);
     values.append(&mut values.clone());
     values.append(&mut values.clone());
-    info!("got {} datapoints", series.len());
+    info!("got {} datapoints", values.len());
 
     const TRAINING_WINDOW: usize = 200;
 
     let t0 = Instant::now();
 
     let leaking_rate = 0.1;
-    let mut rc = ReservoirComputer::new(40, 4, 0.6, 0.0, 0.0, 0.95, leaking_rate, 0.1, Some(1));
-    rc.train(&values.iter().take(TRAINING_WINDOW).cloned().collect::<Vec<f32>>());
+    let mut rc = ESN::new(40, 4, 0.6, 0.0, 0.0, 0.95, leaking_rate, 0.1, Some(1));
+    rc.train(&values.iter().take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>());
 
     let mut targets: Series = Vec::with_capacity(1_000_000);
     let mut predictions: Series = Vec::with_capacity(1_000_000);
@@ -48,20 +48,20 @@ fn main() {
 
     let mut state = rc.state();
     for (i, val) in values.iter().enumerate().skip(1).take(TRAINING_WINDOW * 2) {
-        targets.push((i as f32, *val));
+        targets.push((i as f64, *val));
 
         let predicted_out = rc.readout_matrix() * &state;
         let pred = predicted_out.get(0).unwrap();
 
         if i == TRAINING_WINDOW {
-            predictions.push((i as f32, *pred));
+            predictions.push((i as f64, *pred));
         }
         // TO begin forecasting, replace target input with it's own prediction
-        let val: f32 = if i > TRAINING_WINDOW {
-            predictions.push((i as f32, *pred));
+        let val: f64 = if i > TRAINING_WINDOW {
+            predictions.push((i as f64, *pred));
             *pred
         } else {
-            train_predictions.push((i as f32, *pred));
+            train_predictions.push((i as f64, *pred));
             *val
         };
 
@@ -74,15 +74,15 @@ fn main() {
     info!("t_diff: {}ms", t0.elapsed().as_millis());
 
     //let targets = series.iter().enumerate().take(TRAINING_WINDOW * 2).map(|(i,
-    // y)| (i as f32, *y as f32)).collect();
+    // y)| (i as f64, *y as f64)).collect();
     plot(&targets, &train_predictions, &predictions, "img/plot.png");
 }
 
 fn plot(targets: &Series, train_preds: &Series, test_preds: &Series, filename: &str) {
     let ts_min = targets[0].0;
     let ts_max = targets[targets.len() - 1].0;
-    let mut target_min: f32 = targets[0].1;
-    let mut target_max: f32 = targets[targets.len() - 1].1;
+    let mut target_min: f64 = targets[0].1;
+    let mut target_max: f64 = targets[targets.len() - 1].1;
     for t in targets {
         if t.1 < target_min {
             target_min = t.1;
