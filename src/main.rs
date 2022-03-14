@@ -44,11 +44,12 @@ fn main() {
         input_sparsity: 0.2,
         input_scaling: 0.1,
         input_bias: 0.0,
-        feedback_gain: 0.0,
+        feedback_gain: 0.1,
         spectral_radius: 0.8,
-        leaking_rate: 0.1,
+        leaking_rate: 0.05,
         regularization_coeff: 0.1,
         washout_pct: 0.25,
+        output_tanh: false,
         seed: None,
     };
     let mut rc = ESN::new(params);

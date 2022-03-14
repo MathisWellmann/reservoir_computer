@@ -44,6 +44,7 @@ pub(crate) struct Params {
     pub(crate) leaking_rate: f64,
     pub(crate) regularization_coeff: f64,
     pub(crate) washout_pct: f64,
+    pub(crate) output_tanh: bool,
     pub(crate) seed: Option<u64>,
 }
 
@@ -223,7 +224,9 @@ impl ESN {
     #[must_use]
     pub(crate) fn readout(&self) -> PredictionMatrix {
         let mut pred = &self.readout_matrix * &self.state;
-        pred.iter_mut().for_each(|v| *v = v.tanh());
+        if self.params.output_tanh {
+            pred.iter_mut().for_each(|v| *v = v.tanh());
+        }
 
         pred
     }
