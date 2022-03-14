@@ -39,9 +39,9 @@ fn main() {
     let t0 = Instant::now();
 
     let params = Params {
-        reservoir_size: 30,
-        fixed_in_degree_k: 4,
-        input_sparsity: 0.3,
+        reservoir_size: 20,
+        fixed_in_degree_k: 6,
+        input_sparsity: 0.2,
         input_scaling: 0.05,
         input_bias: 0.0,
         spectral_radius: 0.9,
@@ -57,11 +57,11 @@ fn main() {
 
     let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
 
-    let mut state = rc.state();
+    rc.reset_state(0.0);
     for (i, val) in values.iter().enumerate().skip(1).take(TRAINING_WINDOW * 2) {
         targets.push((i as f64, *val));
 
-        let predicted_out = rc.readout_matrix() * &state;
+        let predicted_out = rc.readout();
         let last_prediction = *predicted_out.get(0).unwrap();
 
         if i == TRAINING_WINDOW {
@@ -76,7 +76,7 @@ fn main() {
             *val
         };
 
-        state = rc.state_update(val, &state, &predicted_out)
+        rc.update_state(val, &predicted_out);
     }
 
     info!("t_diff: {}ms", t0.elapsed().as_millis());
