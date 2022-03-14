@@ -1,4 +1,8 @@
 # Reservoir Computer in Rust
 
 # TODOS:
-- introduce ESNParams struct for clearer parameter passing
+- Output activation function
+- Output over extended state which included inputs 
+- optional Feedback matrix
+- implement benchmark chaotic dynamical systems
+- implement lyapunov time for analysis purposes

@@ -31,17 +31,18 @@ fn main() {
     let mut values: Vec<f64> = generate_sine_wave(100);
     values.append(&mut values.clone());
     values.append(&mut values.clone());
+    values.append(&mut values.clone());
     info!("got {} datapoints", values.len());
 
-    const TRAINING_WINDOW: usize = 200;
+    const TRAINING_WINDOW: usize = 400;
 
     let t0 = Instant::now();
 
     let params = Params {
-        reservoir_size: 10,
+        reservoir_size: 30,
         fixed_in_degree_k: 4,
-        input_sparsity: 0.5,
-        input_scaling: 0.1,
+        input_sparsity: 0.3,
+        input_scaling: 0.05,
         input_bias: 0.0,
         spectral_radius: 0.9,
         leaking_rate: 0.15,
@@ -75,7 +76,7 @@ fn main() {
             *val
         };
 
-        state = rc.state_update(val, &state)
+        state = rc.state_update(val, &state, &predicted_out)
     }
 
     info!("t_diff: {}ms", t0.elapsed().as_millis());
