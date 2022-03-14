@@ -39,9 +39,11 @@ pub(crate) struct Params {
     pub(crate) input_sparsity: f64,
     pub(crate) input_scaling: f64,
     pub(crate) input_bias: f64,
+    pub(crate) feedback_gain: f64,
     pub(crate) spectral_radius: f64,
     pub(crate) leaking_rate: f64,
     pub(crate) regularization_coeff: f64,
+    pub(crate) washout_pct: f64,
     pub(crate) seed: Option<u64>,
 }
 
@@ -57,7 +59,6 @@ pub(crate) struct ESN {
     feedback_matrix:
         Matrix<f64, Dynamic, Const<OUTPUT_DIM>, VecStorage<f64, Dynamic, Const<OUTPUT_DIM>>>,
     state: StateMatrix,
-    extended_state: ExtendedStateMatrix,
 }
 
 impl ESN {
@@ -135,11 +136,6 @@ impl ESN {
             Dim::from_usize(1),
             0.0,
         );
-        let extended_state: ExtendedStateMatrix = Matrix::from_element_generic(
-            Dim::from_usize(params.reservoir_size + INPUT_DIM),
-            Dim::from_usize(1),
-            0.0,
-        );
         info!(
             "input_matrix: {}\nreservoir: {}\nreadout_matrix: {}\nstate: {}",
             input_matrix, reservoir_matrix, readout_matrix, state
@@ -152,28 +148,30 @@ impl ESN {
             readout_matrix,
             state,
             feedback_matrix,
-            extended_state,
         }
     }
 
     pub(crate) fn train(&mut self, values: &[f64]) {
-        let mut step_wise_state: DMatrix<f64> = DMatrix::from_fn_generic(
+        let washout_len = (values.len() as f64 * self.params.washout_pct) as usize;
+        let harvest_len = values.len() - washout_len;
+
+        let mut step_wise_state: DMatrix<f64> = DMatrix::from_element_generic(
             Dim::from_usize(self.params.reservoir_size),
-            Dim::from_usize(values.len()),
-            |_, _| 0.0,
+            Dim::from_usize(harvest_len),
+            0.0,
         );
         let mut step_wise_predictions: Matrix<
             f64,
             Const<1>,
             Dynamic,
             VecStorage<f64, Const<1>, Dynamic>,
-        > = Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(values.len()), |_, _| 0.0);
+        > = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(harvest_len), 0.0);
         let mut step_wise_target: Matrix<
             f64,
             Const<1>,
             Dynamic,
             VecStorage<f64, Const<1>, Dynamic>,
-        > = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(values.len()), 0.0);
+        > = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(harvest_len), 0.0);
         let mut curr_pred = self.readout();
         for (j, (val_0, val_1)) in values.iter().zip(values.iter().skip(1)).enumerate() {
             self.update_state(*val_0, &curr_pred);
@@ -181,15 +179,17 @@ impl ESN {
             curr_pred = self.readout();
 
             // discard earlier values, as the state has to stabilize first
-            step_wise_state.set_column(j, &self.state);
-            let target: Matrix<
-                f64,
-                Const<OUTPUT_DIM>,
-                Const<OUTPUT_DIM>,
-                ArrayStorage<f64, OUTPUT_DIM, OUTPUT_DIM>,
-            > = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(1), *val_1);
-            step_wise_target.set_column(j, &target);
-            step_wise_predictions.set_column(j, &curr_pred);
+            if j > washout_len {
+                step_wise_state.set_column(j - washout_len, &self.state);
+                let target: Matrix<
+                    f64,
+                    Const<OUTPUT_DIM>,
+                    Const<OUTPUT_DIM>,
+                    ArrayStorage<f64, OUTPUT_DIM, OUTPUT_DIM>,
+                > = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(1), *val_1);
+                step_wise_target.set_column(j - washout_len, &target);
+                step_wise_predictions.set_column(j - washout_len, &curr_pred);
+            }
         }
 
         // compute optimal readout matrix
@@ -202,36 +202,38 @@ impl ESN {
             1.0,
         );
         let b = step_wise_state * &state_t + self.params.regularization_coeff * identity_m;
-        info!("b: {}", b);
         self.readout_matrix = step_wise_target * (&state_t * b.transpose());
         info!("trained readout_matrix: {}", self.readout_matrix);
     }
 
     pub(crate) fn update_state(&mut self, input: f64, prev_pred: &PredictionMatrix) {
+        assert!(input.is_finite());
+
+        // TODO: optionally add noise to state update
+
         let mut new_state = (1.0 - self.params.leaking_rate) * &self.input_matrix * input
             + self.params.leaking_rate * &self.reservoir_matrix * &self.state
-            + self.params.leaking_rate * &self.feedback_matrix * prev_pred;
+            + self.params.feedback_gain * &self.feedback_matrix * prev_pred;
         new_state.iter_mut().for_each(|v| *v = v.tanh());
         self.state = new_state;
-
-        // TODO:
-        //self.extended_state =;
     }
 
     /// Perform a readout operation
+    #[inline]
+    #[must_use]
     pub(crate) fn readout(&self) -> PredictionMatrix {
-        // TODO: output activation function
-        // TODO: mult by extended_state
-        &self.readout_matrix * &self.state
+        let mut pred = &self.readout_matrix * &self.state;
+        pred.iter_mut().for_each(|v| *v = v.tanh());
+
+        pred
     }
 
     /// Resets the state to it's initial values
-    pub(crate) fn reset_state(&mut self, last_input: f64) {
+    pub(crate) fn reset_state(&mut self) {
         self.state = Matrix::from_element_generic(
             Dim::from_usize(self.params.reservoir_size),
             Dim::from_usize(1),
             0.0,
         );
-        // TODO: same for extended state
     }
 }

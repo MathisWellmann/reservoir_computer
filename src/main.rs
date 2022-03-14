@@ -40,29 +40,35 @@ fn main() {
 
     let params = Params {
         reservoir_size: 20,
-        fixed_in_degree_k: 6,
+        fixed_in_degree_k: 2,
         input_sparsity: 0.2,
-        input_scaling: 0.05,
+        input_scaling: 0.1,
         input_bias: 0.0,
-        spectral_radius: 0.9,
-        leaking_rate: 0.15,
+        feedback_gain: 0.0,
+        spectral_radius: 0.8,
+        leaking_rate: 0.1,
         regularization_coeff: 0.1,
+        washout_pct: 0.25,
         seed: None,
     };
     let mut rc = ESN::new(params);
     rc.train(&values.iter().take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>());
+    info!("training done in: {}ms", t0.elapsed().as_millis());
 
     let mut targets: Series = Vec::with_capacity(1_000_000);
     let mut predictions: Series = Vec::with_capacity(1_000_000);
 
     let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
 
-    rc.reset_state(0.0);
+    rc.reset_state();
     for (i, val) in values.iter().enumerate().skip(1).take(TRAINING_WINDOW * 2) {
         targets.push((i as f64, *val));
 
         let predicted_out = rc.readout();
-        let last_prediction = *predicted_out.get(0).unwrap();
+        let mut last_prediction = *predicted_out.get(0).unwrap();
+        if !last_prediction.is_finite() {
+            last_prediction = 0.0;
+        }
 
         if i == TRAINING_WINDOW {
             predictions.push((i as f64, last_prediction));
@@ -78,8 +84,6 @@ fn main() {
 
         rc.update_state(val, &predicted_out);
     }
-
-    info!("t_diff: {}ms", t0.elapsed().as_millis());
 
     //let targets = series.iter().enumerate().take(TRAINING_WINDOW * 2).map(|(i,
     // y)| (i as f64, *y as f64)).collect();
