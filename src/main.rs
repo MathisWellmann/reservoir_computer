@@ -1,18 +1,26 @@
 #[macro_use]
 extern crate log;
 
+mod activation;
 mod errors;
 mod esn;
 mod load_sample_data;
 
 use std::time::Instant;
 
+use nalgebra::{Const, Dim, Matrix};
 use plotters::prelude::*;
 use time_series_generator::generate_sine_wave;
 
-use crate::esn::{Params, ESN};
+use crate::{
+    activation::Activation,
+    esn::{Inputs, Params, Targets, ESN},
+};
 
 type Series = Vec<(f64, f64)>;
+
+pub(crate) const INPUT_DIM: usize = 1;
+pub(crate) const OUTPUT_DIM: usize = 1;
 
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
@@ -39,11 +47,15 @@ fn main() {
     let t0 = Instant::now();
 
     let params = Params {
+        input_sparsity: 0.5,
+        input_activation: Activation::Tanh,
+        input_weight_scaling: 1.0,
+        input_bias_scaling: 0.1,
+
         reservoir_size: 20,
-        fixed_in_degree_k: 2,
-        input_sparsity: 0.2,
-        input_scaling: 0.1,
-        input_bias: 0.0,
+        reservoir_fixed_in_degree_k: 2,
+        reservoir_activation: Activation::Tanh,
+
         feedback_gain: 0.1,
         spectral_radius: 0.8,
         leaking_rate: 0.05,
@@ -53,17 +65,30 @@ fn main() {
         seed: None,
     };
     let mut rc = ESN::new(params);
-    rc.train(&values.iter().take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>());
+    let train_inputs = Matrix::from_vec_generic(
+        Dim::from_usize(INPUT_DIM),
+        Dim::from_usize(TRAINING_WINDOW),
+        values.iter().take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>(),
+    );
+    let train_targets = Matrix::from_vec_generic(
+        Dim::from_usize(OUTPUT_DIM),
+        Dim::from_usize(TRAINING_WINDOW),
+        values.iter().skip(1).take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>(),
+    );
+    rc.train(&train_inputs, &train_targets);
     info!("training done in: {}ms", t0.elapsed().as_millis());
 
-    let mut targets: Series = Vec::with_capacity(1_000_000);
-    let mut predictions: Series = Vec::with_capacity(1_000_000);
+    let mut plot_targets: Series = Vec::with_capacity(1_000_000);
+    let mut plot_predictions: Series = Vec::with_capacity(1_000_000);
 
     let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
 
+    let n_vals = values.len();
+    let inputs: Inputs =
+        Matrix::from_vec_generic(Dim::from_usize(INPUT_DIM), Dim::from_usize(values.len()), values);
     rc.reset_state();
-    for (i, val) in values.iter().enumerate().skip(1).take(TRAINING_WINDOW * 2) {
-        targets.push((i as f64, *val));
+    for j in 0..n_vals {
+        plot_targets.push((j as f64, *inputs.column(j).get(0).unwrap()));
 
         let predicted_out = rc.readout();
         let mut last_prediction = *predicted_out.get(0).unwrap();
@@ -71,24 +96,24 @@ fn main() {
             last_prediction = 0.0;
         }
 
-        if i == TRAINING_WINDOW {
-            predictions.push((i as f64, last_prediction));
+        if j == TRAINING_WINDOW {
+            plot_predictions.push((j as f64, last_prediction));
         }
         // TO begin forecasting, replace target input with it's own prediction
-        let val: f64 = if i > TRAINING_WINDOW {
-            predictions.push((i as f64, last_prediction));
-            last_prediction
+        let input = if j > TRAINING_WINDOW {
+            plot_predictions.push((j as f64, last_prediction));
+            predicted_out.column(0)
         } else {
-            train_predictions.push((i as f64, last_prediction));
-            *val
+            train_predictions.push((j as f64, last_prediction));
+            inputs.column(j)
         };
 
-        rc.update_state(val, &predicted_out);
+        rc.update_state(&input, &predicted_out);
     }
 
     //let targets = series.iter().enumerate().take(TRAINING_WINDOW * 2).map(|(i,
     // y)| (i as f64, *y as f64)).collect();
-    plot(&targets, &train_predictions, &predictions, "img/plot.png");
+    plot(&plot_targets, &train_predictions, &plot_predictions, "img/plot.png");
 }
 
 fn plot(targets: &Series, train_preds: &Series, test_preds: &Series, filename: &str) {

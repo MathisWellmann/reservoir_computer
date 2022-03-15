@@ -1,9 +1,14 @@
-use nalgebra::{ArrayStorage, Const, DMatrix, Dim, Dynamic, Matrix, SymmetricEigen, VecStorage};
+use nalgebra::{
+    ArrayStorage, Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, SymmetricEigen, VecStorage,
+};
 use nanorand::{Rng, WyRand};
 
-const INPUT_DIM: usize = 1;
-const OUTPUT_DIM: usize = 1;
+use crate::{activation::Activation, INPUT_DIM, OUTPUT_DIM};
 
+pub(crate) type Inputs =
+    Matrix<f64, Const<INPUT_DIM>, Dynamic, VecStorage<f64, Const<INPUT_DIM>, Dynamic>>;
+pub(crate) type Targets =
+    Matrix<f64, Const<OUTPUT_DIM>, Dynamic, VecStorage<f64, Const<INPUT_DIM>, Dynamic>>;
 pub(crate) type StateMatrix = Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;
 pub(crate) type ExtendedStateMatrix =
     Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;
@@ -34,11 +39,15 @@ pub(crate) type PredictionMatrix =
 /// seed: optional RNG seed
 #[derive(Debug, Clone)]
 pub(crate) struct Params {
-    pub(crate) reservoir_size: usize,
-    pub(crate) fixed_in_degree_k: usize,
     pub(crate) input_sparsity: f64,
-    pub(crate) input_scaling: f64,
-    pub(crate) input_bias: f64,
+    pub(crate) input_activation: Activation,
+    pub(crate) input_weight_scaling: f64,
+    pub(crate) input_bias_scaling: f64,
+
+    pub(crate) reservoir_size: usize,
+    pub(crate) reservoir_fixed_in_degree_k: usize,
+    pub(crate) reservoir_activation: Activation,
+
     pub(crate) feedback_gain: f64,
     pub(crate) spectral_radius: f64,
     pub(crate) leaking_rate: f64,
@@ -52,8 +61,9 @@ pub(crate) struct Params {
 #[derive(Debug)]
 pub(crate) struct ESN {
     params: Params,
-    input_matrix:
+    input_weight_matrix:
         Matrix<f64, Dynamic, Const<INPUT_DIM>, VecStorage<f64, Dynamic, Const<INPUT_DIM>>>,
+    input_biases: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
     reservoir_matrix: DMatrix<f64>,
     readout_matrix:
         Matrix<f64, Const<OUTPUT_DIM>, Dynamic, VecStorage<f64, Const<OUTPUT_DIM>, Dynamic>>,
@@ -73,7 +83,7 @@ impl ESN {
         let mut weights: Vec<Vec<f64>> =
             vec![vec![0.0; params.reservoir_size]; params.reservoir_size];
         for j in 0..weights.len() {
-            for _ in 0..params.fixed_in_degree_k {
+            for _ in 0..params.reservoir_fixed_in_degree_k {
                 // Choose random input node
                 let i = rng.generate_range(0..params.reservoir_size);
                 weights[i][j] = rng.generate::<f64>() * 2.0 - 1.0;
@@ -89,7 +99,7 @@ impl ESN {
         let spec_rad = eigen.eigenvalues.abs().max();
         reservoir_matrix *= (1.0 / spec_rad) * params.spectral_radius;
 
-        let input_matrix: Matrix<
+        let input_weight_matrix: Matrix<
             f64,
             Dynamic,
             Const<INPUT_DIM>,
@@ -99,12 +109,23 @@ impl ESN {
             Dim::from_usize(INPUT_DIM),
             |_, _| {
                 if rng.generate::<f64>() < params.input_sparsity {
-                    rng.generate::<f64>() * params.input_scaling
+                    rng.generate::<f64>() * params.input_weight_scaling * 2.0 - 1.0
                 } else {
                     0.0
                 }
             },
         );
+        let input_biases: Matrix<
+            f64,
+            Dynamic,
+            Const<INPUT_DIM>,
+            VecStorage<f64, Dynamic, Const<1>>,
+        > = Matrix::from_fn_generic(
+            Dim::from_usize(params.reservoir_size),
+            Dim::from_usize(1),
+            |_, _| rng.generate::<f64>() * params.input_bias_scaling * 2.0 - 1.0,
+        );
+
         let readout_matrix: Matrix<
             f64,
             Const<OUTPUT_DIM>,
@@ -126,7 +147,7 @@ impl ESN {
             |_, _| {
                 // TODO: input_sparsity should maybe be feedback_sparsity
                 if rng.generate::<f64>() < params.input_sparsity {
-                    rng.generate::<f64>() * params.input_scaling
+                    rng.generate::<f64>() * params.feedback_gain
                 } else {
                     0.0
                 }
@@ -139,22 +160,23 @@ impl ESN {
         );
         info!(
             "input_matrix: {}\nreservoir: {}\nreadout_matrix: {}\nstate: {}",
-            input_matrix, reservoir_matrix, readout_matrix, state
+            input_weight_matrix, reservoir_matrix, readout_matrix, state
         );
 
         Self {
             params,
             reservoir_matrix,
-            input_matrix,
+            input_weight_matrix,
             readout_matrix,
             state,
             feedback_matrix,
+            input_biases,
         }
     }
 
-    pub(crate) fn train(&mut self, values: &[f64]) {
-        let washout_len = (values.len() as f64 * self.params.washout_pct) as usize;
-        let harvest_len = values.len() - washout_len;
+    pub(crate) fn train(&mut self, inputs: &Inputs, targets: &Targets) {
+        let washout_len = (inputs.ncols() as f64 * self.params.washout_pct) as usize;
+        let harvest_len = inputs.ncols() - washout_len;
 
         let mut step_wise_state: DMatrix<f64> = DMatrix::from_element_generic(
             Dim::from_usize(self.params.reservoir_size),
@@ -168,20 +190,23 @@ impl ESN {
             VecStorage<f64, Const<1>, Dynamic>,
         > = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(harvest_len), 0.0);
         let mut curr_pred = self.readout();
-        for (j, (val_0, val_1)) in values.iter().zip(values.iter().skip(1)).enumerate() {
-            self.update_state(*val_0, &curr_pred);
+        for j in 0..inputs.ncols() {
+            self.update_state(&inputs.column(j), &curr_pred);
 
             curr_pred = self.readout();
 
             // discard earlier values, as the state has to stabilize first
             if j > washout_len {
                 step_wise_state.set_column(j - washout_len, &self.state);
+                let target_col = targets.column(j);
                 let target: Matrix<
                     f64,
                     Const<OUTPUT_DIM>,
-                    Const<OUTPUT_DIM>,
-                    ArrayStorage<f64, OUTPUT_DIM, OUTPUT_DIM>,
-                > = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(1), *val_1);
+                    Const<1>,
+                    ArrayStorage<f64, OUTPUT_DIM, 1>,
+                > = Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |i, _j| {
+                    *target_col.get(i).unwrap()
+                });
                 step_wise_target.set_column(j - washout_len, &target);
             }
         }
@@ -200,15 +225,25 @@ impl ESN {
         info!("trained readout_matrix: {}", self.readout_matrix);
     }
 
-    pub(crate) fn update_state(&mut self, input: f64, prev_pred: &PredictionMatrix) {
-        assert!(input.is_finite());
-
+    pub(crate) fn update_state<'a>(
+        &mut self,
+        input: &'a MatrixSlice<'a, f64, Const<INPUT_DIM>, Const<1>>,
+        prev_pred: &PredictionMatrix,
+    ) {
         // TODO: optionally add noise to state update
 
-        let mut new_state = (1.0 - self.params.leaking_rate) * &self.input_matrix * input
-            + self.params.leaking_rate * &self.reservoir_matrix * &self.state
-            + self.params.feedback_gain * &self.feedback_matrix * prev_pred;
-        new_state.iter_mut().for_each(|v| *v = v.tanh());
+        // propagate inputs
+        let mut input_state: StateMatrix =
+            (&self.input_weight_matrix * input * self.params.input_weight_scaling)
+                + (self.params.input_bias_scaling * &self.input_biases);
+        self.params.input_activation.activate(input_state.as_mut_slice());
+
+        // perform node-to-node update
+        let mut new_state = (1.0 - self.params.leaking_rate) * input_state
+            + self.params.leaking_rate * (&self.reservoir_matrix * &self.state)
+            + (&self.feedback_matrix * prev_pred);
+        self.params.reservoir_activation.activate(new_state.as_mut_slice());
+
         self.state = new_state;
     }
 
