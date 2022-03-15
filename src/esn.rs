@@ -161,12 +161,6 @@ impl ESN {
             Dim::from_usize(harvest_len),
             0.0,
         );
-        let mut step_wise_predictions: Matrix<
-            f64,
-            Const<1>,
-            Dynamic,
-            VecStorage<f64, Const<1>, Dynamic>,
-        > = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(harvest_len), 0.0);
         let mut step_wise_target: Matrix<
             f64,
             Const<1>,
@@ -189,7 +183,6 @@ impl ESN {
                     ArrayStorage<f64, OUTPUT_DIM, OUTPUT_DIM>,
                 > = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(1), *val_1);
                 step_wise_target.set_column(j - washout_len, &target);
-                step_wise_predictions.set_column(j - washout_len, &curr_pred);
             }
         }
 
