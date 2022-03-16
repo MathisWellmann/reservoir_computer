@@ -6,14 +6,13 @@ use nanorand::{Rng, WyRand};
 use crate::{activation::Activation, INPUT_DIM, OUTPUT_DIM};
 
 pub(crate) type Inputs =
-    Matrix<f64, Const<INPUT_DIM>, Dynamic, VecStorage<f64, Const<INPUT_DIM>, Dynamic>>;
+    Matrix<f64, Dynamic, Const<INPUT_DIM>, VecStorage<f64, Dynamic, Const<INPUT_DIM>>>;
 pub(crate) type Targets =
-    Matrix<f64, Const<OUTPUT_DIM>, Dynamic, VecStorage<f64, Const<INPUT_DIM>, Dynamic>>;
+    Matrix<f64, Dynamic, Const<OUTPUT_DIM>, VecStorage<f64, Dynamic, Const<INPUT_DIM>>>;
 pub(crate) type StateMatrix = Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;
-pub(crate) type ExtendedStateMatrix =
-    Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;
-pub(crate) type PredictionMatrix =
-    Matrix<f64, Const<OUTPUT_DIM>, Const<OUTPUT_DIM>, ArrayStorage<f64, OUTPUT_DIM, OUTPUT_DIM>>;
+pub(crate) type ReadoutMatrix =
+    Matrix<f64, Dynamic, Const<OUTPUT_DIM>, VecStorage<f64, Dynamic, Const<OUTPUT_DIM>>>;
+pub(crate) type Output = Matrix<f64, Const<1>, Const<1>, ArrayStorage<f64, 1, 1>>;
 
 /// reservoir_size: number of nodes in the reservoir
 /// fixed_in_degree_k: number of inputs per node
@@ -65,8 +64,7 @@ pub(crate) struct ESN {
         Matrix<f64, Dynamic, Const<INPUT_DIM>, VecStorage<f64, Dynamic, Const<INPUT_DIM>>>,
     input_biases: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
     reservoir_matrix: DMatrix<f64>,
-    readout_matrix:
-        Matrix<f64, Const<OUTPUT_DIM>, Dynamic, VecStorage<f64, Const<OUTPUT_DIM>, Dynamic>>,
+    readout_matrix: ReadoutMatrix,
     feedback_matrix:
         Matrix<f64, Dynamic, Const<OUTPUT_DIM>, VecStorage<f64, Dynamic, Const<OUTPUT_DIM>>>,
     state: StateMatrix,
@@ -126,14 +124,9 @@ impl ESN {
             |_, _| rng.generate::<f64>() * params.input_bias_scaling * 2.0 - 1.0,
         );
 
-        let readout_matrix: Matrix<
-            f64,
-            Const<OUTPUT_DIM>,
-            Dynamic,
-            VecStorage<f64, Const<OUTPUT_DIM>, Dynamic>,
-        > = Matrix::from_fn_generic(
-            Dim::from_usize(OUTPUT_DIM),
+        let readout_matrix = Matrix::from_fn_generic(
             Dim::from_usize(params.reservoir_size),
+            Dim::from_usize(OUTPUT_DIM),
             |_, _| rng.generate::<f64>() * 2.0 - 1.0,
         );
         let feedback_matrix: Matrix<
@@ -159,8 +152,8 @@ impl ESN {
             0.0,
         );
         info!(
-            "input_matrix: {}\nreservoir: {}\nreadout_matrix: {}\nstate: {}",
-            input_weight_matrix, reservoir_matrix, readout_matrix, state
+            "input_matrix: {}\nreadout_matrix: {}\nstate: {}",
+            input_weight_matrix, readout_matrix, state
         );
 
         Self {
@@ -175,30 +168,46 @@ impl ESN {
     }
 
     pub(crate) fn train(&mut self, inputs: &Inputs, targets: &Targets) {
-        let washout_len = (inputs.ncols() as f64 * self.params.washout_pct) as usize;
-        let harvest_len = inputs.ncols() - washout_len;
+        let washout_len = (inputs.nrows() as f64 * self.params.washout_pct) as usize;
+        let harvest_len = inputs.nrows() - washout_len;
 
-        let mut step_wise_state: DMatrix<f64> = DMatrix::from_element_generic(
-            Dim::from_usize(self.params.reservoir_size),
+        let mut design_matrix: DMatrix<f64> = DMatrix::from_element_generic(
             Dim::from_usize(harvest_len),
+            Dim::from_usize(1 + self.params.reservoir_size),
             0.0,
         );
-        let mut step_wise_target: Matrix<
+        let mut target_matrix: Matrix<
             f64,
-            Const<1>,
             Dynamic,
-            VecStorage<f64, Const<1>, Dynamic>,
-        > = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(harvest_len), 0.0);
+            Const<OUTPUT_DIM>,
+            VecStorage<f64, Dynamic, Const<OUTPUT_DIM>>,
+        > = Matrix::from_element_generic(
+            Dim::from_usize(harvest_len),
+            Dim::from_usize(OUTPUT_DIM),
+            0.0,
+        );
         let mut curr_pred = self.readout();
-        for j in 0..inputs.ncols() {
-            self.update_state(&inputs.column(j), &curr_pred);
+        for i in 0..inputs.nrows() {
+            self.update_state(&inputs.row(i), &curr_pred);
 
             curr_pred = self.readout();
 
             // discard earlier values, as the state has to stabilize first
-            if j > washout_len {
-                step_wise_state.set_column(j - washout_len, &self.state);
-                let target_col = targets.column(j);
+            if i >= washout_len {
+                let design: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+                    Matrix::from_fn_generic(
+                        Dim::from_usize(1),
+                        Dim::from_usize(1 + self.params.reservoir_size),
+                        |_, j| {
+                            if j == 0 {
+                                1.0
+                            } else {
+                                *self.state.get(j - 1).unwrap()
+                            }
+                        },
+                    );
+                design_matrix.set_row(i - washout_len, &design);
+                let target_col = targets.row(i);
                 let target: Matrix<
                     f64,
                     Const<OUTPUT_DIM>,
@@ -207,28 +216,35 @@ impl ESN {
                 > = Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |i, _j| {
                     *target_col.get(i).unwrap()
                 });
-                step_wise_target.set_column(j - washout_len, &target);
+                target_matrix.set_row(i - washout_len, &target);
             }
         }
 
-        // compute optimal readout matrix
-        let state_t = step_wise_state.transpose();
-        // Use regularizaion whenever there is a danger of overfitting or feedback
-        // instability
+        info!("design_matrix: {}", design_matrix);
+        let k = design_matrix.transpose() * &design_matrix;
         let identity_m: DMatrix<f64> = DMatrix::from_diagonal_element_generic(
-            Dim::from_usize(self.params.reservoir_size),
-            Dim::from_usize(self.params.reservoir_size),
+            Dim::from_usize(1 + self.params.reservoir_size),
+            Dim::from_usize(1 + self.params.reservoir_size),
             1.0,
         );
-        let b = step_wise_state * &state_t + self.params.regularization_coeff * identity_m;
-        self.readout_matrix = step_wise_target * (&state_t * b.transpose());
+        info!("k: {}", k);
+        let p = (k + self.params.regularization_coeff * identity_m).try_inverse().unwrap();
+        let xTy = design_matrix.transpose() * &target_matrix;
+        info!("p: {}, yxT: {}", p, xTy);
+        let readout_matrix = p * xTy;
+        self.readout_matrix = Matrix::from_fn_generic(
+            Dim::from_usize(self.params.reservoir_size),
+            Dim::from_usize(OUTPUT_DIM),
+            |i, _| *readout_matrix.get(i + 1).unwrap(),
+        );
+
         info!("trained readout_matrix: {}", self.readout_matrix);
     }
 
     pub(crate) fn update_state<'a>(
         &mut self,
-        input: &'a MatrixSlice<'a, f64, Const<INPUT_DIM>, Const<1>>,
-        prev_pred: &PredictionMatrix,
+        input: &'a MatrixSlice<'a, f64, Const<1>, Const<INPUT_DIM>, Const<1>, Dynamic>,
+        prev_pred: &Output,
     ) {
         // TODO: optionally add noise to state update
 
@@ -250,8 +266,8 @@ impl ESN {
     /// Perform a readout operation
     #[inline]
     #[must_use]
-    pub(crate) fn readout(&self) -> PredictionMatrix {
-        let mut pred = &self.readout_matrix * &self.state;
+    pub(crate) fn readout(&self) -> Output {
+        let mut pred = self.readout_matrix.transpose() * &self.state;
         if self.params.output_tanh {
             pred.iter_mut().for_each(|v| *v = v.tanh());
         }

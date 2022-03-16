@@ -8,7 +8,7 @@ mod load_sample_data;
 
 use std::time::Instant;
 
-use nalgebra::{Const, Dim, Matrix};
+use nalgebra::{ArrayStorage, Const, Dim, Dynamic, Matrix, VecStorage};
 use plotters::prelude::*;
 use time_series_generator::generate_sine_wave;
 
@@ -31,48 +31,55 @@ fn main() {
     pretty_env_logger::init();
 
     info!("loading sample data");
+
+    const TRAINING_WINDOW: usize = 600;
+
     /*
     let series = load_sample_data::load_sample_data();
     let values: Vec<f64> =
-        series.iter().skip(1).zip(series.iter()).map(|(a, b)| (a / b).ln()).collect();
-    */
+        series.iter()
+              .skip(1)
+              .zip(series.iter())
+              .take(TRAINING_WINDOW * 2)
+              .map(|(a, b)| (a / b).ln() * 100.0)
+              .collect();
+     */
+
     let mut values: Vec<f64> = generate_sine_wave(100);
     values.append(&mut values.clone());
     values.append(&mut values.clone());
     values.append(&mut values.clone());
     info!("got {} datapoints", values.len());
 
-    const TRAINING_WINDOW: usize = 400;
-
     let t0 = Instant::now();
 
     let params = Params {
-        input_sparsity: 0.5,
-        input_activation: Activation::Tanh,
+        input_sparsity: 0.3,
+        input_activation: Activation::Identity,
         input_weight_scaling: 1.0,
-        input_bias_scaling: 0.1,
+        input_bias_scaling: 1.0,
 
-        reservoir_size: 20,
+        reservoir_size: 30,
         reservoir_fixed_in_degree_k: 2,
         reservoir_activation: Activation::Tanh,
 
-        feedback_gain: 0.1,
-        spectral_radius: 0.8,
+        feedback_gain: 0.05,
+        spectral_radius: 0.90,
         leaking_rate: 0.05,
         regularization_coeff: 0.1,
-        washout_pct: 0.25,
-        output_tanh: false,
+        washout_pct: 0.2,
+        output_tanh: true,
         seed: None,
     };
     let mut rc = ESN::new(params);
     let train_inputs = Matrix::from_vec_generic(
-        Dim::from_usize(INPUT_DIM),
         Dim::from_usize(TRAINING_WINDOW),
+        Dim::from_usize(INPUT_DIM),
         values.iter().take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>(),
     );
     let train_targets = Matrix::from_vec_generic(
-        Dim::from_usize(OUTPUT_DIM),
         Dim::from_usize(TRAINING_WINDOW),
+        Dim::from_usize(OUTPUT_DIM),
         values.iter().skip(1).take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>(),
     );
     rc.train(&train_inputs, &train_targets);
@@ -85,10 +92,10 @@ fn main() {
 
     let n_vals = values.len();
     let inputs: Inputs =
-        Matrix::from_vec_generic(Dim::from_usize(INPUT_DIM), Dim::from_usize(values.len()), values);
+        Matrix::from_vec_generic(Dim::from_usize(values.len()), Dim::from_usize(INPUT_DIM), values);
     rc.reset_state();
-    for j in 0..n_vals {
-        plot_targets.push((j as f64, *inputs.column(j).get(0).unwrap()));
+    for i in 0..n_vals {
+        plot_targets.push((i as f64, *inputs.row(i).get(0).unwrap()));
 
         let predicted_out = rc.readout();
         let mut last_prediction = *predicted_out.get(0).unwrap();
@@ -96,16 +103,21 @@ fn main() {
             last_prediction = 0.0;
         }
 
-        if j == TRAINING_WINDOW {
-            plot_predictions.push((j as f64, last_prediction));
+        if i == TRAINING_WINDOW {
+            plot_predictions.push((i as f64, last_prediction));
         }
-        // TO begin forecasting, replace target input with it's own prediction
-        let input = if j > TRAINING_WINDOW {
-            plot_predictions.push((j as f64, last_prediction));
-            predicted_out.column(0)
+        // To begin forecasting, replace target input with it's own prediction
+        let m: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+            Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(INPUT_DIM), |_, j| {
+                *predicted_out.get(j).unwrap()
+            });
+        let input = if i > TRAINING_WINDOW {
+            plot_predictions.push((i as f64, last_prediction));
+            m.row(0)
+            //predicted_out.row(0)
         } else {
-            train_predictions.push((j as f64, last_prediction));
-            inputs.column(j)
+            train_predictions.push((i as f64, last_prediction));
+            inputs.row(i)
         };
 
         rc.update_state(&input, &predicted_out);
@@ -117,7 +129,6 @@ fn main() {
 }
 
 fn plot(targets: &Series, train_preds: &Series, test_preds: &Series, filename: &str) {
-    info!("train_preds: {:?}", train_preds);
     let ts_min = targets[0].0;
     let ts_max = targets[targets.len() - 1].0;
     let mut target_min: f64 = targets[0].1;
