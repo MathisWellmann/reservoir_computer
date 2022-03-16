@@ -1,6 +1,6 @@
 [package]
 name = "reservoir_computer"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 authors = ["Mathis Wellmann <wellmannmathis@gmail.com"]
 license = "GNU AGPLv3"
@@ -16,5 +16,7 @@ plotters = "^0.3.1"
 thiserror = "^1"
 nalgebra = { version = "^0.30", features = ["sparse"]}
 nanorand = "^0.6"
+dialoguer = "^0.10.0"
+num = "^0.4"
 
 time_series_generator = "0.3.0"
