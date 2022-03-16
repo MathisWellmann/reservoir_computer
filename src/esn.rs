@@ -54,10 +54,10 @@ pub(crate) struct Params {
     pub(crate) washout_pct: f64,
     pub(crate) output_tanh: bool,
     pub(crate) seed: Option<u64>,
+    pub(crate) state_update_noise_frac: f64,
 }
 
 /// The Reseoir Computer, Leaky Echo State Network
-#[derive(Debug)]
 pub(crate) struct ESN {
     params: Params,
     input_weight_matrix:
@@ -68,6 +68,7 @@ pub(crate) struct ESN {
     feedback_matrix:
         Matrix<f64, Dynamic, Const<OUTPUT_DIM>, VecStorage<f64, Dynamic, Const<OUTPUT_DIM>>>,
     state: StateMatrix,
+    rng: WyRand,
 }
 
 impl ESN {
@@ -121,7 +122,7 @@ impl ESN {
         > = Matrix::from_fn_generic(
             Dim::from_usize(params.reservoir_size),
             Dim::from_usize(1),
-            |_, _| rng.generate::<f64>() * params.input_bias_scaling * 2.0 - 1.0,
+            |_, _| (rng.generate::<f64>() * 2.0 - 1.0) * params.input_bias_scaling,
         );
 
         let readout_matrix = Matrix::from_fn_generic(
@@ -152,8 +153,8 @@ impl ESN {
             0.0,
         );
         info!(
-            "input_matrix: {}\nreadout_matrix: {}\nstate: {}",
-            input_weight_matrix, readout_matrix, state
+            "input_matrix: {}\nreservoir: {}\nreadout_matrix: {}\nstate: {}",
+            input_weight_matrix, reservoir_matrix, readout_matrix, state
         );
 
         Self {
@@ -164,6 +165,7 @@ impl ESN {
             state,
             feedback_matrix,
             input_biases,
+            rng,
         }
     }
 
@@ -220,17 +222,14 @@ impl ESN {
             }
         }
 
-        info!("design_matrix: {}", design_matrix);
         let k = design_matrix.transpose() * &design_matrix;
         let identity_m: DMatrix<f64> = DMatrix::from_diagonal_element_generic(
             Dim::from_usize(1 + self.params.reservoir_size),
             Dim::from_usize(1 + self.params.reservoir_size),
             1.0,
         );
-        info!("k: {}", k);
         let p = (k + self.params.regularization_coeff * identity_m).try_inverse().unwrap();
         let xTy = design_matrix.transpose() * &target_matrix;
-        info!("p: {}, yxT: {}", p, xTy);
         let readout_matrix = p * xTy;
         self.readout_matrix = Matrix::from_fn_generic(
             Dim::from_usize(self.params.reservoir_size),
@@ -246,8 +245,6 @@ impl ESN {
         input: &'a MatrixSlice<'a, f64, Const<1>, Const<INPUT_DIM>, Const<1>, Dynamic>,
         prev_pred: &Output,
     ) {
-        // TODO: optionally add noise to state update
-
         // propagate inputs
         let mut input_state: StateMatrix =
             (&self.input_weight_matrix * input * self.params.input_weight_scaling)
@@ -255,9 +252,15 @@ impl ESN {
         self.params.input_activation.activate(input_state.as_mut_slice());
 
         // perform node-to-node update
+        let noise: StateMatrix = Matrix::from_fn_generic(
+            Dim::from_usize(self.params.reservoir_size),
+            Dim::from_usize(1),
+            |_, _| (self.rng.generate::<f64>() * 2.0 - 1.0) * self.params.state_update_noise_frac,
+        );
         let mut new_state = (1.0 - self.params.leaking_rate) * input_state
             + self.params.leaking_rate * (&self.reservoir_matrix * &self.state)
-            + (&self.feedback_matrix * prev_pred);
+            + (&self.feedback_matrix * prev_pred)
+            + noise;
         self.params.reservoir_activation.activate(new_state.as_mut_slice());
 
         self.state = new_state;
@@ -282,5 +285,10 @@ impl ESN {
             Dim::from_usize(1),
             0.0,
         );
+    }
+
+    #[inline(always)]
+    pub(crate) fn state(&self) -> &StateMatrix {
+        &self.state
     }
 }
