@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
+use sliding_features::{Echo, View, ALMA};
 
 use crate::{
     activation::Activation,
@@ -29,20 +30,14 @@ pub(crate) fn start() {
         }
     }
     info!("series_min: {}, series_max: {}", series_min, series_max);
-    let values: Vec<f64> =
-        series.iter().map(|v| scale(series_min, series_max, -1.0, 1.0, *v)).collect();
-    info!("values: {:?}", values);
 
-    /*
-    let values: Vec<f64> =
-        series.iter()
-              .skip(1)
-              .zip(series.iter())
-              .take(TRAINING_WINDOW * 2)
-              .map(|(a, b)| (a / b).ln())
-              .collect();
-    */
-
+    let mut alma = ALMA::new(Echo::new(), 100);
+    let mut values: Vec<f64> = Vec::with_capacity(series.len());
+    for s in &series {
+        let val = scale(series_min, series_max, -1.0, 1.0, *s);
+        alma.update(val);
+        values.push(alma.last());
+    }
     info!("got {} datapoints", values.len());
 
     let t0 = Instant::now();
@@ -50,21 +45,21 @@ pub(crate) fn start() {
     let params = Params {
         input_sparsity: 0.1,
         input_activation: Activation::Identity,
-        input_weight_scaling: 0.2,
+        input_weight_scaling: 1.0,
         input_bias_scaling: 0.2,
 
-        reservoir_size: 150,
-        reservoir_fixed_in_degree_k: 3,
+        reservoir_size: 500,
+        reservoir_fixed_in_degree_k: 10,
         reservoir_activation: Activation::Tanh,
 
-        feedback_gain: 0.1,
+        feedback_gain: 0.01,
         spectral_radius: 0.90,
-        leaking_rate: 0.1,
+        leaking_rate: 0.02,
         regularization_coeff: 0.1,
-        washout_pct: 0.2,
+        washout_pct: 0.3,
         output_tanh: true,
         seed: Some(0),
-        state_update_noise_frac: 0.0,
+        state_update_noise_frac: 0.001,
     };
     let mut rc = ESN::new(params);
     let train_inputs = Matrix::from_vec_generic(
