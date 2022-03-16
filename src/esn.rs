@@ -257,13 +257,13 @@ impl ESN {
             Dim::from_usize(1),
             |_, _| (self.rng.generate::<f64>() * 2.0 - 1.0) * self.params.state_update_noise_frac,
         );
-        let mut new_state = (1.0 - self.params.leaking_rate) * input_state
+        let mut state_delta = input_state
             + self.params.leaking_rate * (&self.reservoir_matrix * &self.state)
             + (&self.feedback_matrix * prev_pred)
             + noise;
-        self.params.reservoir_activation.activate(new_state.as_mut_slice());
+        self.params.reservoir_activation.activate(state_delta.as_mut_slice());
 
-        self.state = new_state;
+        self.state = (1.0 - self.params.leaking_rate) * &self.state + state_delta;
     }
 
     /// Perform a readout operation
