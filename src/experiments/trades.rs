@@ -46,7 +46,7 @@ pub(crate) fn start() {
         input_sparsity: 0.1,
         input_activation: Activation::Identity,
         input_weight_scaling: 1.0,
-        input_bias_scaling: 0.04,
+        reservoir_bias_scaling: 0.04,
 
         reservoir_size: 500,
         reservoir_fixed_in_degree_k: 10,

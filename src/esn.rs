@@ -41,9 +41,9 @@ pub(crate) struct Params {
     pub(crate) input_sparsity: f64,
     pub(crate) input_activation: Activation,
     pub(crate) input_weight_scaling: f64,
-    pub(crate) input_bias_scaling: f64,
 
     pub(crate) reservoir_size: usize,
+    pub(crate) reservoir_bias_scaling: f64,
     pub(crate) reservoir_fixed_in_degree_k: usize,
     pub(crate) reservoir_activation: Activation,
 
@@ -63,8 +63,8 @@ pub(crate) struct ESN {
     params: Params,
     input_weight_matrix:
         Matrix<f64, Dynamic, Const<INPUT_DIM>, VecStorage<f64, Dynamic, Const<INPUT_DIM>>>,
-    input_biases: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
     reservoir_matrix: DMatrix<f64>,
+    reservoir_biases: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
     readout_matrix: ReadoutMatrix,
     feedback_matrix:
         Matrix<f64, Dynamic, Const<OUTPUT_DIM>, VecStorage<f64, Dynamic, Const<OUTPUT_DIM>>>,
@@ -115,15 +115,10 @@ impl ESN {
                 }
             },
         );
-        let input_biases: Matrix<
-            f64,
-            Dynamic,
-            Const<INPUT_DIM>,
-            VecStorage<f64, Dynamic, Const<1>>,
-        > = Matrix::from_fn_generic(
+        let reservoir_biases = Matrix::from_fn_generic(
             Dim::from_usize(params.reservoir_size),
             Dim::from_usize(1),
-            |_, _| (rng.generate::<f64>() * 2.0 - 1.0) * params.input_bias_scaling,
+            |_, _| (rng.generate::<f64>() * 2.0 - 1.0) * params.reservoir_bias_scaling,
         );
 
         let readout_matrix = Matrix::from_fn_generic(
@@ -165,7 +160,7 @@ impl ESN {
             readout_matrix,
             state,
             feedback_matrix,
-            input_biases,
+            reservoir_biases,
             rng,
         }
     }
@@ -254,7 +249,7 @@ impl ESN {
         );
         let mut state_delta = &self.input_weight_matrix * input
             + self.params.leaking_rate * (&self.reservoir_matrix * &self.state)
-            + &self.input_biases
+            + &self.reservoir_biases
             + (&self.feedback_matrix * prev_pred)
             + noise;
         self.params.reservoir_activation.activate(state_delta.as_mut_slice());
