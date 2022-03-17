@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Instant};
 
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 use nanorand::{Rng, WyRand};
@@ -21,7 +21,7 @@ pub(crate) fn start() {
         input_sparsity: 0.1,
         input_activation: Activation::Identity,
         input_weight_scaling: 1.0,
-        input_bias_scaling: 0.2,
+        input_bias_scaling: 0.05,
 
         reservoir_size: 100,
         reservoir_fixed_in_degree_k: 2,
@@ -34,7 +34,7 @@ pub(crate) fn start() {
         washout_pct: 0.0,
         output_tanh: false,
         seed: Some(0),
-        state_update_noise_frac: 0.001,
+        state_update_noise_frac: 0.0,
         initial_state_value: values[0],
     };
 
@@ -49,7 +49,9 @@ pub(crate) fn start() {
         Dim::from_usize(1),
         values.iter().skip(1).take(train_len).cloned().collect::<Vec<f64>>(),
     );
+    let t0 = Instant::now();
     rc.train(&train_inputs, &train_targets);
+    info!("ESN training done in {}ms", t0.elapsed().as_millis());
 
     let mut plot_targets: Series = vec![];
     let mut train_predictions: Series = vec![];
@@ -85,7 +87,6 @@ pub(crate) fn start() {
 
         rc.update_state(&input, &predicted_out);
     }
-    info!("test_predictions: {:?}", test_predictions);
     info!("train_rmse: {}", train_rmse.sqrt());
 
     plot(

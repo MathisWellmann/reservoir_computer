@@ -109,7 +109,7 @@ impl ESN {
             Dim::from_usize(INPUT_DIM),
             |_, _| {
                 if rng.generate::<f64>() < params.input_sparsity {
-                    rng.generate::<f64>() * params.input_weight_scaling * 2.0 - 1.0
+                    (rng.generate::<f64>() * 2.0 - 1.0) * params.input_weight_scaling
                 } else {
                     0.0
                 }
@@ -246,20 +246,15 @@ impl ESN {
         input: &'a MatrixSlice<'a, f64, Const<1>, Const<INPUT_DIM>, Const<1>, Dynamic>,
         prev_pred: &Output,
     ) {
-        // propagate inputs
-        let mut input_state: StateMatrix =
-            (&self.input_weight_matrix * input * self.params.input_weight_scaling)
-                + (self.params.input_bias_scaling * &self.input_biases);
-        self.params.input_activation.activate(input_state.as_mut_slice());
-
         // perform node-to-node update
         let noise: StateMatrix = Matrix::from_fn_generic(
             Dim::from_usize(self.params.reservoir_size),
             Dim::from_usize(1),
             |_, _| (self.rng.generate::<f64>() * 2.0 - 1.0) * self.params.state_update_noise_frac,
         );
-        let mut state_delta = input_state
+        let mut state_delta = &self.input_weight_matrix * input
             + self.params.leaking_rate * (&self.reservoir_matrix * &self.state)
+            + &self.input_biases
             + (&self.feedback_matrix * prev_pred)
             + noise;
         self.params.reservoir_activation.activate(state_delta.as_mut_slice());
