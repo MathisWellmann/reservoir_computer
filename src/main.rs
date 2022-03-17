@@ -24,7 +24,7 @@ fn main() {
     }
     pretty_env_logger::init();
 
-    let experiments = ["sine", "trades"];
+    let experiments = ["sine", "trades", "mackey_glass"];
 
     let e = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select Experiment")
@@ -35,6 +35,7 @@ fn main() {
     match e {
         0 => experiments::sine::start(),
         1 => experiments::trades::start(),
+        2 => experiments::mackey_glass::start(),
         _ => panic!("invalid experiment selected"),
     }
 }

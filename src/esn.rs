@@ -55,6 +55,7 @@ pub(crate) struct Params {
     pub(crate) output_tanh: bool,
     pub(crate) seed: Option<u64>,
     pub(crate) state_update_noise_frac: f64,
+    pub(crate) initial_state_value: f64,
 }
 
 /// The Reseoir Computer, Leaky Echo State Network
@@ -150,7 +151,7 @@ impl ESN {
         let state: StateMatrix = Matrix::from_element_generic(
             Dim::from_usize(params.reservoir_size),
             Dim::from_usize(1),
-            0.0,
+            params.initial_state_value,
         );
         info!(
             "input_matrix: {}\nreservoir: {}\nreadout_matrix: {}\nstate: {}",
@@ -283,7 +284,7 @@ impl ESN {
         self.state = Matrix::from_element_generic(
             Dim::from_usize(self.params.reservoir_size),
             Dim::from_usize(1),
-            0.0,
+            self.params.initial_state_value,
         );
     }
 

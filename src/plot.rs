@@ -2,7 +2,13 @@ use plotters::prelude::*;
 
 use crate::Series;
 
-pub(crate) fn plot(targets: &Series, train_preds: &Series, test_preds: &Series, filename: &str) {
+pub(crate) fn plot(
+    targets: &Series,
+    train_preds: &Series,
+    test_preds: &Series,
+    filename: &str,
+    dims: (u32, u32),
+) {
     let ts_min = targets[0].0;
     let ts_max = targets[targets.len() - 1].0;
     let mut target_min: f64 = targets[0].1;
@@ -15,8 +21,8 @@ pub(crate) fn plot(targets: &Series, train_preds: &Series, test_preds: &Series, 
             target_max = t.1;
         }
     }
+    info!("target_min: {}, target_max: {}", target_min, target_max);
 
-    let dims = (2160, 2160);
     let root_area = BitMapBackend::new(filename, dims).into_drawing_area();
     root_area.fill(&WHITE).unwrap();
     let root_area = root_area.titled(filename, ("sans-serif", 20).into_font()).unwrap();
@@ -26,7 +32,7 @@ pub(crate) fn plot(targets: &Series, train_preds: &Series, test_preds: &Series, 
     let mut cc0 = ChartBuilder::on(&areas[0])
         .margin(5)
         .set_all_label_area_size(50)
-        .caption("price", ("sans-serif", 30).into_font().with_color(&BLACK))
+        .caption("values", ("sans-serif", 30).into_font().with_color(&BLACK))
         .build_cartesian_2d(ts_min..ts_max, target_min..target_max)
         .unwrap();
     cc0.configure_mesh()

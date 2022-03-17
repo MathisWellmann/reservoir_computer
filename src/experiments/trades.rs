@@ -60,6 +60,7 @@ pub(crate) fn start() {
         output_tanh: true,
         seed: Some(0),
         state_update_noise_frac: 0.001,
+        initial_state_value: values[0],
     };
     let mut rc = ESN::new(params);
     let train_inputs = Matrix::from_vec_generic(
@@ -107,5 +108,5 @@ pub(crate) fn start() {
         rc.update_state(&input, &predicted_out);
     }
 
-    plot(&plot_targets, &train_predictions, &plot_predictions, "img/plot.png");
+    plot(&plot_targets, &train_predictions, &plot_predictions, "img/trades.png", (2160, 2160));
 }

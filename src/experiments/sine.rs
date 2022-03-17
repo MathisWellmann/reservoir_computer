@@ -42,6 +42,7 @@ pub(crate) fn start() {
         output_tanh: false,
         seed: Some(0),
         state_update_noise_frac: 0.01,
+        initial_state_value: 0.0,
     };
     let mut rc = ESN::new(params);
     let train_inputs = Matrix::from_vec_generic(
@@ -58,9 +59,9 @@ pub(crate) fn start() {
     info!("training done in: {}ms", t0.elapsed().as_millis());
 
     let mut plot_targets: Series = Vec::with_capacity(1_000_000);
-    let mut plot_predictions: Series = Vec::with_capacity(1_000_000);
 
     let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
+    let mut test_predictions: Series = Vec::with_capacity(1_000_000);
 
     let n_vals = values.len();
     let inputs: Inputs =
@@ -76,7 +77,7 @@ pub(crate) fn start() {
         }
 
         if i == TRAINING_WINDOW {
-            plot_predictions.push((i as f64, last_prediction));
+            test_predictions.push((i as f64, last_prediction));
         }
         // To begin forecasting, replace target input with it's own prediction
         let m: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
@@ -84,7 +85,7 @@ pub(crate) fn start() {
                 *predicted_out.get(j).unwrap()
             });
         let input = if i > TRAINING_WINDOW {
-            plot_predictions.push((i as f64, last_prediction));
+            test_predictions.push((i as f64, last_prediction));
             m.row(0)
         } else {
             train_predictions.push((i as f64, last_prediction));
@@ -94,5 +95,5 @@ pub(crate) fn start() {
         rc.update_state(&input, &predicted_out);
     }
 
-    plot(&plot_targets, &train_predictions, &plot_predictions, "img/plot.png");
+    plot(&plot_targets, &train_predictions, &test_predictions, "img/sine.png", (2160, 2160));
 }
