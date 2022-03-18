@@ -27,16 +27,16 @@ pub(crate) fn start() {
     let params = Params {
         input_sparsity: 0.1,
         input_activation: Activation::Identity,
-        input_weight_scaling: 1.0,
-        reservoir_bias_scaling: 0.05,
+        input_weight_scaling: 0.5,
+        reservoir_bias_scaling: 0.0,
 
         reservoir_size: 80,
-        reservoir_fixed_in_degree_k: 3,
+        reservoir_fixed_in_degree_k: 2,
         reservoir_activation: Activation::Tanh,
 
-        feedback_gain: 0.1,
-        spectral_radius: 0.90,
-        leaking_rate: 0.05,
+        feedback_gain: 0.0,
+        spectral_radius: 0.9,
+        leaking_rate: 0.2,
         regularization_coeff: 0.1,
         washout_pct: 0.1,
         output_tanh: false,

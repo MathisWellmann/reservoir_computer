@@ -46,20 +46,20 @@ pub(crate) fn start() {
         input_sparsity: 0.1,
         input_activation: Activation::Identity,
         input_weight_scaling: 1.0,
-        reservoir_bias_scaling: 0.04,
+        reservoir_bias_scaling: 0.0,
 
         reservoir_size: 500,
-        reservoir_fixed_in_degree_k: 10,
+        reservoir_fixed_in_degree_k: 8,
         reservoir_activation: Activation::Tanh,
 
-        feedback_gain: 0.01,
-        spectral_radius: 0.90,
+        feedback_gain: 0.0,
+        spectral_radius: 0.9,
         leaking_rate: 0.02,
         regularization_coeff: 0.1,
         washout_pct: 0.3,
-        output_tanh: true,
+        output_tanh: false,
         seed: Some(0),
-        state_update_noise_frac: 0.001,
+        state_update_noise_frac: 0.0005,
         initial_state_value: values[0],
     };
     let mut rc = ESN::new(params);

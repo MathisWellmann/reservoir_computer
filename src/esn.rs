@@ -69,6 +69,7 @@ pub(crate) struct ESN {
     feedback_matrix:
         Matrix<f64, Dynamic, Const<OUTPUT_DIM>, VecStorage<f64, Dynamic, Const<OUTPUT_DIM>>>,
     state: StateMatrix,
+    extended_state: StateMatrix,
     rng: WyRand,
 }
 
@@ -99,12 +100,7 @@ impl ESN {
         let spec_rad = eigen.eigenvalues.abs().max();
         reservoir_matrix *= (1.0 / spec_rad) * params.spectral_radius;
 
-        let input_weight_matrix: Matrix<
-            f64,
-            Dynamic,
-            Const<INPUT_DIM>,
-            VecStorage<f64, Dynamic, Const<INPUT_DIM>>,
-        > = Matrix::from_fn_generic(
+        let input_weight_matrix = Matrix::from_fn_generic(
             Dim::from_usize(params.reservoir_size),
             Dim::from_usize(INPUT_DIM),
             |_, _| {
@@ -122,7 +118,7 @@ impl ESN {
         );
 
         let readout_matrix = Matrix::from_fn_generic(
-            Dim::from_usize(params.reservoir_size),
+            Dim::from_usize(1 + params.reservoir_size),
             Dim::from_usize(OUTPUT_DIM),
             |_, _| rng.generate::<f64>() * 2.0 - 1.0,
         );
@@ -143,14 +139,19 @@ impl ESN {
                 }
             },
         );
-        let state: StateMatrix = Matrix::from_element_generic(
+        let state = Matrix::from_element_generic(
             Dim::from_usize(params.reservoir_size),
             Dim::from_usize(1),
             params.initial_state_value,
         );
+        let extended_state = Matrix::from_element_generic(
+            Dim::from_usize(1 + params.reservoir_size),
+            Dim::from_usize(1),
+            params.initial_state_value,
+        );
         info!(
-            "input_matrix: {}\nreservoir: {}\nreadout_matrix: {}\nstate: {}",
-            input_weight_matrix, reservoir_matrix, readout_matrix, state
+            "input_matrix: {}\nreservoir: {}\nreadout_matrix: {}",
+            input_weight_matrix, reservoir_matrix, readout_matrix
         );
 
         Self {
@@ -162,6 +163,7 @@ impl ESN {
             feedback_matrix,
             reservoir_biases,
             rng,
+            extended_state,
         }
     }
 
@@ -171,7 +173,7 @@ impl ESN {
 
         let mut design_matrix: DMatrix<f64> = DMatrix::from_element_generic(
             Dim::from_usize(harvest_len),
-            Dim::from_usize(1 + self.params.reservoir_size),
+            Dim::from_usize(2 + self.params.reservoir_size),
             0.0,
         );
         let mut target_matrix: Matrix<
@@ -195,12 +197,12 @@ impl ESN {
                 let design: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
                     Matrix::from_fn_generic(
                         Dim::from_usize(1),
-                        Dim::from_usize(1 + self.params.reservoir_size),
+                        Dim::from_usize(2 + self.params.reservoir_size),
                         |_, j| {
                             if j == 0 {
                                 1.0
                             } else {
-                                *self.state.get(j - 1).unwrap()
+                                *self.extended_state.get(j - 1).unwrap()
                             }
                         },
                     );
@@ -220,15 +222,15 @@ impl ESN {
 
         let k = design_matrix.transpose() * &design_matrix;
         let identity_m: DMatrix<f64> = DMatrix::from_diagonal_element_generic(
-            Dim::from_usize(1 + self.params.reservoir_size),
-            Dim::from_usize(1 + self.params.reservoir_size),
+            Dim::from_usize(2 + self.params.reservoir_size),
+            Dim::from_usize(2 + self.params.reservoir_size),
             1.0,
         );
         let p = (k + self.params.regularization_coeff * identity_m).try_inverse().unwrap();
         let xTy = design_matrix.transpose() * &target_matrix;
         let readout_matrix = p * xTy;
         self.readout_matrix = Matrix::from_fn_generic(
-            Dim::from_usize(self.params.reservoir_size),
+            Dim::from_usize(INPUT_DIM + self.params.reservoir_size),
             Dim::from_usize(OUTPUT_DIM),
             |i, _| *readout_matrix.get(i + 1).unwrap(),
         );
@@ -255,13 +257,24 @@ impl ESN {
         self.params.reservoir_activation.activate(state_delta.as_mut_slice());
 
         self.state = (1.0 - self.params.leaking_rate) * &self.state + state_delta;
+        self.extended_state = Matrix::from_fn_generic(
+            Dim::from_usize(1 + self.params.reservoir_size),
+            Dim::from_usize(1),
+            |i, _| {
+                if i == 0 {
+                    *input.get(0).unwrap()
+                } else {
+                    *self.state.row(i - 1).get(0).unwrap()
+                }
+            },
+        );
     }
 
     /// Perform a readout operation
     #[inline]
     #[must_use]
     pub(crate) fn readout(&self) -> Output {
-        let mut pred = self.readout_matrix.transpose() * &self.state;
+        let mut pred = self.readout_matrix.transpose() * &self.extended_state;
         if self.params.output_tanh {
             pred.iter_mut().for_each(|v| *v = v.tanh());
         }
@@ -270,9 +283,15 @@ impl ESN {
     }
 
     /// Resets the state to it's initial values
+    #[inline(always)]
     pub(crate) fn reset_state(&mut self) {
         self.state = Matrix::from_element_generic(
             Dim::from_usize(self.params.reservoir_size),
+            Dim::from_usize(1),
+            self.params.initial_state_value,
+        );
+        self.extended_state = Matrix::from_element_generic(
+            Dim::from_usize(1 + self.params.reservoir_size),
             Dim::from_usize(1),
             self.params.initial_state_value,
         );
