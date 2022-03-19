@@ -6,6 +6,7 @@ extern crate log;
 mod activation;
 mod errors;
 mod esn;
+mod euler_state_network;
 mod experiments;
 mod load_sample_data;
 pub(crate) mod plot;
@@ -24,7 +25,13 @@ fn main() {
     }
     pretty_env_logger::init();
 
-    let experiments = ["sine", "trades", "mackey_glass"];
+    let experiments = [
+        "sine",
+        "trades",
+        "trades_eusn",
+        "mackey_glass",
+        "mackey_glass_eusn"
+    ];
 
     let e = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select Experiment")
@@ -35,7 +42,9 @@ fn main() {
     match e {
         0 => experiments::sine::start(),
         1 => experiments::trades::start(),
-        2 => experiments::mackey_glass::start(),
+        2 => experiments::trades_eusn::start(),
+        3 => experiments::mackey_glass::start(),
+        4 => experiments::mackey_glass_eusn::start(),
         _ => panic!("invalid experiment selected"),
     }
 }
