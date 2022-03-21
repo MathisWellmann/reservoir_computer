@@ -101,6 +101,8 @@ impl ParameterMapper {
 pub struct FireflyParams {
     /// Influces the clustering behaviour. In range [0, 1]
     pub gamma: f64,
+    /// Amount of random influence in parameter update
+    pub alpha: f64,
     pub num_candidates: usize,
     pub param_mapping: ParameterMapper,
 }
@@ -110,6 +112,7 @@ pub struct FireflyOptimizer {
     candidates: Vec<Vec<f64>>,
     fits: Vec<f64>,
     elite_idx: usize,
+    rng: WyRand,
 }
 
 impl FireflyOptimizer {
@@ -127,6 +130,7 @@ impl FireflyOptimizer {
             candidates,
             fits,
             elite_idx: 0,
+            rng,
         }
     }
 
@@ -137,6 +141,8 @@ impl FireflyOptimizer {
         validation_inputs: &Inputs,
         validation_targets: &Targets,
     ) {
+        self.update_candidates();
+
         for (i, c) in self.candidates.iter().enumerate() {
             let params = self.params.param_mapping.map(&c);
             let mut rc = ESN::new(params);
@@ -158,6 +164,33 @@ impl FireflyOptimizer {
         self.elite_idx = max_idx;
     }
 
+    fn update_candidates(&mut self) {
+        for i in 0..self.fits.len() {
+            for j in 0..self.fits.len() {
+                if self.fits[i] < self.fits[j] {
+                    continue;
+                }
+
+                // I is more fit than J
+
+                let mut dist: f64 = 0.0;
+                for p in 0..self.candidates[i].len() {
+                    dist += (self.candidates[i][p] - self.candidates[j][p]).powi(2);
+                }
+                dist = dist.sqrt();
+
+                let beta: f64 = -self.params.gamma * dist.powi(2);
+                let r = self.params.alpha * self.rng.generate::<f64>();
+
+                for p in 0..self.candidates[i].len() {
+                    let new =
+                        beta * self.candidates[j][p] + (1.0 - beta) * self.candidates[i][p] + r;
+                    self.candidates[j][p] = new;
+                }
+            }
+        }
+    }
+
     /// Evaluate the performance of the ESN
     fn evaluate(&self, rc: &mut ESN, inputs: &Inputs, targets: &Targets) -> f64 {
         let t0 = Instant::now();
@@ -177,7 +210,7 @@ impl FireflyOptimizer {
 
             rc.update_state(&input, &predicted_out);
         }
-        info!("evaluation took {}s, rmse: {}", t0.elapsed().as_secs(), test_rmse);
+        info!("evaluation took {}ms, rmse: {}", t0.elapsed().as_millis(), test_rmse);
 
         test_rmse
     }

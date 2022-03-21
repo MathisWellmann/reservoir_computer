@@ -33,6 +33,7 @@ pub(crate) fn start() {
 
     let params = FireflyParams {
         gamma: 0.1,
+        alpha: 0.05,
         num_candidates: 10,
         param_mapping: ParameterMapper::new(
             vec![(0.01, 0.5), (0.1, 1.0), (0.0, 1.0), (1.0, 12.0)],
@@ -80,14 +81,15 @@ pub(crate) fn start() {
             let mut rc = opt.elite();
 
             let vals_matrix: Inputs = Matrix::from_vec_generic(
-                Dim::from_usize(values.len()),
+                Dim::from_usize(TRAIN_LEN + VALIDATION_LEN + 1),
                 Dim::from_usize(INPUT_DIM),
                 values[i - TRAIN_LEN - VALIDATION_LEN - 1..i].to_vec(),
             );
 
             let (plot_targets, train_preds, test_preds) = gather_plot_data(&vals_matrix, &mut rc);
             gif_render.update(&plot_targets, &train_preds, &test_preds);
-            info!("step took {}s", t1.elapsed().as_millis());
+
+            info!("step took {}s", t1.elapsed().as_secs());
         }
     }
 
