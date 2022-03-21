@@ -3,7 +3,15 @@ use std::time::Instant;
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 use sliding_features::{Echo, View, ALMA};
 
-use crate::{INPUT_DIM, OUTPUT_DIM, Series, activation::Activation, esn::Inputs, euler_state_network::{EuSNParams, EulerStateNetwork}, load_sample_data, plot::plot, utils::scale};
+use crate::{
+    activation::Activation,
+    esn::Inputs,
+    euler_state_network::{EuSNParams, EulerStateNetwork},
+    load_sample_data,
+    plot::plot,
+    utils::scale,
+    Series, INPUT_DIM, OUTPUT_DIM,
+};
 
 pub(crate) fn start() {
     info!("loading sample data");

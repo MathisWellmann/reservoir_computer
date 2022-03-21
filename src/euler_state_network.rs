@@ -1,8 +1,10 @@
-
 use nalgebra::{ArrayStorage, Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 use nanorand::{Rng, WyRand};
 
-use crate::{activation::Activation, esn::{Output, ReadoutMatrix}};
+use crate::{
+    activation::Activation,
+    esn::{Output, ReadoutMatrix},
+};
 
 // TODO: value validation
 #[derive(Debug, Clone)]
@@ -23,7 +25,8 @@ pub(crate) struct EuSNParams {
 
     /// step size of integration
     pub(crate) epsilon: f64,
-    /// diffusion coeffient used for stabilizing the discrete forward propagation
+    /// diffusion coeffient used for stabilizing the discrete forward
+    /// propagation
     pub(crate) gamma: f64,
 }
 
@@ -32,8 +35,7 @@ pub(crate) struct EuSNParams {
 pub(crate) struct EulerStateNetwork {
     params: EuSNParams,
     state: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
-    input_weight_matrix:
-        Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
+    input_weight_matrix: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
     reservoir_weight_matrix: DMatrix<f64>,
     reservoir_biases: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
     readout_matrix: ReadoutMatrix,
@@ -56,7 +58,8 @@ impl EulerStateNetwork {
             vec![vec![0.0; params.reservoir_size]; params.reservoir_size];
         for i in 0..weights.len() {
             for j in 0..weights.len() {
-                weights[i][j] = (rng.generate::<f64>() * 2.0 - 1.0) * params.reservoir_weight_scaling;
+                weights[i][j] =
+                    (rng.generate::<f64>() * 2.0 - 1.0) * params.reservoir_weight_scaling;
             }
         }
         let mut reservoir_matrix: DMatrix<f64> = DMatrix::from_vec_generic(
@@ -64,19 +67,19 @@ impl EulerStateNetwork {
             Dim::from_usize(params.reservoir_size),
             weights.iter().cloned().flatten().collect(),
         );
-        let identity_m: DMatrix<f64> =
-            DMatrix::from_diagonal_element_generic(
-                Dim::from_usize(params.reservoir_size),
-                Dim::from_usize(params.reservoir_size),
-                1.0,
-            );
+        let identity_m: DMatrix<f64> = DMatrix::from_diagonal_element_generic(
+            Dim::from_usize(params.reservoir_size),
+            Dim::from_usize(params.reservoir_size),
+            1.0,
+        );
         // This satisfies the constraint of being anti-symmetric
-        reservoir_matrix = &reservoir_matrix - reservoir_matrix.transpose() - params.gamma * identity_m;
+        reservoir_matrix =
+            &reservoir_matrix - reservoir_matrix.transpose() - params.gamma * identity_m;
 
         let reservoir_biases = Matrix::from_fn_generic(
             Dim::from_usize(params.reservoir_size),
             Dim::from_usize(1),
-            |_, _| (rng.generate::<f64>() * 2.0 - 1.0) * params.reservoir_bias_scaling
+            |_, _| (rng.generate::<f64>() * 2.0 - 1.0) * params.reservoir_bias_scaling,
         );
 
         let input_weight_matrix = Matrix::from_fn_generic(
@@ -121,16 +124,8 @@ impl EulerStateNetwork {
             Dim::from_usize(1 + self.params.reservoir_size),
             0.0,
         );
-        let mut target_matrix: Matrix<
-            f64,
-            Dynamic,
-            Const<1>,
-            VecStorage<f64, Dynamic, Const<1>>,
-        > = Matrix::from_element_generic(
-            Dim::from_usize(harvest_len),
-            Dim::from_usize(1),
-            0.0,
-        );
+        let mut target_matrix: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+            Matrix::from_element_generic(Dim::from_usize(harvest_len), Dim::from_usize(1), 0.0);
         for i in 0..inputs.nrows() {
             self.update_state(&inputs.row(i));
 
@@ -150,14 +145,10 @@ impl EulerStateNetwork {
                     );
                 design_matrix.set_row(i - washout_len, &design);
                 let target_col = targets.row(i);
-                let target: Matrix<
-                    f64,
-                    Const<1>,
-                    Const<1>,
-                    ArrayStorage<f64, 1, 1>,
-                > = Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |i, _j| {
-                    *target_col.get(i).unwrap()
-                });
+                let target: Matrix<f64, Const<1>, Const<1>, ArrayStorage<f64, 1, 1>> =
+                    Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |i, _j| {
+                        *target_col.get(i).unwrap()
+                    });
                 target_matrix.set_row(i - washout_len, &target);
             }
         }
@@ -169,8 +160,8 @@ impl EulerStateNetwork {
             1.0,
         );
         let p = (k + self.params.regularization_coeff * identity_m).try_inverse().unwrap();
-        let xTy = design_matrix.transpose() * &target_matrix;
-        let readout_matrix = p * xTy;
+        let xt_y = design_matrix.transpose() * &target_matrix;
+        let readout_matrix = p * xt_y;
         self.readout_matrix = Matrix::from_fn_generic(
             Dim::from_usize(self.params.reservoir_size),
             Dim::from_usize(1),
@@ -178,7 +169,6 @@ impl EulerStateNetwork {
         );
 
         info!("trained readout_matrix: {}", self.readout_matrix);
-
     }
 
     /// Propagate an input through the network and update its state
@@ -186,13 +176,11 @@ impl EulerStateNetwork {
         &mut self,
         input: &'a MatrixSlice<'a, f64, Const<1>, Const<1>, Const<1>, Dynamic>,
     ) {
-        let mut nonlinear = ((&self.reservoir_weight_matrix)
-            * &self.state)
+        let mut nonlinear = ((&self.reservoir_weight_matrix) * &self.state)
             + (&self.input_weight_matrix * input)
             + &self.reservoir_biases;
         self.params.reservoir_activation.activate(nonlinear.as_mut_slice());
-        self.state = &self.state
-            + self.params.epsilon * nonlinear
+        self.state = &self.state + self.params.epsilon * nonlinear
     }
 
     #[inline(always)]

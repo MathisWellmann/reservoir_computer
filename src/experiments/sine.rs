@@ -5,7 +5,7 @@ use time_series_generator::generate_sine_wave;
 
 use crate::{
     activation::Activation,
-    esn::{Inputs, Params, ESN},
+    esn::{EsnParams, Inputs, ESN},
     plot::plot,
     Series, INPUT_DIM, OUTPUT_DIM,
 };
@@ -24,7 +24,7 @@ pub(crate) fn start() {
 
     let t0 = Instant::now();
 
-    let params = Params {
+    let params = EsnParams {
         input_sparsity: 0.1,
         input_activation: Activation::Identity,
         input_weight_scaling: 0.5,

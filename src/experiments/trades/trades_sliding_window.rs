@@ -1,16 +1,21 @@
 use std::time::Instant;
 
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
-use sliding_features::{ALMA, Echo, HLNormalizer, View};
+use sliding_features::{Echo, HLNormalizer, View, ALMA};
 
-use crate::{INPUT_DIM, Series, esn::{ESN, Inputs, Targets}, experiments::trades::gif_render::GifRender, firefly_optimizer::{FireflyOptimizer, FireflyParams}, load_sample_data};
+use crate::{
+    activation::Activation,
+    esn::{Inputs, Targets, ESN},
+    experiments::trades::gif_render::GifRender,
+    firefly_optimizer::{FireflyOptimizer, FireflyParams, ParameterMapper},
+    load_sample_data, Series, INPUT_DIM,
+};
 
-const WINDOW_LEN: usize = 10_000;
-const TRAIN_LEN: usize = 8_000;
+const TRAIN_LEN: usize = 10_000;
+const VALIDATION_LEN: usize = 2_000;
 
 pub(crate) fn start() {
     info!("loading sample data");
-
 
     let series: Vec<f64> = load_sample_data::load_sample_data();
 
@@ -27,46 +32,73 @@ pub(crate) fn start() {
     let n_vals = values.len();
 
     let params = FireflyParams {
-
+        gamma: 0.1,
+        num_candidates: 10,
+        param_mapping: ParameterMapper::new(
+            vec![(0.01, 0.5), (0.1, 1.0), (0.0, 1.0), (1.0, 12.0)],
+            Activation::Identity,
+            500,
+            Activation::Tanh,
+            0.02,
+            0.1,
+            None,
+            0.0005,
+            values[0],
+        ),
     };
     let mut opt = FireflyOptimizer::new(params);
 
-
     let mut gif_render = GifRender::new("img/trades_sliding_window.gif", (1080, 1080));
-    for i in (WINDOW_LEN + 1)..n_vals {
-        if i % 50 == 0 {
-            let vals = &values[i - WINDOW_LEN - 1..i - 1];
+    // TODO: iterate over all data
+    for i in (TRAIN_LEN + VALIDATION_LEN + 1)..100_000 {
+        if i % 100 == 0 {
+            info!("step @ {}", i);
+            let t1 = Instant::now();
 
-            let inputs: Inputs = Matrix::from_vec_generic(
-                Dim::from_usize(WINDOW_LEN),
+            let train_inputs: Inputs = Matrix::from_vec_generic(
+                Dim::from_usize(TRAIN_LEN),
                 Dim::from_usize(INPUT_DIM),
-                vals.to_vec(),
+                values[i - TRAIN_LEN - VALIDATION_LEN - 1..i - VALIDATION_LEN - 1].to_vec(),
             );
-            let targets: Targets = Matrix::from_vec_generic(
-                Dim::from_usize(WINDOW_LEN),
+            let train_targets: Targets = Matrix::from_vec_generic(
+                Dim::from_usize(TRAIN_LEN),
                 Dim::from_usize(INPUT_DIM),
-                values[i - WINDOW_LEN..i].to_vec()
+                values[i - TRAIN_LEN - VALIDATION_LEN..i - VALIDATION_LEN].to_vec(),
             );
-            opt.step(&inputs, &targets);
+            let validation_inputs: Inputs = Matrix::from_vec_generic(
+                Dim::from_usize(VALIDATION_LEN),
+                Dim::from_usize(INPUT_DIM),
+                values[i - VALIDATION_LEN - 1..i - 1].to_vec(),
+            );
+            let validation_targets: Targets = Matrix::from_vec_generic(
+                Dim::from_usize(VALIDATION_LEN),
+                Dim::from_usize(INPUT_DIM),
+                values[i - VALIDATION_LEN..i].to_vec(),
+            );
+
+            opt.step(&train_inputs, &train_targets, &validation_inputs, &validation_targets);
             let mut rc = opt.elite();
 
-            let predicted_out = rc.readout();
-            let last_prediction = *predicted_out.get(0).unwrap();
-
-            let vals_matrix: Inputs =
-                Matrix::from_vec_generic(Dim::from_usize(values.len()), Dim::from_usize(INPUT_DIM), vals.to_vec());
+            let vals_matrix: Inputs = Matrix::from_vec_generic(
+                Dim::from_usize(values.len()),
+                Dim::from_usize(INPUT_DIM),
+                values[i - TRAIN_LEN - VALIDATION_LEN - 1..i].to_vec(),
+            );
 
             let (plot_targets, train_preds, test_preds) = gather_plot_data(&vals_matrix, &mut rc);
             gif_render.update(&plot_targets, &train_preds, &test_preds);
+            info!("step took {}s", t1.elapsed().as_millis());
         }
     }
+
+    info!("took {}s", t0.elapsed().as_secs());
 }
 
 fn gather_plot_data(values: &Inputs, rc: &mut ESN) -> (Series, Series, Series) {
     let mut plot_targets = Vec::with_capacity(values.len());
     let mut train_preds = vec![];
     let mut test_preds = vec![];
-    for i in 0..values.len() {
+    for i in 0..values.nrows() {
         plot_targets.push((i as f64, *values.row(i).get(0).unwrap()));
 
         let predicted_out = rc.readout();

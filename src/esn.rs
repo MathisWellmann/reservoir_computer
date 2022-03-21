@@ -37,7 +37,7 @@ pub(crate) type Output = Matrix<f64, Const<1>, Const<1>, ArrayStorage<f64, 1, 1>
 /// regularization_coeff:
 /// seed: optional RNG seed
 #[derive(Debug, Clone)]
-pub struct Params {
+pub struct EsnParams {
     pub input_sparsity: f64,
     pub input_activation: Activation,
     pub input_weight_scaling: f64,
@@ -60,7 +60,7 @@ pub struct Params {
 
 /// The Reseoir Computer, Leaky Echo State Network
 pub struct ESN {
-    params: Params,
+    params: EsnParams,
     input_weight_matrix:
         Matrix<f64, Dynamic, Const<INPUT_DIM>, VecStorage<f64, Dynamic, Const<INPUT_DIM>>>,
     reservoir_matrix: DMatrix<f64>,
@@ -76,7 +76,7 @@ pub struct ESN {
 impl ESN {
     /// Create a new reservoir, with random initiallization
     /// # Arguments
-    pub fn new(params: Params) -> Self {
+    pub fn new(params: EsnParams) -> Self {
         let mut rng = match params.seed {
             Some(seed) => WyRand::new_seed(seed),
             None => WyRand::new(),
@@ -149,9 +149,11 @@ impl ESN {
             Dim::from_usize(1),
             params.initial_state_value,
         );
-        info!(
+        trace!(
             "input_matrix: {}\nreservoir: {}\nreadout_matrix: {}",
-            input_weight_matrix, reservoir_matrix, readout_matrix
+            input_weight_matrix,
+            reservoir_matrix,
+            readout_matrix
         );
 
         Self {
@@ -227,15 +229,15 @@ impl ESN {
             1.0,
         );
         let p = (k + self.params.regularization_coeff * identity_m).try_inverse().unwrap();
-        let xTy = design_matrix.transpose() * &target_matrix;
-        let readout_matrix = p * xTy;
+        let xt_y = design_matrix.transpose() * &target_matrix;
+        let readout_matrix = p * xt_y;
         self.readout_matrix = Matrix::from_fn_generic(
             Dim::from_usize(INPUT_DIM + self.params.reservoir_size),
             Dim::from_usize(OUTPUT_DIM),
             |i, _| *readout_matrix.get(i + 1).unwrap(),
         );
 
-        info!("trained readout_matrix: {}", self.readout_matrix);
+        debug!("trained readout_matrix: {}", self.readout_matrix);
     }
 
     pub fn update_state<'a>(

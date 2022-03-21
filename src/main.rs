@@ -8,10 +8,10 @@ mod errors;
 mod esn;
 mod euler_state_network;
 mod experiments;
+mod firefly_optimizer;
 mod load_sample_data;
 pub(crate) mod plot;
 mod utils;
-mod firefly_optimizer;
 
 pub(crate) type Series = Vec<(f64, f64)>;
 
@@ -32,7 +32,7 @@ fn main() {
         "trades_eusn",
         "trades_sliding_window",
         "mackey_glass",
-        "mackey_glass_eusn"
+        "mackey_glass_eusn",
     ];
 
     let e = Select::with_theme(&ColorfulTheme::default())

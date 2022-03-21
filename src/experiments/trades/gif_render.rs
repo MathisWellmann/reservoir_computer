@@ -15,12 +15,7 @@ impl<'a> GifRender<'a> {
         }
     }
 
-    pub(crate) fn update(
-        &mut self,
-        targets: &Series,
-        train_preds: &Series,
-        test_preds: &Series,
-    ) {
+    pub(crate) fn update(&mut self, targets: &Series, train_preds: &Series, test_preds: &Series) {
         self.root.fill(&WHITE).unwrap();
         let ts_min = targets[0].0;
         let ts_max = targets[targets.len() - 1].0;

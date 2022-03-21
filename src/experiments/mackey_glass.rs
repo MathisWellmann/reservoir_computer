@@ -5,7 +5,7 @@ use nanorand::{Rng, WyRand};
 
 use crate::{
     activation::Activation,
-    esn::{Inputs, Params, ESN},
+    esn::{EsnParams, Inputs, ESN},
     plot::plot,
     Series,
 };
@@ -19,7 +19,7 @@ pub(crate) fn start() {
     let values = mackey_glass_series(total_len, 30, seed);
     info!("values: {:?}", values);
 
-    let params = Params {
+    let params = EsnParams {
         input_sparsity: 0.1,
         input_activation: Activation::Identity,
         input_weight_scaling: 0.5,

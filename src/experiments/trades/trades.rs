@@ -5,7 +5,7 @@ use sliding_features::{Echo, View, ALMA};
 
 use crate::{
     activation::Activation,
-    esn::{Inputs, Params, ESN},
+    esn::{EsnParams, Inputs, ESN},
     load_sample_data,
     plot::plot,
     utils::scale,
@@ -42,7 +42,7 @@ pub(crate) fn start() {
 
     let t0 = Instant::now();
 
-    let params = Params {
+    let params = EsnParams {
         input_sparsity: 0.1,
         input_activation: Activation::Identity,
         input_weight_scaling: 1.0,
