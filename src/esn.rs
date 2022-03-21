@@ -37,29 +37,29 @@ pub(crate) type Output = Matrix<f64, Const<1>, Const<1>, ArrayStorage<f64, 1, 1>
 /// regularization_coeff:
 /// seed: optional RNG seed
 #[derive(Debug, Clone)]
-pub(crate) struct Params {
-    pub(crate) input_sparsity: f64,
-    pub(crate) input_activation: Activation,
-    pub(crate) input_weight_scaling: f64,
+pub struct Params {
+    pub input_sparsity: f64,
+    pub input_activation: Activation,
+    pub input_weight_scaling: f64,
 
-    pub(crate) reservoir_size: usize,
-    pub(crate) reservoir_bias_scaling: f64,
-    pub(crate) reservoir_fixed_in_degree_k: usize,
-    pub(crate) reservoir_activation: Activation,
+    pub reservoir_size: usize,
+    pub reservoir_bias_scaling: f64,
+    pub reservoir_fixed_in_degree_k: usize,
+    pub reservoir_activation: Activation,
 
-    pub(crate) feedback_gain: f64,
-    pub(crate) spectral_radius: f64,
-    pub(crate) leaking_rate: f64,
-    pub(crate) regularization_coeff: f64,
-    pub(crate) washout_pct: f64,
-    pub(crate) output_tanh: bool,
-    pub(crate) seed: Option<u64>,
-    pub(crate) state_update_noise_frac: f64,
-    pub(crate) initial_state_value: f64,
+    pub feedback_gain: f64,
+    pub spectral_radius: f64,
+    pub leaking_rate: f64,
+    pub regularization_coeff: f64,
+    pub washout_pct: f64,
+    pub output_tanh: bool,
+    pub seed: Option<u64>,
+    pub state_update_noise_frac: f64,
+    pub initial_state_value: f64,
 }
 
 /// The Reseoir Computer, Leaky Echo State Network
-pub(crate) struct ESN {
+pub struct ESN {
     params: Params,
     input_weight_matrix:
         Matrix<f64, Dynamic, Const<INPUT_DIM>, VecStorage<f64, Dynamic, Const<INPUT_DIM>>>,
@@ -76,7 +76,7 @@ pub(crate) struct ESN {
 impl ESN {
     /// Create a new reservoir, with random initiallization
     /// # Arguments
-    pub(crate) fn new(params: Params) -> Self {
+    pub fn new(params: Params) -> Self {
         let mut rng = match params.seed {
             Some(seed) => WyRand::new_seed(seed),
             None => WyRand::new(),
@@ -238,7 +238,7 @@ impl ESN {
         info!("trained readout_matrix: {}", self.readout_matrix);
     }
 
-    pub(crate) fn update_state<'a>(
+    pub fn update_state<'a>(
         &mut self,
         input: &'a MatrixSlice<'a, f64, Const<1>, Const<INPUT_DIM>, Const<1>, Dynamic>,
         prev_pred: &Output,
@@ -273,7 +273,7 @@ impl ESN {
     /// Perform a readout operation
     #[inline]
     #[must_use]
-    pub(crate) fn readout(&self) -> Output {
+    pub fn readout(&self) -> Output {
         let mut pred = self.readout_matrix.transpose() * &self.extended_state;
         if self.params.output_tanh {
             pred.iter_mut().for_each(|v| *v = v.tanh());
@@ -284,7 +284,7 @@ impl ESN {
 
     /// Resets the state to it's initial values
     #[inline(always)]
-    pub(crate) fn reset_state(&mut self) {
+    pub fn reset_state(&mut self) {
         self.state = Matrix::from_element_generic(
             Dim::from_usize(self.params.reservoir_size),
             Dim::from_usize(1),
@@ -295,10 +295,5 @@ impl ESN {
             Dim::from_usize(1),
             self.params.initial_state_value,
         );
-    }
-
-    #[inline(always)]
-    pub(crate) fn state(&self) -> &StateMatrix {
-        &self.state
     }
 }

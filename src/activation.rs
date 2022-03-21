@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum Activation {
+pub enum Activation {
     Identity,
     Tanh,
     Relu,

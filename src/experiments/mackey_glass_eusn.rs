@@ -1,8 +1,8 @@
-use std::{time::Instant};
+use std::time::Instant;
 
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 
-use crate::{Series, activation::Activation, esn::{Inputs, Params, ESN}, euler_state_network::{EuSNParams, EulerStateNetwork}, experiments::mackey_glass::mackey_glass_series, plot::plot};
+use crate::{Series, activation::Activation, esn::Inputs, euler_state_network::{EuSNParams, EulerStateNetwork}, experiments::mackey_glass::mackey_glass_series, plot::plot};
 
 pub(crate) fn start() {
     let train_len = 5000;

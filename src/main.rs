@@ -11,6 +11,7 @@ mod experiments;
 mod load_sample_data;
 pub(crate) mod plot;
 mod utils;
+mod firefly_optimizer;
 
 pub(crate) type Series = Vec<(f64, f64)>;
 
@@ -29,6 +30,7 @@ fn main() {
         "sine",
         "trades",
         "trades_eusn",
+        "trades_sliding_window",
         "mackey_glass",
         "mackey_glass_eusn"
     ];
@@ -41,10 +43,11 @@ fn main() {
         .unwrap();
     match e {
         0 => experiments::sine::start(),
-        1 => experiments::trades::start(),
-        2 => experiments::trades_eusn::start(),
-        3 => experiments::mackey_glass::start(),
-        4 => experiments::mackey_glass_eusn::start(),
+        1 => experiments::trades::trades::start(),
+        2 => experiments::trades::trades_eusn::start(),
+        3 => experiments::trades::trades_sliding_window::start(),
+        4 => experiments::mackey_glass::start(),
+        5 => experiments::mackey_glass_eusn::start(),
         _ => panic!("invalid experiment selected"),
     }
 }

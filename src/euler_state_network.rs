@@ -1,8 +1,8 @@
 
-use nalgebra::{ArrayStorage, Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, SymmetricEigen, VecStorage};
+use nalgebra::{ArrayStorage, Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 use nanorand::{Rng, WyRand};
 
-use crate::{activation::Activation, esn::{Inputs, Output, ReadoutMatrix, StateMatrix, Targets}};
+use crate::{activation::Activation, esn::{Output, ReadoutMatrix}};
 
 // TODO: value validation
 #[derive(Debug, Clone)]
