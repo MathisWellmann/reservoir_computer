@@ -5,8 +5,6 @@ use crate::Series;
 pub(crate) struct GifRender<'a> {
     root: DrawingArea<BitMapBackend<'a>, Shift>,
     fits: Vec<Series>,
-    min_fit: f64,
-    max_fit: f64,
     min_ts: f64,
     max_ts: f64,
 }
@@ -18,8 +16,6 @@ impl<'a> GifRender<'a> {
         Self {
             root,
             fits: vec![vec![]; num_candidates],
-            min_fit: 0.0,
-            max_fit: 0.1,
             min_ts: 0.0,
             max_ts: 1.0,
         }
@@ -35,12 +31,6 @@ impl<'a> GifRender<'a> {
         parameters: &Vec<Vec<f64>>,
     ) {
         for (i, f) in fits.iter().enumerate() {
-            if *f > self.max_fit {
-                self.max_fit = *f;
-            }
-            if *f < self.min_fit {
-                self.min_fit = *f;
-            }
             self.max_ts = idx as f64;
             self.fits[i].push((idx as f64, *f));
         }
@@ -76,7 +66,7 @@ impl<'a> GifRender<'a> {
             .x_label_area_size(20)
             .y_label_area_size(40)
             .caption("rmse", ("sans-serif", 20).into_font().with_color(&BLACK))
-            .build_cartesian_2d(self.min_ts..self.max_ts, (self.min_fit..self.max_fit).log_scale())
+            .build_cartesian_2d(self.min_ts..self.max_ts, (0_f64..1_000_000_f64).log_scale())
             .unwrap();
         let mut cc2 = ChartBuilder::on(&lower[1])
             .margin(5)

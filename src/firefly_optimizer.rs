@@ -1,7 +1,9 @@
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
+use crossbeam::channel::unbounded;
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 use nanorand::{Rng, WyRand};
+use threadpool::ThreadPool;
 
 use crate::{
     activation::Activation,
@@ -138,23 +140,38 @@ impl FireflyOptimizer {
 
     pub fn step(
         &mut self,
-        train_inputs: &Inputs,
-        train_targets: &Targets,
-        inputs: &Inputs,
-        targets: &Targets,
+        train_inputs: Arc<Inputs>,
+        train_targets: Arc<Targets>,
+        inputs: Arc<Inputs>,
+        targets: Arc<Targets>,
     ) {
         self.update_candidates();
 
+        let pool = ThreadPool::new(num_cpus::get());
+
+        let (ch_fit_s, ch_fit_r) = unbounded();
         for (i, c) in self.candidates.iter().enumerate() {
+            let ch_fit_s = ch_fit_s.clone();
+            let train_inputs = train_inputs.clone();
+            let train_targets = train_targets.clone();
+            let inputs = inputs.clone();
+            let targets = targets.clone();
             let params = self.params.param_mapping.map(&c);
-            let mut rc = ESN::new(params);
+            pool.execute(move || {
+                let mut rc = ESN::new(params);
 
-            rc.train(train_inputs, train_targets);
-            rc.reset_state();
+                rc.train(&train_inputs, &train_targets);
+                rc.reset_state();
 
-            let f = self.evaluate(&mut rc, inputs, targets);
-            self.fits[i] = f;
+                let f = Self::evaluate(&mut rc, &inputs, &targets);
+                ch_fit_s.send((i, f)).unwrap();
+            });
         }
+        drop(ch_fit_s);
+        while let Ok((i, fit)) = ch_fit_r.recv() {
+            self.fits[i] = fit;
+        }
+
         let mut max_idx = 0;
         let mut max_fit = self.fits[0];
         for (i, fit) in self.fits.iter().enumerate() {
@@ -196,7 +213,7 @@ impl FireflyOptimizer {
     }
 
     /// Evaluate the performance of the ESN
-    fn evaluate(&self, rc: &mut ESN, inputs: &Inputs, targets: &Targets) -> f64 {
+    fn evaluate(rc: &mut ESN, inputs: &Inputs, targets: &Targets) -> f64 {
         let t0 = Instant::now();
         let mut test_rmse = 0.0;
         for i in 0..inputs.nrows() {
@@ -269,6 +286,7 @@ mod tests {
                 0.0005,
                 0.0,
             ),
+            step_size: 0.01,
         };
         let ff = FireflyOptimizer::new(params);
         println!("candidates: {:?}", ff.candidates());

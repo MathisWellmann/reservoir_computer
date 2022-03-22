@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 use sliding_features::{Echo, HLNormalizer, View, ALMA};
@@ -29,9 +29,9 @@ pub(crate) fn start() {
 
     let t0 = Instant::now();
 
-    let num_candidates = 10;
+    let num_candidates = 24;
     let params = FireflyParams {
-        gamma: 0.03,
+        gamma: 0.05,
         alpha: 0.005,
         step_size: 0.005,
         num_candidates,
@@ -78,7 +78,12 @@ pub(crate) fn start() {
                 values[i - TRAIN_LEN - VALIDATION_LEN..i].to_vec(),
             );
 
-            opt.step(&train_inputs, &train_targets, &inputs, &targets);
+            opt.step(
+                Arc::new(train_inputs),
+                Arc::new(train_targets),
+                Arc::new(inputs),
+                Arc::new(targets),
+            );
             let mut rc = opt.elite();
 
             let vals_matrix: Inputs = Matrix::from_vec_generic(
