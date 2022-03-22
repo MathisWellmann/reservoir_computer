@@ -103,6 +103,8 @@ pub struct FireflyParams {
     pub gamma: f64,
     /// Amount of random influence in parameter update
     pub alpha: f64,
+    /// Step size
+    pub step_size: f64,
     pub num_candidates: usize,
     pub param_mapping: ParameterMapper,
 }
@@ -177,15 +179,17 @@ impl FireflyOptimizer {
                 for p in 0..self.candidates[i].len() {
                     dist += (self.candidates[i][p] - self.candidates[j][p]).powi(2);
                 }
-                dist = dist.sqrt();
 
-                let beta: f64 = -self.params.gamma * dist.powi(2);
-                let r = self.params.alpha * self.rng.generate::<f64>();
+                let r = self.params.alpha * (self.rng.generate::<f64>() * 2.0 - 1.0);
 
                 for p in 0..self.candidates[i].len() {
-                    let new =
-                        beta * self.candidates[j][p] + (1.0 - beta) * self.candidates[i][p] + r;
-                    self.candidates[j][p] = new;
+                    let old = self.candidates[j][p];
+                    let new = old
+                        + self.params.step_size
+                            * (-self.params.gamma * dist).exp()
+                            * (self.candidates[j][p] - self.candidates[i][p])
+                        + r;
+                    self.candidates[j][p] = Self::bounds_checked(old, new);
                 }
             }
         }
@@ -215,6 +219,17 @@ impl FireflyOptimizer {
         test_rmse
     }
 
+    // ensure the parameter bounds of the problem
+    fn bounds_checked(old: f64, new: f64) -> f64 {
+        return if new > 1.0 {
+            old
+        } else if new < 0.0 {
+            old
+        } else {
+            new
+        };
+    }
+
     #[inline(always)]
     pub fn elite(&self) -> ESN {
         let c = &self.candidates[self.elite_idx];
@@ -230,5 +245,32 @@ impl FireflyOptimizer {
 
     pub fn candidates(&self) -> &Vec<Vec<f64>> {
         &self.candidates
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_firefly() {
+        let params = FireflyParams {
+            gamma: 0.1,
+            alpha: 0.05,
+            num_candidates: 10,
+            param_mapping: ParameterMapper::new(
+                vec![(0.01, 0.2), (0.5, 1.0), (0.0, 0.5), (2.0, 10.0)],
+                Activation::Identity,
+                500,
+                Activation::Tanh,
+                0.02,
+                0.1,
+                None,
+                0.0005,
+                0.0,
+            ),
+        };
+        let ff = FireflyOptimizer::new(params);
+        println!("candidates: {:?}", ff.candidates());
     }
 }

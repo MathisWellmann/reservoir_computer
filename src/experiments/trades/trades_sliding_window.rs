@@ -31,8 +31,9 @@ pub(crate) fn start() {
 
     let num_candidates = 10;
     let params = FireflyParams {
-        gamma: 0.1,
-        alpha: 0.05,
+        gamma: 0.03,
+        alpha: 0.005,
+        step_size: 0.005,
         num_candidates,
         param_mapping: ParameterMapper::new(
             vec![(0.01, 0.2), (0.5, 1.0), (0.0, 0.5), (2.0, 10.0)],
