@@ -138,8 +138,8 @@ impl FireflyOptimizer {
         &mut self,
         train_inputs: &Inputs,
         train_targets: &Targets,
-        validation_inputs: &Inputs,
-        validation_targets: &Targets,
+        inputs: &Inputs,
+        targets: &Targets,
     ) {
         self.update_candidates();
 
@@ -150,7 +150,7 @@ impl FireflyOptimizer {
             rc.train(train_inputs, train_targets);
             rc.reset_state();
 
-            let f = self.evaluate(&mut rc, validation_inputs, validation_targets);
+            let f = self.evaluate(&mut rc, inputs, targets);
             self.fits[i] = f;
         }
         let mut max_idx = 0;
@@ -221,5 +221,14 @@ impl FireflyOptimizer {
         let params = self.params.param_mapping.map(c);
 
         ESN::new(params)
+    }
+
+    #[inline(always)]
+    pub fn fits(&self) -> &Vec<f64> {
+        &self.fits
+    }
+
+    pub fn candidates(&self) -> &Vec<Vec<f64>> {
+        &self.candidates
     }
 }

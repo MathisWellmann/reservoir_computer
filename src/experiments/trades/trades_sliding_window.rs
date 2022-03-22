@@ -19,7 +19,7 @@ pub(crate) fn start() {
 
     let series: Vec<f64> = load_sample_data::load_sample_data();
 
-    let mut feature = HLNormalizer::new(ALMA::new(Echo::new(), 100), 100);
+    let mut feature = HLNormalizer::new(ALMA::new(Echo::new(), 100), TRAIN_LEN);
     let mut values: Vec<f64> = Vec::with_capacity(series.len());
     for s in &series {
         feature.update(*s);
@@ -29,14 +29,13 @@ pub(crate) fn start() {
 
     let t0 = Instant::now();
 
-    let n_vals = values.len();
-
+    let num_candidates = 10;
     let params = FireflyParams {
         gamma: 0.1,
         alpha: 0.05,
-        num_candidates: 10,
+        num_candidates,
         param_mapping: ParameterMapper::new(
-            vec![(0.01, 0.5), (0.1, 1.0), (0.0, 1.0), (1.0, 12.0)],
+            vec![(0.01, 0.2), (0.5, 1.0), (0.0, 0.5), (2.0, 10.0)],
             Activation::Identity,
             500,
             Activation::Tanh,
@@ -49,7 +48,8 @@ pub(crate) fn start() {
     };
     let mut opt = FireflyOptimizer::new(params);
 
-    let mut gif_render = GifRender::new("img/trades_sliding_window.gif", (1080, 1080));
+    let mut gif_render =
+        GifRender::new("img/trades_sliding_window.gif", (1080, 1080), num_candidates);
     // TODO: iterate over all data
     for i in (TRAIN_LEN + VALIDATION_LEN + 1)..100_000 {
         if i % 100 == 0 {
@@ -66,18 +66,18 @@ pub(crate) fn start() {
                 Dim::from_usize(INPUT_DIM),
                 values[i - TRAIN_LEN - VALIDATION_LEN..i - VALIDATION_LEN].to_vec(),
             );
-            let validation_inputs: Inputs = Matrix::from_vec_generic(
-                Dim::from_usize(VALIDATION_LEN),
+            let inputs: Inputs = Matrix::from_vec_generic(
+                Dim::from_usize(TRAIN_LEN + VALIDATION_LEN),
                 Dim::from_usize(INPUT_DIM),
-                values[i - VALIDATION_LEN - 1..i - 1].to_vec(),
+                values[i - TRAIN_LEN - VALIDATION_LEN - 1..i - 1].to_vec(),
             );
-            let validation_targets: Targets = Matrix::from_vec_generic(
-                Dim::from_usize(VALIDATION_LEN),
+            let targets: Targets = Matrix::from_vec_generic(
+                Dim::from_usize(TRAIN_LEN + VALIDATION_LEN),
                 Dim::from_usize(INPUT_DIM),
-                values[i - VALIDATION_LEN..i].to_vec(),
+                values[i - TRAIN_LEN - VALIDATION_LEN..i].to_vec(),
             );
 
-            opt.step(&train_inputs, &train_targets, &validation_inputs, &validation_targets);
+            opt.step(&train_inputs, &train_targets, &inputs, &targets);
             let mut rc = opt.elite();
 
             let vals_matrix: Inputs = Matrix::from_vec_generic(
@@ -87,7 +87,14 @@ pub(crate) fn start() {
             );
 
             let (plot_targets, train_preds, test_preds) = gather_plot_data(&vals_matrix, &mut rc);
-            gif_render.update(&plot_targets, &train_preds, &test_preds);
+            gif_render.update(
+                &plot_targets,
+                &train_preds,
+                &test_preds,
+                opt.fits(),
+                i,
+                opt.candidates(),
+            );
 
             info!("step took {}s", t1.elapsed().as_secs());
         }
