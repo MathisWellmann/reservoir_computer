@@ -1,11 +1,13 @@
 use plotters::{coord::Shift, prelude::*};
 
-use crate::Series;
+use crate::{
+    experiments::trades::trades_sliding_window::{TRAIN_LEN, VALIDATION_LEN},
+    Series,
+};
 
 pub(crate) struct GifRender<'a> {
     root: DrawingArea<BitMapBackend<'a>, Shift>,
     fits: Vec<Series>,
-    min_ts: f64,
     max_ts: f64,
 }
 
@@ -16,7 +18,6 @@ impl<'a> GifRender<'a> {
         Self {
             root,
             fits: vec![vec![]; num_candidates],
-            min_ts: 0.0,
             max_ts: 1.0,
         }
     }
@@ -38,17 +39,16 @@ impl<'a> GifRender<'a> {
         self.root.fill(&WHITE).unwrap();
         let ts_min = targets[0].0;
         let ts_max = targets[targets.len() - 1].0;
-        let mut target_min: f64 = targets[0].1;
-        let mut target_max: f64 = targets[targets.len() - 1].1;
-        for t in targets {
-            if t.1 < target_min {
-                target_min = t.1;
+        let mut target_min = targets[0].1;
+        let mut target_max = targets[0].1;
+        for (_, t) in targets {
+            if *t < target_min {
+                target_min = *t;
             }
-            if t.1 > target_max {
-                target_max = t.1;
+            if *t > target_max {
+                target_max = *t;
             }
         }
-        info!("target_min: {}, target_max: {}", target_min, target_max);
 
         let areas = self.root.split_evenly((2, 1));
         let upper = areas[0].split_evenly((1, 2));
@@ -66,7 +66,10 @@ impl<'a> GifRender<'a> {
             .x_label_area_size(20)
             .y_label_area_size(40)
             .caption("rmse", ("sans-serif", 20).into_font().with_color(&BLACK))
-            .build_cartesian_2d(self.min_ts..self.max_ts, (0_f64..1_000_000_f64).log_scale())
+            .build_cartesian_2d(
+                (TRAIN_LEN + VALIDATION_LEN) as f64..self.max_ts,
+                (0_f64..50_000_f64).log_scale(),
+            )
             .unwrap();
         let mut cc2 = ChartBuilder::on(&lower[1])
             .margin(5)

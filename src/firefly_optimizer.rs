@@ -92,7 +92,7 @@ impl ParameterMapper {
             leaking_rate: self.leaking_rate,
             regularization_coeff: self.regularization_coeff,
             washout_pct: 0.1,
-            output_tanh: false,
+            output_tanh: true,
             seed: self.seed,
             state_update_noise_frac: self.state_update_noise_frac,
             initial_state_value: self.initial_state_value,
@@ -172,30 +172,32 @@ impl FireflyOptimizer {
             self.fits[i] = fit;
         }
 
-        let mut max_idx = 0;
-        let mut max_fit = self.fits[0];
+        let mut min_idx = 0;
+        let mut min_rmse = self.fits[0];
         for (i, fit) in self.fits.iter().enumerate() {
-            if *fit > max_fit {
-                max_fit = *fit;
-                max_idx = i;
+            // minizing rmse
+            if *fit < min_rmse {
+                min_rmse = *fit;
+                min_idx = i;
             }
         }
-        self.elite_idx = max_idx;
+        self.elite_idx = min_idx;
     }
 
     fn update_candidates(&mut self) {
         for i in 0..self.fits.len() {
             for j in 0..self.fits.len() {
-                if self.fits[i] < self.fits[j] {
+                if self.fits[i] > self.fits[j] {
                     continue;
                 }
 
-                // I is more fit than J
+                // I is more fit than J, by having lower rmse
 
                 let mut dist: f64 = 0.0;
                 for p in 0..self.candidates[i].len() {
                     dist += (self.candidates[i][p] - self.candidates[j][p]).powi(2);
                 }
+                let attractiveness = self.fits[i] * (-self.params.gamma * dist).exp();
 
                 let r = self.params.alpha * (self.rng.generate::<f64>() * 2.0 - 1.0);
 
@@ -203,7 +205,7 @@ impl FireflyOptimizer {
                     let old = self.candidates[j][p];
                     let new = old
                         + self.params.step_size
-                            * (-self.params.gamma * dist).exp()
+                            * attractiveness
                             * (self.candidates[j][p] - self.candidates[i][p])
                         + r;
                     self.candidates[j][p] = Self::bounds_checked(old, new);
@@ -215,8 +217,9 @@ impl FireflyOptimizer {
     /// Evaluate the performance of the ESN
     fn evaluate(rc: &mut ESN, inputs: &Inputs, targets: &Targets) -> f64 {
         let t0 = Instant::now();
-        let mut test_rmse = 0.0;
-        for i in 0..inputs.nrows() {
+        let mut rmse = 0.0;
+        let n = inputs.nrows();
+        for i in 0..n {
             let predicted_out = rc.readout();
             let last_prediction = *predicted_out.get(0).unwrap();
 
@@ -226,14 +229,16 @@ impl FireflyOptimizer {
                     *predicted_out.get(j).unwrap()
                 });
             let target = *targets.row(i).get(0).unwrap();
-            test_rmse += (last_prediction - target).powi(2);
+            if i > n / 4 {
+                rmse += (last_prediction - target).powi(2);
+            }
             let input = m.row(0);
 
             rc.update_state(&input, &predicted_out);
         }
-        info!("evaluation took {}ms, rmse: {}", t0.elapsed().as_millis(), test_rmse);
+        info!("evaluation took {}ms, rmse: {}", t0.elapsed().as_millis(), rmse);
 
-        test_rmse
+        rmse
     }
 
     // ensure the parameter bounds of the problem

@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Instant};
 
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
-use sliding_features::{Echo, HLNormalizer, View, ALMA};
+use sliding_features::{Constant, Echo, HLNormalizer, Multiply, View, ALMA, VSCT};
 
 use crate::{
     activation::Activation,
@@ -11,15 +11,16 @@ use crate::{
     load_sample_data, Series, INPUT_DIM,
 };
 
-const TRAIN_LEN: usize = 10_000;
-const VALIDATION_LEN: usize = 2_000;
+pub(crate) const TRAIN_LEN: usize = 10_000;
+pub(crate) const VALIDATION_LEN: usize = 2_000;
 
 pub(crate) fn start() {
     info!("loading sample data");
 
     let series: Vec<f64> = load_sample_data::load_sample_data();
 
-    let mut feature = HLNormalizer::new(ALMA::new(Echo::new(), 100), TRAIN_LEN);
+    let mut feature =
+        Multiply::new(VSCT::new(ALMA::new(Echo::new(), 100), TRAIN_LEN), Constant::new(0.2));
     let mut values: Vec<f64> = Vec::with_capacity(series.len());
     for s in &series {
         feature.update(*s);
@@ -29,22 +30,22 @@ pub(crate) fn start() {
 
     let t0 = Instant::now();
 
-    let num_candidates = 24;
+    let num_candidates = 96;
     let params = FireflyParams {
-        gamma: 0.05,
+        gamma: 50.0,
         alpha: 0.005,
         step_size: 0.005,
         num_candidates,
         param_mapping: ParameterMapper::new(
-            vec![(0.01, 0.2), (0.5, 1.0), (0.0, 0.5), (2.0, 10.0)],
+            vec![(0.05, 0.15), (0.9, 1.0), (0.0, 0.05), (7.0, 9.0)],
             Activation::Identity,
             500,
             Activation::Tanh,
             0.02,
             0.1,
-            None,
+            Some(0),
             0.0005,
-            values[0],
+            0.0,
         ),
     };
     let mut opt = FireflyOptimizer::new(params);
