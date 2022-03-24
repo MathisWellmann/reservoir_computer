@@ -5,18 +5,14 @@ extern crate log;
 
 mod activation;
 mod errors;
-mod esn;
-mod euler_state_network;
 mod experiments;
-mod firefly_optimizer;
+mod reservoir_computers;
+//mod firefly_optimizer;
 mod load_sample_data;
 pub(crate) mod plot;
 mod utils;
 
 pub(crate) type Series = Vec<(f64, f64)>;
-
-pub(crate) const INPUT_DIM: usize = 1;
-pub(crate) const OUTPUT_DIM: usize = 1;
 
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
@@ -26,14 +22,7 @@ fn main() {
     }
     pretty_env_logger::init();
 
-    let experiments = [
-        "sine",
-        "trades",
-        "trades_eusn",
-        "trades_sliding_window",
-        "mackey_glass",
-        "mackey_glass_eusn",
-    ];
+    let experiments = ["sine", "trades", "trades_sliding_window", "mackey_glass"];
 
     let e = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select Experiment")
@@ -44,10 +33,8 @@ fn main() {
     match e {
         0 => experiments::sine::start(),
         1 => experiments::trades::trades::start(),
-        2 => experiments::trades::trades_eusn::start(),
-        3 => experiments::trades::trades_sliding_window::start(),
-        4 => experiments::mackey_glass::start(),
-        5 => experiments::mackey_glass_eusn::start(),
+        //2 => experiments::trades::trades_sliding_window::start(),
+        3 => experiments::mackey_glass::start(),
         _ => panic!("invalid experiment selected"),
     }
 }

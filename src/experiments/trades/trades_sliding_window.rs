@@ -1,16 +1,14 @@
 use std::{sync::Arc, time::Instant};
 
+use dialoguer::{Select, theme::ColorfulTheme};
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
-use sliding_features::{Constant, Echo, HLNormalizer, Multiply, View, ALMA, VSCT};
+use sliding_features::{Constant, Echo, Multiply, View, ALMA, VSCT};
 
-use crate::{
-    activation::Activation,
-    esn::{Inputs, Targets, ESN},
-    experiments::trades::gif_render::GifRender,
-    firefly_optimizer::{FireflyOptimizer, FireflyParams, ParameterMapper},
-    load_sample_data, Series, INPUT_DIM,
-};
+use crate::{Series, activation::Activation, experiments::trades::gif_render::GifRender, firefly_optimizer::{FireflyOptimizer, FireflyParams, ParameterMapper}, load_sample_data, reservoir_computers::esn};
 
+const INPUT_DIM: usize = 1;
+const OUTPUT_DIM: usize = 1;
+const SEED: Option<u64> = Some(0)
 pub(crate) const TRAIN_LEN: usize = 10_000;
 pub(crate) const VALIDATION_LEN: usize = 2_000;
 
@@ -28,9 +26,68 @@ pub(crate) fn start() {
     }
     info!("got {} datapoints", values.len());
 
-    let t0 = Instant::now();
+    let rcs = vec![
+        "ESN",
+        "EuSN",
+        "NG-RC",
+    ];
+    let e = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Select Reservoir Computer")
+        .items(&rcs)
+        .default(0)
+        .interact()
+        .unwrap();
+    match e {
+        0 => {
+            let params = esn::Params {
+                input_sparsity: 0.1,
+                input_activation: Activation::Identity,
+                input_weight_scaling: 0.5,
+                reservoir_bias_scaling: 0.01,
 
-    let num_candidates = 96;
+                reservoir_size: 200,
+                reservoir_fixed_in_degree_k: 4,
+                reservoir_activation: Activation::Tanh,
+
+                feedback_gain: 0.0,
+                spectral_radius: 0.99,
+                leaking_rate: 0.15,
+                regularization_coeff: 0.05,
+                washout_pct: 0.1,
+                output_tanh: false,
+                seed: SEED,
+                state_update_noise_frac: 0.001,
+                initial_state_value: values[0],
+            };
+
+            let mut rc = esn::ESN::new(params);
+
+        },
+        1 => {
+            let params = eusn::Params {
+                input_sparsity: 0.1,
+                input_weight_scaling: 0.5,
+                reservoir_size: 500,
+                reservoir_weight_scaling: 0.7,
+                reservoir_bias_scaling: 0.1,
+                reservoir_activation: Activation::Relu,
+                initial_state_value: values[0],
+                seed: SEED,
+                washout_frac: 0.1,
+                regularization_coeff: 0.1,
+                epsilon: 0.008,
+                gamma: 0.05,
+            };
+            let mut rc = eusn::EulerStateNetwork::new(params);
+
+        }
+        2 => {
+            todo!()
+        }
+        _ => panic!("invalid reservoir computer selection")
+    }
+    let t0 = Instant::now();
+    /*
     let params = FireflyParams {
         gamma: 50.0,
         alpha: 0.005,
@@ -39,7 +96,7 @@ pub(crate) fn start() {
         param_mapping: ParameterMapper::new(
             vec![(0.05, 0.15), (0.9, 1.0), (0.0, 0.05), (7.0, 9.0)],
             Activation::Identity,
-            500,
+            100,
             Activation::Tanh,
             0.02,
             0.1,
@@ -49,6 +106,9 @@ pub(crate) fn start() {
         ),
     };
     let mut opt = FireflyOptimizer::new(params);
+    */
+
+    let num_candidates = 96;
 
     let mut gif_render =
         GifRender::new("img/trades_sliding_window.gif", (1080, 1080), num_candidates);
@@ -108,6 +168,14 @@ pub(crate) fn start() {
     }
 
     info!("took {}s", t0.elapsed().as_secs());
+}
+
+fn sliding() {
+
+}
+
+fn run_rc<R: ReservoirComputer<P, I, O>, P, const I: usize, const O: usize>(r: R, values: Vec<f64>) {
+
 }
 
 fn gather_plot_data(values: &Inputs, rc: &mut ESN) -> (Series, Series, Series) {
