@@ -1,6 +1,6 @@
 [package]
 name = "reservoir_computer"
-version = "0.4.5"
+version = "0.4.6"
 edition = "2021"
 authors = ["Mathis Wellmann <wellmannmathis@gmail.com"]
 license = "GNU AGPLv3"
@@ -15,7 +15,7 @@ csv = "^1.1.6"
 plotters = "^0.3.1"
 thiserror = "^1"
 nalgebra = { version = "^0.30", features = ["sparse"]}
-nanorand = "^0.6"
+nanorand = "^0.7"
 dialoguer = "^0.10.0"
 num = "^0.4"
 num_cpus = "^1.13.1"

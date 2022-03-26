@@ -55,7 +55,7 @@ pub(crate) fn start() {
                 leaking_rate: 0.15,
                 regularization_coeff: 0.05,
                 washout_pct: 0.1,
-                output_tanh: false,
+                output_activation: Activation::Identity,
                 seed: SEED,
                 state_update_noise_frac: 0.001,
                 initial_state_value: values[0],

@@ -44,8 +44,7 @@ pub struct Params {
     pub leaking_rate: f64,
     pub regularization_coeff: f64,
     pub washout_pct: f64,
-    //TODO: change to output_activation
-    pub output_tanh: bool,
+    pub output_activation: Activation,
     pub seed: Option<u64>,
     pub state_update_noise_frac: f64,
     pub initial_state_value: f64,
@@ -64,6 +63,7 @@ impl RCParams for Params {
 }
 
 /// The Reseoir Computer, Leaky Echo State Network
+#[derive(Debug)]
 pub struct ESN<const I: usize, const O: usize> {
     params: Params,
     input_weight_matrix: Matrix<f64, Dynamic, Const<I>, VecStorage<f64, Dynamic, Const<I>>>,
@@ -229,7 +229,7 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
             |i, _| *readout_matrix.get(i + 1).unwrap(),
         );
 
-        debug!("trained readout_matrix: {}", self.readout_matrix);
+        info!("trained readout_matrix: {}", self.readout_matrix);
     }
 
     fn update_state<'a>(
@@ -254,11 +254,11 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
         self.extended_state = Matrix::from_fn_generic(
             Dim::from_usize(I + self.params.reservoir_size),
             Dim::from_usize(1),
-            |_, j| {
-                if j == 0 {
+            |i, _| {
+                if i == 0 {
                     *input.get(0).unwrap()
                 } else {
-                    *self.state.row(j - 1).get(0).unwrap()
+                    *self.state.row(i - 1).get(0).unwrap()
                 }
             },
         );
@@ -269,9 +269,7 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
     #[must_use]
     fn readout(&self) -> Matrix<f64, Const<O>, Const<1>, ArrayStorage<f64, O, 1>> {
         let mut pred = &self.readout_matrix * &self.extended_state;
-        if self.params.output_tanh {
-            pred.iter_mut().for_each(|v| *v = v.tanh());
-        }
+        self.params.output_activation.activate(pred.as_mut_slice());
 
         pred
     }

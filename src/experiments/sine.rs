@@ -52,7 +52,7 @@ pub(crate) fn start() {
                 input_weight_scaling: 0.5,
                 reservoir_bias_scaling: 0.0,
 
-                reservoir_size: 80,
+                reservoir_size: 40,
                 reservoir_fixed_in_degree_k: 2,
                 reservoir_activation: Activation::Tanh,
 
@@ -61,7 +61,7 @@ pub(crate) fn start() {
                 leaking_rate: 0.2,
                 regularization_coeff: 0.1,
                 washout_pct: 0.1,
-                output_tanh: false,
+                output_activation: Activation::Identity,
                 seed: Some(0),
                 state_update_noise_frac: 0.01,
                 initial_state_value: 0.0,
@@ -116,8 +116,8 @@ fn run_rc<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: u
         }
         // To begin forecasting, replace target input with it's own prediction
         let m: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
-            Matrix::from_fn_generic(Dim::from_usize(I), Dim::from_usize(1), |_, j| {
-                *predicted_out.get(j).unwrap()
+            Matrix::from_fn_generic(Dim::from_usize(I), Dim::from_usize(1), |i, _| {
+                *predicted_out.get(i).unwrap()
             });
         let input = if j > TRAINING_WINDOW {
             test_predictions.push((j as f64, last_prediction));
