@@ -36,7 +36,7 @@ pub struct Params {
 
     pub reservoir_size: usize,
     pub reservoir_bias_scaling: f64,
-    pub reservoir_fixed_in_degree_k: usize,
+    pub reservoir_sparsity: f64,
     pub reservoir_activation: Activation,
 
     pub feedback_gain: f64,
@@ -86,11 +86,11 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
         };
         let mut weights: Vec<Vec<f64>> =
             vec![vec![0.0; params.reservoir_size]; params.reservoir_size];
-        for j in 0..weights.len() {
-            for _ in 0..params.reservoir_fixed_in_degree_k {
-                // Choose random input node
-                let i = rng.generate_range(0..params.reservoir_size);
-                weights[i][j] = rng.generate::<f64>() * 2.0 - 1.0;
+        for i in 0..weights.len() {
+            for j in 0..weights.len() {
+                if rng.generate::<f64>() < params.reservoir_sparsity {
+                    weights[i][j] = rng.generate::<f64>() * 2.0 - 1.0;
+                }
             }
         }
         let mut reservoir_matrix: DMatrix<f64> = DMatrix::from_vec_generic(

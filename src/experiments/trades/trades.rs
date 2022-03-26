@@ -70,7 +70,7 @@ pub(crate) fn start() {
                 reservoir_bias_scaling: 0.0,
 
                 reservoir_size: 500,
-                reservoir_fixed_in_degree_k: 8,
+                reservoir_sparsity: 0.1,
                 reservoir_activation: Activation::Tanh,
 
                 feedback_gain: 0.0,
