@@ -5,11 +5,7 @@ use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 use nanorand::{Rng, WyRand};
 use threadpool::ThreadPool;
 
-use crate::{
-    activation::Activation,
-    esn::{EsnParams, Inputs, Targets, ESN},
-    utils::scale,
-};
+use crate::{activation::Activation, reservoir_computers::{ReservoirComputer, esn}, utils::scale};
 
 const NUM_CANDIDATE_PARAMS: usize = 4;
 
@@ -52,10 +48,10 @@ impl ParameterMapper {
         }
     }
 
-    pub fn map(&self, params: &Vec<f64>) -> EsnParams {
+    pub fn map(&self, params: &Vec<f64>) -> esn::Params {
         assert_eq!(params.len(), self.param_ranges.len());
 
-        EsnParams {
+        esn::Params {
             input_sparsity: scale(
                 0.0,
                 1.0,
@@ -120,7 +116,6 @@ pub struct FireflyOptimizer {
 }
 
 impl FireflyOptimizer {
-    #[inline(always)]
     pub fn new(params: FireflyParams) -> Self {
         // TODO: optional poisson-disk sampling
         let mut rng = WyRand::new();
@@ -138,12 +133,12 @@ impl FireflyOptimizer {
         }
     }
 
-    pub fn step(
+    pub fn step<const I: usize, const O: usize>(
         &mut self,
-        train_inputs: Arc<Inputs>,
-        train_targets: Arc<Targets>,
-        inputs: Arc<Inputs>,
-        targets: Arc<Targets>,
+        train_inputs: Arc<Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>>,
+        train_targets: Arc<Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>>,
+        inputs: Arc<Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>>,
+        targets: Arc<Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>>,
     ) {
         self.update_candidates();
 
@@ -158,7 +153,7 @@ impl FireflyOptimizer {
             let targets = targets.clone();
             let params = self.params.param_mapping.map(&c);
             pool.execute(move || {
-                let mut rc = ESN::new(params);
+                let mut rc = esn::ESN::new(params);
 
                 rc.train(&train_inputs, &train_targets);
                 rc.reset_state();
@@ -215,7 +210,11 @@ impl FireflyOptimizer {
     }
 
     /// Evaluate the performance of the ESN
-    fn evaluate(rc: &mut ESN, inputs: &Inputs, targets: &Targets) -> f64 {
+    fn evaluate(
+        rc: &mut R,
+        inputs: &Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>,
+        targets: &Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>,
+    ) -> f64 {
         let t0 = Instant::now();
         let mut rmse = 0.0;
         let n = inputs.nrows();
@@ -253,11 +252,9 @@ impl FireflyOptimizer {
     }
 
     #[inline(always)]
-    pub fn elite(&self) -> ESN {
+    pub fn elite_param(&self) -> esn::Params {
         let c = &self.candidates[self.elite_idx];
-        let params = self.params.param_mapping.map(c);
-
-        ESN::new(params)
+        self.params.param_mapping.map(c)
     }
 
     #[inline(always)]

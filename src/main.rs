@@ -33,7 +33,7 @@ fn main() {
     match e {
         0 => experiments::sine::start(),
         1 => experiments::trades::trades::start(),
-        //2 => experiments::trades::trades_sliding_window::start(),
+        2 => experiments::trades::trades_sliding_window::start(),
         3 => experiments::mackey_glass::start(),
         _ => panic!("invalid experiment selected"),
     }
