@@ -6,47 +6,53 @@ use nanorand::{Rng, WyRand};
 use super::{RCParams, ReservoirComputer, StateMatrix};
 use crate::activation::Activation;
 
-/// reservoir_size: number of nodes in the reservoir
-/// fixed_in_degree_k: number of inputs per node
-/// input_sparsity: the connection probability within the reservoir
-/// input_scaling: multiplies the input weights
-/// input_bias: adds a bias to inputs
-///
-/// leaking_rate:
-/// The leaking rate a can be regarded as the speed of the reservoir
-/// update dynamics discretized in time. This can be adapted online
-/// to deal with time wrapping of the signals. Set the leaking rate
-/// to match the speed of the dynamics of input / target This sort
-/// of acts as a EMA smoothing filter, so other MAs could be used
-/// such as ALMA
-///
-/// spectral_radius:
-/// The spectral radius determines how fast the influence of an input
-/// dies out in a reservoir with time, and how stable the reservoir
-/// activations are. The spectral radius should be greater in tasks
-/// requiring longer memory of the input.
-///
-/// regularization_coeff:
-/// seed: optional RNG seed
+/// The parameters of the Echo State Network
 #[derive(Debug, Clone)]
 pub struct Params {
+    /// Probability of inputs connecting to state
     pub input_sparsity: f64,
+    /// Activation function applied to result of input transformation
     pub input_activation: Activation,
+    /// Scales the input weight matrix
     pub input_weight_scaling: f64,
 
+    /// Number of nodes in the reservoir
     pub reservoir_size: usize,
+    /// Scales the reservoir biases
     pub reservoir_bias_scaling: f64,
+    /// Connection probability within the reservoir
     pub reservoir_sparsity: f64,
+    /// Activation function of reservoir state transition
     pub reservoir_activation: Activation,
 
+    /// Influence of feedback computation
     pub feedback_gain: f64,
+
+    /// Controls the retention of information from previous time steps.
+    /// The spectral radius determines how fast the influence of an input
+    /// dies out in a reservoir with time, and how stable the reservoir
+    /// activations are. The spectral radius should be greater in tasks
+    /// requiring longer memory of the input.
     pub spectral_radius: f64,
+    /// Tunes the decay time of internal activity of the network
+    /// The leaking rate a can be regarded as the speed of the reservoir
+    /// update dynamics discretized in time. This can be adapted online
+    /// to deal with time wrapping of the signals. Set the leaking rate
+    /// to match the speed of the dynamics of input / target This sort
+    /// of acts as a EMA smoothing filter, so other MAs could be used
+    /// such as ALMA
     pub leaking_rate: f64,
+    /// Ridge regression regulazation applied in training
     pub regularization_coeff: f64,
+    /// Fraction of initial state transitions to disregard in training
     pub washout_pct: f64,
+    /// Activation function of networks readout
     pub output_activation: Activation,
+    /// Optional seed for Rng
     pub seed: Option<u64>,
+    /// Fraction of noise to add to state update equation
     pub state_update_noise_frac: f64,
+    /// Initial value of state
     pub initial_state_value: f64,
 }
 

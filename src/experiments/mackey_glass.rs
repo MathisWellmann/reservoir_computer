@@ -18,16 +18,15 @@ const SEED: Option<u64> = Some(0);
 pub(crate) fn start() {
     let total_len = TRAIN_LEN + TEST_LEN;
     let values = mackey_glass_series(total_len, 30, SEED);
-    info!("values: {:?}", values);
 
     let train_inputs = Matrix::from_vec_generic(
-        Dim::from_usize(TRAIN_LEN),
         Dim::from_usize(1),
+        Dim::from_usize(TRAIN_LEN),
         values.iter().take(TRAIN_LEN).cloned().collect::<Vec<f64>>(),
     );
     let train_targets = Matrix::from_vec_generic(
-        Dim::from_usize(TRAIN_LEN),
         Dim::from_usize(1),
+        Dim::from_usize(TRAIN_LEN),
         values.iter().skip(1).take(TRAIN_LEN).cloned().collect::<Vec<f64>>(),
     );
 
@@ -46,14 +45,14 @@ pub(crate) fn start() {
                 input_weight_scaling: 0.5,
                 reservoir_bias_scaling: 0.01,
 
-                reservoir_size: 200,
+                reservoir_size: 1000,
                 reservoir_sparsity: 0.1,
                 reservoir_activation: Activation::Tanh,
 
                 feedback_gain: 0.0,
                 spectral_radius: 0.99,
-                leaking_rate: 0.15,
-                regularization_coeff: 0.05,
+                leaking_rate: 0.3,
+                regularization_coeff: 0.0000001,
                 washout_pct: 0.1,
                 output_activation: Activation::Identity,
                 seed: SEED,
@@ -114,7 +113,7 @@ fn run_rc<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: u
 
     let n_vals = values.len();
     let inputs: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
-        Matrix::from_vec_generic(Dim::from_usize(values.len()), Dim::from_usize(1), values);
+        Matrix::from_vec_generic(Dim::from_usize(I), Dim::from_usize(values.len()), values);
     let state = Matrix::from_element_generic(
         Dim::from_usize(rc.params().reservoir_size()),
         Dim::from_usize(1),
@@ -134,8 +133,8 @@ fn run_rc<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: u
 
         // To begin forecasting, replace target input with it's own prediction
         let m: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
-            Matrix::from_fn_generic(Dim::from_usize(I), Dim::from_usize(1), |_, j| {
-                *predicted_out.get(j).unwrap()
+            Matrix::from_fn_generic(Dim::from_usize(I), Dim::from_usize(1), |i, _| {
+                *predicted_out.get(i).unwrap()
             });
         let input = if j > TRAIN_LEN {
             test_predictions.push((j as f64, last_prediction));
