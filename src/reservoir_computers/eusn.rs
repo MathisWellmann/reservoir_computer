@@ -105,8 +105,8 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for EulerSt
         );
 
         let readout_matrix = Matrix::from_fn_generic(
+            Dim::from_usize(O),
             Dim::from_usize(params.reservoir_size),
-            Dim::from_usize(1),
             |_, _| rng.generate::<f64>() * 2.0 - 1.0,
         );
 
@@ -155,7 +155,7 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for EulerSt
                         },
                     );
                 design_matrix.set_row(j - washout_len, &design);
-                let target_col = targets.row(j);
+                let target_col = targets.column(j);
                 let target: Matrix<f64, Const<1>, Const<1>, ArrayStorage<f64, 1, 1>> =
                     Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |i, _j| {
                         *target_col.get(i).unwrap()
@@ -174,8 +174,8 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for EulerSt
         let xt_y = design_matrix.transpose() * &target_matrix;
         let readout_matrix = p * xt_y;
         self.readout_matrix = Matrix::from_fn_generic(
+            Dim::from_usize(O),
             Dim::from_usize(self.params.reservoir_size),
-            Dim::from_usize(1),
             |i, _| *readout_matrix.get(i + 1).unwrap(),
         );
 
@@ -206,10 +206,10 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for EulerSt
         &mut self,
         state: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
     ) {
-        self.state = Matrix::from_element_generic(
-            Dim::from_usize(1),
+        self.state = Matrix::from_fn_generic(
             Dim::from_usize(self.params.reservoir_size),
-            self.params.initial_state_value,
+            Dim::from_usize(1),
+            |i, _| *state.get(i).unwrap(),
         );
     }
 

@@ -130,5 +130,5 @@ fn run_rc<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: u
         rc.update_state(&input, &predicted_out);
     }
 
-    plot(&plot_targets, &train_predictions, &test_predictions, "img/sine.png", (2160, 2160));
+    plot(&plot_targets, &train_predictions, &test_predictions, filename, (2160, 2160));
 }

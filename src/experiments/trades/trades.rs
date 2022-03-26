@@ -44,13 +44,13 @@ pub(crate) fn start() {
     info!("got {} datapoints", values.len());
 
     let train_inputs = Matrix::from_vec_generic(
-        Dim::from_usize(TRAINING_WINDOW),
         Dim::from_usize(INPUT_DIM),
+        Dim::from_usize(TRAINING_WINDOW),
         values.iter().take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>(),
     );
     let train_targets = Matrix::from_vec_generic(
-        Dim::from_usize(TRAINING_WINDOW),
         Dim::from_usize(OUTPUT_DIM),
+        Dim::from_usize(TRAINING_WINDOW),
         values.iter().skip(1).take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>(),
     );
 
@@ -146,7 +146,7 @@ fn run_rc<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: u
     rc.set_state(state);
 
     for j in 0..n_vals {
-        plot_targets.push((j as f64, *inputs.row(j).get(0).unwrap()));
+        plot_targets.push((j as f64, *inputs.column(j).get(0).unwrap()));
 
         let predicted_out = rc.readout();
         let last_prediction = *predicted_out.get(0).unwrap();

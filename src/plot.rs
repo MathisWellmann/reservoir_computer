@@ -56,4 +56,6 @@ pub(crate) fn plot(
         .label("test_preds")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
     cc0.configure_series_labels().border_style(&BLACK).draw().unwrap();
+
+    info!("successfully plotted to {}", filename);
 }

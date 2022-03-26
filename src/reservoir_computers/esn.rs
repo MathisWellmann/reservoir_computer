@@ -246,7 +246,7 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
         let mut state_delta: StateMatrix = &self.input_weight_matrix * input
             + self.params.leaking_rate * (&self.reservoir_matrix * &self.state)
             + &self.reservoir_biases
-            //+ (&self.feedback_matrix * prev_pred)
+            + (&self.feedback_matrix * prev_pred)
             + noise;
         self.params.reservoir_activation.activate(state_delta.as_mut_slice());
 
