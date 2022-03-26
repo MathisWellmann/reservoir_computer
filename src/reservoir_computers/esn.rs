@@ -184,12 +184,13 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
 
         let mut design_matrix: DMatrix<f64> = DMatrix::from_element_generic(
             Dim::from_usize(harvest_len),
-            Dim::from_usize(1 + I + self.params.reservoir_size),
+            Dim::from_usize(I + self.params.reservoir_size),
             0.0,
         );
         let mut target_matrix: Matrix<f64, Dynamic, Const<O>, VecStorage<f64, Dynamic, Const<O>>> =
             Matrix::from_element_generic(Dim::from_usize(harvest_len), Dim::from_usize(O), 0.0);
         let mut curr_pred = self.readout();
+
         for j in 0..inputs.ncols() {
             self.update_state(&inputs.column(j), &curr_pred);
 
@@ -200,14 +201,8 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
                 let design: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
                     Matrix::from_fn_generic(
                         Dim::from_usize(1),
-                        Dim::from_usize(1 + I + self.params.reservoir_size),
-                        |_, j| {
-                            if j == 0 {
-                                1.0
-                            } else {
-                                *self.extended_state.get(j - 1).unwrap()
-                            }
-                        },
+                        Dim::from_usize(I + self.params.reservoir_size),
+                        |_, j| *self.extended_state.get(j).unwrap(),
                     );
                 design_matrix.set_row(j - washout_len, &design);
 
@@ -220,10 +215,11 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
             }
         }
 
+        /*
         let k = design_matrix.transpose() * &design_matrix;
         let identity_m: DMatrix<f64> = DMatrix::from_diagonal_element_generic(
-            Dim::from_usize(1 + I + self.params.reservoir_size),
-            Dim::from_usize(1 + I + self.params.reservoir_size),
+            Dim::from_usize(I + self.params.reservoir_size),
+            Dim::from_usize(I + self.params.reservoir_size),
             1.0,
         );
         let p = (k + self.params.regularization_coeff * identity_m).try_inverse().unwrap();
@@ -232,10 +228,13 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
         self.readout_matrix = Matrix::from_fn_generic(
             Dim::from_usize(O),
             Dim::from_usize(I + self.params.reservoir_size),
-            |i, _| *readout_matrix.get(i + 1).unwrap(),
+            |i, _| *readout_matrix.get(i).unwrap(),
         );
+         */
 
-        info!("trained readout_matrix: {}", self.readout_matrix);
+        let qr = design_matrix.qr();
+        let b = qr.r().try_inverse().unwrap() * qr.q().transpose() * &target_matrix;
+        self.readout_matrix = b.transpose();
     }
 
     fn update_state<'a>(

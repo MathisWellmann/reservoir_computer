@@ -52,7 +52,7 @@ pub(crate) fn start() {
                 input_weight_scaling: 0.5,
                 reservoir_bias_scaling: 0.0,
 
-                reservoir_size: 40,
+                reservoir_size: 500,
                 reservoir_sparsity: 0.1,
                 reservoir_activation: Activation::Tanh,
 
@@ -63,7 +63,7 @@ pub(crate) fn start() {
                 washout_pct: 0.1,
                 output_activation: Activation::Identity,
                 seed: Some(0),
-                state_update_noise_frac: 0.01,
+                state_update_noise_frac: 0.005,
                 initial_state_value: 0.0,
             };
             let mut rc = esn::ESN::new(params);

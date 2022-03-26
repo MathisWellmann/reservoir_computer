@@ -64,13 +64,13 @@ pub(crate) fn start() {
     match e {
         0 => {
             let params = esn::Params {
-                input_sparsity: 0.1,
+                input_sparsity: 0.2,
                 input_activation: Activation::Identity,
-                input_weight_scaling: 1.0,
-                reservoir_bias_scaling: 0.0,
+                input_weight_scaling: 0.2,
+                reservoir_bias_scaling: 0.1,
 
-                reservoir_size: 500,
-                reservoir_sparsity: 0.1,
+                reservoir_size: 300,
+                reservoir_sparsity: 0.02,
                 reservoir_activation: Activation::Tanh,
 
                 feedback_gain: 0.0,
@@ -79,8 +79,8 @@ pub(crate) fn start() {
                 regularization_coeff: 0.1,
                 washout_pct: 0.3,
                 output_activation: Activation::Identity,
-                seed: Some(0),
-                state_update_noise_frac: 0.0005,
+                seed: None,
+                state_update_noise_frac: 0.001,
                 initial_state_value: values[0],
             };
             let mut rc = esn::ESN::new(params);
