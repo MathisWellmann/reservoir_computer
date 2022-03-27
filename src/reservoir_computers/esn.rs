@@ -215,13 +215,17 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
             }
         }
 
-        let reg_m: DMatrix<f64> = DMatrix::from_diagonal_element_generic(
+        // Ridge regression regularization, I think
+        let x: DMatrix<f64> = Matrix::from_fn_generic(
+            Dim::from_usize(harvest_len),
             Dim::from_usize(I + self.params.reservoir_size),
-            Dim::from_usize(I + self.params.reservoir_size),
-            self.params.regularization_coeff,
+            |i, j| if i == j {
+                *design_matrix.row(i).column(j).get(0).unwrap() + self.params.regularization_coeff
+            } else {
+                *design_matrix.row(i).column(j).get(0).unwrap()
+            }
         );
-
-        let qr = design_matrix.qr();
+        let qr = x.qr();
         let a = qr.r().try_inverse().unwrap() * qr.q().transpose();
         let b = a * &target_matrix;
         self.readout_matrix = b.transpose();
