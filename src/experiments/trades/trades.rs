@@ -16,12 +16,13 @@ use crate::{
 const INPUT_DIM: usize = 1;
 const OUTPUT_DIM: usize = 1;
 const TRAINING_WINDOW: usize = 10_000;
+const TEST_WINDOW: usize = 5000;
 
 pub(crate) fn start() {
     info!("loading sample data");
 
     let series: Vec<f64> =
-        load_sample_data::load_sample_data().iter().take(TRAINING_WINDOW * 2).cloned().collect();
+        load_sample_data::load_sample_data().iter().take(TRAINING_WINDOW + TEST_WINDOW).cloned().collect();
     let mut series_min = series[0];
     let mut series_max = series[0];
     for s in &series {
@@ -54,7 +55,7 @@ pub(crate) fn start() {
         values.iter().skip(1).take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>(),
     );
 
-    let rcs = vec!["ESN", "EuSN", "NG-RC"];
+    let rcs = vec!["ESN", "EuSN", "NG-RC", "ESN-Firefly"];
     let e = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select Reservoir Computer")
         .items(&rcs)
@@ -67,17 +68,17 @@ pub(crate) fn start() {
                 input_sparsity: 0.2,
                 input_activation: Activation::Identity,
                 input_weight_scaling: 0.2,
-                reservoir_bias_scaling: 0.1,
+                reservoir_bias_scaling: 0.05,
 
-                reservoir_size: 300,
+                reservoir_size: 500,
                 reservoir_sparsity: 0.02,
                 reservoir_activation: Activation::Tanh,
 
                 feedback_gain: 0.0,
                 spectral_radius: 0.9,
                 leaking_rate: 0.02,
-                regularization_coeff: 0.01,
-                washout_pct: 0.3,
+                regularization_coeff: 0.02,
+                washout_pct: 0.1,
                 output_activation: Activation::Identity,
                 seed: Some(0),
                 state_update_noise_frac: 0.001,
@@ -121,6 +122,9 @@ pub(crate) fn start() {
         }
         2 => {
             todo!()
+        }
+        3 => {
+
         }
         _ => panic!("invalid reservoir computer selection"),
     }

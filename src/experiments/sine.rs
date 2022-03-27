@@ -59,7 +59,7 @@ pub(crate) fn start() {
                 feedback_gain: 0.0,
                 spectral_radius: 0.9,
                 leaking_rate: 0.2,
-                regularization_coeff: 0.0,
+                regularization_coeff: 0.1,
                 washout_pct: 0.1,
                 output_activation: Activation::Identity,
                 seed: Some(0),

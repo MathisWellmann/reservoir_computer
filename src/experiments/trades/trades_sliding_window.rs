@@ -6,14 +6,13 @@ use sliding_features::{Constant, Echo, Multiply, View, ALMA, VSCT};
 
 use crate::{
     activation::Activation,
-    experiments::trades::gif_render::GifRender,
+    experiments::trades::gif_render_firefly::GifRenderFirefly,
     load_sample_data,
     reservoir_computers::{esn, eusn, RCParams, ReservoirComputer},
     Series,
 };
 
 const INPUT_DIM: usize = 1;
-const OUTPUT_DIM: usize = 1;
 const SEED: Option<u64> = Some(0);
 pub(crate) const TRAIN_LEN: usize = 10_000;
 pub(crate) const VALIDATION_LEN: usize = 2_000;
@@ -42,22 +41,22 @@ pub(crate) fn start() {
     match e {
         0 => {
             let params = esn::Params {
-                input_sparsity: 0.1,
+                input_sparsity: 0.2,
                 input_activation: Activation::Identity,
-                input_weight_scaling: 0.5,
-                reservoir_bias_scaling: 0.01,
+                input_weight_scaling: 0.2,
+                reservoir_bias_scaling: 0.1,
 
-                reservoir_size: 200,
-                reservoir_sparsity: 0.1,
+                reservoir_size: 500,
+                reservoir_sparsity: 0.02,
                 reservoir_activation: Activation::Tanh,
 
                 feedback_gain: 0.0,
-                spectral_radius: 0.99,
-                leaking_rate: 0.15,
-                regularization_coeff: 0.05,
-                washout_pct: 0.1,
+                spectral_radius: 0.9,
+                leaking_rate: 0.02,
+                regularization_coeff: 0.02,
+                washout_pct: 0.3,
                 output_activation: Activation::Identity,
-                seed: SEED,
+                seed: Some(0),
                 state_update_noise_frac: 0.001,
                 initial_state_value: values[0],
             };
@@ -128,7 +127,7 @@ fn run_sliding<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const
     let mut opt = FireflyOptimizer::<R, I, O>::new(params);
     */
 
-    let mut gif_render = GifRender::new(filename, (1080, 1080), num_candidates);
+    let mut gif_render = GifRenderFirefly::new(filename, (1080, 1080), num_candidates);
     // TODO: iterate over all data
     for i in (TRAIN_LEN + VALIDATION_LEN + 1)..100_000 {
         if i % 100 == 0 {
