@@ -6,10 +6,10 @@ extern crate log;
 mod activation;
 mod errors;
 mod experiments;
-mod reservoir_computers;
-//mod firefly_optimizer;
+mod firefly_optimizer;
 mod load_sample_data;
 pub(crate) mod plot;
+mod reservoir_computers;
 mod utils;
 
 pub(crate) type Series = Vec<(f64, f64)>;

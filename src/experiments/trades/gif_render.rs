@@ -4,14 +4,16 @@ use crate::Series;
 
 pub(crate) struct GifRender<'a> {
     root: DrawingArea<BitMapBackend<'a>, Shift>,
+    filename: &'a str,
 }
 
 impl<'a> GifRender<'a> {
-    pub(crate) fn new(filename: &str, dims: (u32, u32)) -> Self {
+    pub(crate) fn new(filename: &'a str, dims: (u32, u32)) -> Self {
         let root = BitMapBackend::gif(filename, dims, 100).unwrap().into_drawing_area();
 
         Self {
             root,
+            filename,
         }
     }
 
@@ -34,7 +36,7 @@ impl<'a> GifRender<'a> {
             .margin(5)
             .x_label_area_size(20)
             .y_label_area_size(40)
-            .caption("values", ("sans-serif", 20).into_font().with_color(&BLACK))
+            .caption(&self.filename, ("sans-serif", 20).into_font().with_color(&BLACK))
             .build_cartesian_2d(ts_min..ts_max, target_min..target_max)
             .unwrap();
 

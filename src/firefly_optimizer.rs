@@ -5,7 +5,11 @@ use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 use nanorand::{Rng, WyRand};
 use threadpool::ThreadPool;
 
-use crate::{activation::Activation, reservoir_computers::{ReservoirComputer, esn}, utils::scale};
+use crate::{
+    activation::Activation,
+    reservoir_computers::{esn, RCParams, ReservoirComputer},
+    utils::scale,
+};
 
 const NUM_CANDIDATE_PARAMS: usize = 4;
 
@@ -75,23 +79,24 @@ impl ParameterMapper {
                 self.param_ranges[2].1,
                 params[2],
             ),
-            reservoir_fixed_in_degree_k: scale(
+            reservoir_sparsity: scale(
                 0.0,
                 1.0,
                 self.param_ranges[3].0,
                 self.param_ranges[3].1,
                 params[3],
-            ) as usize,
+            ),
             reservoir_activation: self.reservoir_activation,
             feedback_gain: 0.0,
             spectral_radius: 0.9,
             leaking_rate: self.leaking_rate,
             regularization_coeff: self.regularization_coeff,
             washout_pct: 0.1,
-            output_tanh: true,
+            output_activation: Activation::Identity,
             seed: self.seed,
             state_update_noise_frac: self.state_update_noise_frac,
             initial_state_value: self.initial_state_value,
+            readout_from_input_as_well: false,
         }
     }
 }
@@ -152,11 +157,17 @@ impl FireflyOptimizer {
             let inputs = inputs.clone();
             let targets = targets.clone();
             let params = self.params.param_mapping.map(&c);
+            let init_state = params.initial_state_value();
             pool.execute(move || {
                 let mut rc = esn::ESN::new(params);
 
                 rc.train(&train_inputs, &train_targets);
-                rc.reset_state();
+                let state = Matrix::from_element_generic(
+                    Dim::from_usize(rc.params().reservoir_size()),
+                    Dim::from_usize(1),
+                    init_state,
+                );
+                rc.set_state(state);
 
                 let f = Self::evaluate(&mut rc, &inputs, &targets);
                 ch_fit_s.send((i, f)).unwrap();
@@ -210,7 +221,7 @@ impl FireflyOptimizer {
     }
 
     /// Evaluate the performance of the ESN
-    fn evaluate(
+    fn evaluate<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: usize>(
         rc: &mut R,
         inputs: &Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>,
         targets: &Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>,
@@ -223,15 +234,15 @@ impl FireflyOptimizer {
             let last_prediction = *predicted_out.get(0).unwrap();
 
             // To begin forecasting, replace target input with it's own prediction
-            let m: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
-                Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |_, j| {
-                    *predicted_out.get(j).unwrap()
+            let m: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
+                Matrix::from_fn_generic(Dim::from_usize(I), Dim::from_usize(1), |i, _| {
+                    *predicted_out.get(i).unwrap()
                 });
             let target = *targets.row(i).get(0).unwrap();
             if i > n / 4 {
                 rmse += (last_prediction - target).powi(2);
             }
-            let input = m.row(0);
+            let input = m.column(0);
 
             rc.update_state(&input, &predicted_out);
         }
@@ -252,7 +263,7 @@ impl FireflyOptimizer {
     }
 
     #[inline(always)]
-    pub fn elite_param(&self) -> esn::Params {
+    pub fn elite_params(&self) -> esn::Params {
         let c = &self.candidates[self.elite_idx];
         self.params.param_mapping.map(c)
     }

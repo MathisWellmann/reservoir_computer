@@ -1,9 +1,6 @@
 use plotters::{coord::Shift, prelude::*};
 
-use crate::{
-    experiments::trades::trades_sliding_window::{TRAIN_LEN, VALIDATION_LEN},
-    Series,
-};
+use crate::Series;
 
 pub(crate) struct GifRenderFirefly<'a> {
     root: DrawingArea<BitMapBackend<'a>, Shift>,
@@ -66,10 +63,7 @@ impl<'a> GifRenderFirefly<'a> {
             .x_label_area_size(20)
             .y_label_area_size(40)
             .caption("rmse", ("sans-serif", 20).into_font().with_color(&BLACK))
-            .build_cartesian_2d(
-                (TRAIN_LEN + VALIDATION_LEN) as f64..self.max_ts,
-                (0_f64..50_000_f64).log_scale(),
-            )
+            .build_cartesian_2d(0_f64..self.max_ts, (0_f64..50_000_f64).log_scale())
             .unwrap();
         let mut cc2 = ChartBuilder::on(&lower[1])
             .margin(5)
