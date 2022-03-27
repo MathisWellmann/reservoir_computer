@@ -215,25 +215,15 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
             }
         }
 
-        /*
-        let k = design_matrix.transpose() * &design_matrix;
-        let identity_m: DMatrix<f64> = DMatrix::from_diagonal_element_generic(
+        let reg_m: DMatrix<f64> = DMatrix::from_diagonal_element_generic(
             Dim::from_usize(I + self.params.reservoir_size),
             Dim::from_usize(I + self.params.reservoir_size),
-            1.0,
+            self.params.regularization_coeff,
         );
-        let p = (k + self.params.regularization_coeff * identity_m).try_inverse().unwrap();
-        let xt_y = design_matrix.transpose() * &target_matrix;
-        let readout_matrix = p * xt_y;
-        self.readout_matrix = Matrix::from_fn_generic(
-            Dim::from_usize(O),
-            Dim::from_usize(I + self.params.reservoir_size),
-            |i, _| *readout_matrix.get(i).unwrap(),
-        );
-         */
 
         let qr = design_matrix.qr();
-        let b = qr.r().try_inverse().unwrap() * qr.q().transpose() * &target_matrix;
+        let a = qr.r().try_inverse().unwrap() * qr.q().transpose();
+        let b = a * &target_matrix;
         self.readout_matrix = b.transpose();
     }
 
@@ -296,5 +286,12 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
     #[inline(always)]
     fn params(&self) -> &Params {
         &self.params
+    }
+
+    #[inline(always)]
+    fn readout_matrix(
+        &self,
+    ) -> &Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>> {
+        &self.readout_matrix
     }
 }

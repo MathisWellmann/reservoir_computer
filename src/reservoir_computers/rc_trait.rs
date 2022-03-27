@@ -30,6 +30,9 @@ pub trait ReservoirComputer<P: RCParams, const I: usize, const O: usize> {
     fn set_state(&mut self, state: StateMatrix);
 
     fn params(&self) -> &P;
+
+    fn readout_matrix(&self)
+        -> &Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>;
 }
 
 pub trait RCParams {

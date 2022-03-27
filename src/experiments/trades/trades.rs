@@ -76,10 +76,10 @@ pub(crate) fn start() {
                 feedback_gain: 0.0,
                 spectral_radius: 0.9,
                 leaking_rate: 0.02,
-                regularization_coeff: 0.1,
+                regularization_coeff: 0.01,
                 washout_pct: 0.3,
                 output_activation: Activation::Identity,
-                seed: None,
+                seed: Some(0),
                 state_update_noise_frac: 0.001,
                 initial_state_value: values[0],
             };
@@ -87,6 +87,7 @@ pub(crate) fn start() {
 
             let t0 = Instant::now();
             rc.train(&train_inputs, &train_targets);
+            info!("trained readout_matrix: {}", rc.readout_matrix());
             info!("training done in: {}ms", t0.elapsed().as_millis());
 
             run_rc(&mut rc, values, "img/trades_esn.png");

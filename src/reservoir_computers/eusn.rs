@@ -217,4 +217,11 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for EulerSt
     fn params(&self) -> &Params {
         &self.params
     }
+
+    #[inline(always)]
+    fn readout_matrix(
+        &self,
+    ) -> &Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>> {
+        &self.readout_matrix
+    }
 }
