@@ -54,6 +54,9 @@ pub struct Params {
     pub state_update_noise_frac: f64,
     /// Initial value of state
     pub initial_state_value: f64,
+
+    /// If true, concatenates inputs and state to perform readout
+    pub readout_from_input_as_well: bool,
 }
 
 impl RCParams for Params {
@@ -126,11 +129,15 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
             |_, _| (rng.generate::<f64>() * 2.0 - 1.0) * params.reservoir_bias_scaling,
         );
 
-        let readout_matrix = Matrix::from_fn_generic(
-            Dim::from_usize(O),
-            Dim::from_usize(1 + params.reservoir_size),
-            |_, _| rng.generate::<f64>() * 2.0 - 1.0,
-        );
+        let cols = if params.readout_from_input_as_well {
+            I + params.reservoir_size
+        } else {
+            params.reservoir_size
+        };
+        let readout_matrix =
+            Matrix::from_fn_generic(Dim::from_usize(O), Dim::from_usize(cols), |_, _| {
+                rng.generate::<f64>() * 2.0 - 1.0
+            });
         let feedback_matrix: Matrix<f64, Dynamic, Const<O>, VecStorage<f64, Dynamic, Const<O>>> =
             Matrix::from_fn_generic(
                 Dim::from_usize(params.reservoir_size),
@@ -182,9 +189,14 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
         let washout_len = (inputs.ncols() as f64 * self.params.washout_pct) as usize;
         let harvest_len = inputs.ncols() - washout_len;
 
+        let design_cols = if self.params.readout_from_input_as_well {
+            I + self.params.reservoir_size
+        } else {
+            self.params.reservoir_size
+        };
         let mut design_matrix: DMatrix<f64> = DMatrix::from_element_generic(
             Dim::from_usize(harvest_len),
-            Dim::from_usize(I + self.params.reservoir_size),
+            Dim::from_usize(design_cols),
             0.0,
         );
         let mut target_matrix: Matrix<f64, Dynamic, Const<O>, VecStorage<f64, Dynamic, Const<O>>> =
@@ -201,8 +213,14 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
                 let design: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
                     Matrix::from_fn_generic(
                         Dim::from_usize(1),
-                        Dim::from_usize(I + self.params.reservoir_size),
-                        |_, j| *self.extended_state.get(j).unwrap(),
+                        Dim::from_usize(design_cols),
+                        |_, j| {
+                            if self.params.readout_from_input_as_well {
+                                *self.extended_state.get(j).unwrap()
+                            } else {
+                                *self.state.get(j).unwrap()
+                            }
+                        },
                     );
                 design_matrix.set_row(j - washout_len, &design);
 
@@ -218,12 +236,15 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
         // Ridge regression regularization, I think
         let x: DMatrix<f64> = Matrix::from_fn_generic(
             Dim::from_usize(harvest_len),
-            Dim::from_usize(I + self.params.reservoir_size),
-            |i, j| if i == j {
-                *design_matrix.row(i).column(j).get(0).unwrap() + self.params.regularization_coeff
-            } else {
-                *design_matrix.row(i).column(j).get(0).unwrap()
-            }
+            Dim::from_usize(design_cols),
+            |i, j| {
+                if i == j {
+                    *design_matrix.row(i).column(j).get(0).unwrap()
+                        + self.params.regularization_coeff
+                } else {
+                    *design_matrix.row(i).column(j).get(0).unwrap()
+                }
+            },
         );
         let qr = x.qr();
         let a = qr.r().try_inverse().unwrap() * qr.q().transpose();
@@ -267,7 +288,11 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, 
     #[inline]
     #[must_use]
     fn readout(&self) -> Matrix<f64, Const<O>, Const<1>, ArrayStorage<f64, O, 1>> {
-        let mut pred = &self.readout_matrix * &self.extended_state;
+        let mut pred = if self.params.readout_from_input_as_well {
+            &self.readout_matrix * &self.extended_state
+        } else {
+            &self.readout_matrix * &self.state
+        };
         self.params.output_activation.activate(pred.as_mut_slice());
 
         pred

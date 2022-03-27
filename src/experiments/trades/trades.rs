@@ -21,8 +21,11 @@ const TEST_WINDOW: usize = 5000;
 pub(crate) fn start() {
     info!("loading sample data");
 
-    let series: Vec<f64> =
-        load_sample_data::load_sample_data().iter().take(TRAINING_WINDOW + TEST_WINDOW).cloned().collect();
+    let series: Vec<f64> = load_sample_data::load_sample_data()
+        .iter()
+        .take(TRAINING_WINDOW + TEST_WINDOW)
+        .cloned()
+        .collect();
     let mut series_min = series[0];
     let mut series_max = series[0];
     for s in &series {
@@ -83,6 +86,7 @@ pub(crate) fn start() {
                 seed: Some(0),
                 state_update_noise_frac: 0.001,
                 initial_state_value: values[0],
+                readout_from_input_as_well: false,
             };
             let mut rc = esn::ESN::new(params);
 
@@ -123,9 +127,7 @@ pub(crate) fn start() {
         2 => {
             todo!()
         }
-        3 => {
-
-        }
+        3 => {}
         _ => panic!("invalid reservoir computer selection"),
     }
 }

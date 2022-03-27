@@ -58,6 +58,7 @@ pub(crate) fn start() {
                 seed: SEED,
                 state_update_noise_frac: 0.001,
                 initial_state_value: values[0],
+                readout_from_input_as_well: true,
             };
 
             let mut rc = esn::ESN::new(params);
