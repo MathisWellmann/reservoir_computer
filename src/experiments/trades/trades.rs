@@ -81,7 +81,7 @@ pub(crate) fn start() {
                 spectral_radius: 0.9,
                 leaking_rate: 0.02,
                 regularization_coeff: 0.02,
-                washout_pct: 0.1,
+                washout_pct: 0.0,
                 output_activation: Activation::Identity,
                 seed: Some(0),
                 state_update_noise_frac: 0.001,

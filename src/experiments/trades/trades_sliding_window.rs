@@ -6,7 +6,7 @@ use sliding_features::{Constant, Echo, Multiply, View, ALMA, VSCT};
 
 use crate::{
     activation::Activation,
-    experiments::trades::gif_render_firefly::GifRenderFirefly,
+    experiments::trades::gif_render::GifRender,
     load_sample_data,
     reservoir_computers::{esn, eusn, RCParams, ReservoirComputer},
     Series,
@@ -44,7 +44,7 @@ pub(crate) fn start() {
                 input_sparsity: 0.2,
                 input_activation: Activation::Identity,
                 input_weight_scaling: 0.2,
-                reservoir_bias_scaling: 0.1,
+                reservoir_bias_scaling: 0.05,
 
                 reservoir_size: 500,
                 reservoir_sparsity: 0.02,
@@ -54,12 +54,12 @@ pub(crate) fn start() {
                 spectral_radius: 0.9,
                 leaking_rate: 0.02,
                 regularization_coeff: 0.02,
-                washout_pct: 0.3,
+                washout_pct: 0.05,
                 output_activation: Activation::Identity,
                 seed: Some(0),
                 state_update_noise_frac: 0.001,
                 initial_state_value: values[0],
-                readout_from_input_as_well: true,
+                readout_from_input_as_well: false,
             };
 
             let mut rc = esn::ESN::new(params);
@@ -105,7 +105,6 @@ fn run_sliding<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const
     values: Vec<f64>,
     filename: &str,
 ) {
-    let num_candidates = 1;
     let t0 = Instant::now();
     /*
     let params = FireflyParams {
@@ -128,7 +127,7 @@ fn run_sliding<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const
     let mut opt = FireflyOptimizer::<R, I, O>::new(params);
     */
 
-    let mut gif_render = GifRenderFirefly::new(filename, (1080, 1080), num_candidates);
+    let mut gif_render = GifRender::new(filename, (1080, 1080));
     // TODO: iterate over all data
     for i in (TRAIN_LEN + VALIDATION_LEN + 1)..100_000 {
         if i % 100 == 0 {
@@ -187,14 +186,7 @@ fn run_sliding<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const
             rc.set_state(state);
 
             let (plot_targets, train_preds, test_preds) = gather_plot_data(&vals_matrix, rc);
-            gif_render.update(
-                &plot_targets,
-                &train_preds,
-                &test_preds,
-                &vec![1.0], //opt.fits(),
-                i,
-                &vec![vec![0.0; 4]], //opt.candidates(),
-            );
+            gif_render.update(&plot_targets, &train_preds, &test_preds);
 
             info!("step took {}s", t1.elapsed().as_secs());
         }
