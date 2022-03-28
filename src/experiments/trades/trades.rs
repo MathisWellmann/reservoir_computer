@@ -7,8 +7,11 @@ use sliding_features::{Echo, View, ALMA};
 use crate::{
     activation::Activation,
     experiments::trades::gif_render_firefly::GifRenderFirefly,
-    firefly_optimizer::{FireflyOptimizer, FireflyParams, ParameterMapper},
     load_sample_data,
+    opt_firefly::{
+        environment_trades::FFEnvTradesESN,
+        firefly_optimizer::{FireflyOptimizer, FireflyParams},
+    },
     plot::plot,
     reservoir_computers::{esn, eusn, RCParams, ReservoirComputer},
     utils::scale,
@@ -74,12 +77,10 @@ pub(crate) fn start() {
                 input_sparsity: 0.2,
                 input_activation: Activation::Identity,
                 input_weight_scaling: 0.2,
-                reservoir_bias_scaling: 0.05,
-
                 reservoir_size: 500,
+                reservoir_bias_scaling: 0.05,
                 reservoir_sparsity: 0.02,
                 reservoir_activation: Activation::Tanh,
-
                 feedback_gain: 0.0,
                 spectral_radius: 0.9,
                 leaking_rate: 0.02,
@@ -166,32 +167,11 @@ pub(crate) fn start() {
             todo!()
         }
         3 => {
-            let washout_frac = 0.0;
-            let num_candidates = 96;
-            let params = FireflyParams {
-                gamma: 50.0,
-                alpha: 0.005,
-                step_size: 0.005,
-                num_candidates,
-                param_mapping: ParameterMapper::new(
-                    vec![(0.05, 0.15), (0.9, 1.0), (0.0, 0.05), (0.01, 0.1)],
-                    Activation::Identity,
-                    500,
-                    Activation::Tanh,
-                    0.02,
-                    0.02,
-                    Some(0),
-                    0.001,
-                    0.0,
-                ),
-            };
-            let mut opt = FireflyOptimizer::new(params);
-
             let inputs: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
                 Matrix::from_vec_generic(
                     Dim::from_usize(INPUT_DIM),
-                    Dim::from_usize(values.len()),
-                    values.clone(),
+                    Dim::from_usize(values.len() - 1),
+                    values.iter().take(values.len() - 1).cloned().collect(),
                 );
             let targets: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
                 Matrix::from_vec_generic(
@@ -205,16 +185,49 @@ pub(crate) fn start() {
             let inputs = Arc::new(inputs);
             let targets = Arc::new(targets);
 
+            let env = FFEnvTradesESN {
+                train_inputs,
+                train_targets,
+                inputs,
+                targets,
+                input_sparsity_range: (0.05, 0.25),
+                input_activation: Activation::Identity,
+                input_weight_scaling_range: (0.1, 0.3),
+                reservoir_size: 500,
+                reservoir_bias_scaling_range: (0.0, 0.1),
+                reservoir_sparsity_range: (0.01, 0.1),
+                reservoir_activation: Activation::Tanh,
+                feedback_gain: 0.0,
+                spectral_radius: 0.9,
+                leaking_rate: 0.02,
+                regularization_coeff: 0.02,
+                washout_pct: 0.0,
+                output_activation: Activation::Identity,
+                seed: Some(0),
+                state_update_noise_frac: 0.001,
+                initial_state_value: values[0],
+                readout_from_input_as_well: false,
+            };
+            let env = Arc::new(env);
+
+            let washout_frac = 0.0;
+            let num_candidates = 22;
+            let params = FireflyParams {
+                gamma: 50.0,
+                alpha: 0.005,
+                step_size: 0.005,
+                num_candidates,
+            };
+            let mut opt = FireflyOptimizer::new(params);
+
             let mut gif_render =
                 GifRenderFirefly::new("img/trades_esn_firefly.gif", (1080, 1080), num_candidates);
             for i in 0..1000 {
-                opt.step(
-                    train_inputs.clone(),
-                    train_targets.clone(),
-                    inputs.clone(),
-                    targets.clone(),
-                );
-                let mut rc = esn::ESN::new(opt.elite_params().clone());
+                let t0 = Instant::now();
+
+                opt.step(env.clone());
+                let params = env.map_params(opt.elite_params());
+                let mut rc = esn::ESN::new(params);
 
                 let mut plot_targets: Series = Vec::with_capacity(1_000_000);
                 let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
@@ -236,6 +249,7 @@ pub(crate) fn start() {
                     i,
                     opt.candidates(),
                 );
+                info!("generation {} took {}ms", i, t0.elapsed().as_millis());
             }
         }
         _ => panic!("invalid reservoir computer selection"),

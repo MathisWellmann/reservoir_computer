@@ -19,14 +19,14 @@ impl<'a> GifRenderFirefly<'a> {
         }
     }
 
-    pub(crate) fn update(
+    pub(crate) fn update<const N: usize>(
         &mut self,
         targets: &Series,
         train_preds: &Series,
         test_preds: &Series,
         fits: &Vec<f64>, // current fitnesses of each candidate
         idx: usize,
-        parameters: &Vec<Vec<f64>>,
+        parameters: &Vec<[f64; N]>,
     ) {
         for (i, f) in fits.iter().enumerate() {
             self.max_ts = idx as f64;
@@ -63,7 +63,7 @@ impl<'a> GifRenderFirefly<'a> {
             .x_label_area_size(20)
             .y_label_area_size(40)
             .caption("rmse", ("sans-serif", 20).into_font().with_color(&BLACK))
-            .build_cartesian_2d(0_f64..self.max_ts, (0_f64..50_000_f64).log_scale())
+            .build_cartesian_2d(0_f64..self.max_ts, (0_f64..10_000_000_f64).log_scale())
             .unwrap();
         let mut cc2 = ChartBuilder::on(&lower[1])
             .margin(5)
