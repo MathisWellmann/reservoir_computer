@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 
-use super::FFEnv;
+use super::OptEnvironment;
 use crate::{
     activation::Activation,
     reservoir_computers::{esn, StateMatrix},
@@ -86,7 +86,7 @@ impl FFEnvTradesESN {
     }
 }
 
-impl FFEnv<4> for FFEnvTradesESN {
+impl OptEnvironment<4> for FFEnvTradesESN {
     fn evaluate(&self, params: &[f64; 4]) -> f64 {
         let params = self.map_params(params);
         let mut rc = esn::ESN::<1, 1>::new(params);

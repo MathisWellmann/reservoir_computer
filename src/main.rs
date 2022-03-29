@@ -7,7 +7,7 @@ mod activation;
 mod errors;
 mod experiments;
 mod load_sample_data;
-mod opt_firefly;
+mod optimizers;
 pub(crate) mod plot;
 mod reservoir_computers;
 mod utils;

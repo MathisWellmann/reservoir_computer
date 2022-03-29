@@ -8,9 +8,10 @@ use crate::{
     activation::Activation,
     experiments::trades::gif_render_firefly::GifRenderFirefly,
     load_sample_data,
-    opt_firefly::{
+    optimizers::{
         environment_trades::FFEnvTradesESN,
-        firefly_optimizer::{FireflyOptimizer, FireflyParams},
+        opt_firefly::{FireflyOptimizer, FireflyParams},
+        opt_random_search::RandomSearch,
     },
     plot::plot,
     reservoir_computers::{esn, eusn, RCParams, ReservoirComputer},
@@ -63,7 +64,7 @@ pub(crate) fn start() {
         values.iter().skip(1).take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>(),
     );
 
-    let rcs = vec!["ESN", "EuSN", "NG-RC", "ESN-Firefly"];
+    let rcs = vec!["ESN", "EuSN", "NG-RC", "ESN-Firefly", "ESN-RandomSearch"];
     let e = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select Reservoir Computer")
         .items(&rcs)
@@ -252,10 +253,98 @@ pub(crate) fn start() {
                 info!("generation {} took {}ms", i, t0.elapsed().as_millis());
             }
         }
+        4 => {
+            let inputs: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+                Matrix::from_vec_generic(
+                    Dim::from_usize(INPUT_DIM),
+                    Dim::from_usize(values.len() - 1),
+                    values.iter().take(values.len() - 1).cloned().collect(),
+                );
+            let targets: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+                Matrix::from_vec_generic(
+                    Dim::from_usize(OUTPUT_DIM),
+                    Dim::from_usize(values.len() - 1),
+                    values.iter().skip(1).cloned().collect::<Vec<f64>>(),
+                );
+
+            let train_inputs = Arc::new(train_inputs);
+            let train_targets = Arc::new(train_targets);
+            let inputs = Arc::new(inputs);
+            let targets = Arc::new(targets);
+
+            let seed = Some(0);
+            let env = FFEnvTradesESN {
+                train_inputs,
+                train_targets,
+                inputs,
+                targets,
+                input_sparsity_range: (0.05, 0.25),
+                input_activation: Activation::Identity,
+                input_weight_scaling_range: (0.1, 0.3),
+                reservoir_size: 500,
+                reservoir_bias_scaling_range: (0.0, 0.1),
+                reservoir_sparsity_range: (0.01, 0.1),
+                reservoir_activation: Activation::Tanh,
+                feedback_gain: 0.0,
+                spectral_radius: 0.9,
+                leaking_rate: 0.02,
+                regularization_coeff: 0.02,
+                washout_pct: 0.0,
+                output_activation: Activation::Identity,
+                seed,
+                state_update_noise_frac: 0.001,
+                initial_state_value: values[0],
+                readout_from_input_as_well: false,
+            };
+            let env = Arc::new(env);
+
+            let num_candidates = 23;
+            let mut opt = RandomSearch::new(seed, num_candidates);
+
+            let mut gif_render = GifRenderFirefly::new(
+                "img/trades_esn_random_search.gif",
+                (1080, 1080),
+                num_candidates,
+            );
+
+            for i in 0..1000 {
+                let t0 = Instant::now();
+
+                opt.step(env.clone());
+
+                let params = env.map_params(opt.elite_params());
+                let mut rc = esn::ESN::<1, 1>::new(params);
+
+                let mut plot_targets: Series = Vec::with_capacity(1_000_000);
+                let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
+                let mut test_predictions: Series = Vec::with_capacity(1_000_000);
+
+                let washout_frac = 0.0;
+                run_trained_rc::<esn::ESN<1, 1>, esn::Params, 1, 1>(
+                    &mut rc,
+                    &values,
+                    washout_frac,
+                    &mut plot_targets,
+                    &mut train_predictions,
+                    &mut test_predictions,
+                );
+                gif_render.update(
+                    &plot_targets,
+                    &train_predictions,
+                    &test_predictions,
+                    opt.errors(),
+                    i,
+                    opt.candidates(),
+                );
+
+                info!("generation {} took {}ms", i, t0.elapsed().as_millis());
+            }
+        }
         _ => panic!("invalid reservoir computer selection"),
     }
 }
 
+// TODO: Is it possible to merge with sliding_window_trades?
 fn run_trained_rc<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: usize>(
     rc: &mut R,
     values: &Vec<f64>,

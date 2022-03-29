@@ -5,9 +5,10 @@ use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 use nanorand::{Rng, WyRand};
 use threadpool::ThreadPool;
 
-use super::FFEnv;
+use super::OptEnvironment;
 use crate::reservoir_computers::{RCParams, ReservoirComputer};
 
+// TODO: rename to Params
 #[derive(Debug, Clone)]
 pub struct FireflyParams {
     /// Influces the clustering behaviour. In range [0, 1]
@@ -51,7 +52,7 @@ impl<const N: usize> FireflyOptimizer<N> {
         }
     }
 
-    pub fn step(&mut self, env: Arc<dyn FFEnv<N> + Send + Sync>) {
+    pub fn step(&mut self, env: Arc<dyn OptEnvironment<N> + Send + Sync>) {
         self.update_candidates();
 
         let pool = ThreadPool::new(max(num_cpus::get() - 1, 1));
