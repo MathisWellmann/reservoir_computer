@@ -136,7 +136,7 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for EulerSt
         );
         let mut target_matrix: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
             Matrix::from_element_generic(Dim::from_usize(harvest_len), Dim::from_usize(1), 0.0);
-        let mut curr_pred = self.readout();
+        let curr_pred = self.readout();
         for j in 0..inputs.ncols() {
             self.update_state(&inputs.column(j), &curr_pred);
 

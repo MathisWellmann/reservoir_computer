@@ -146,6 +146,7 @@ fn run_sliding<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const
                     Dim::from_usize(TRAIN_LEN),
                     values[i - TRAIN_LEN - VALIDATION_LEN..i - VALIDATION_LEN].to_vec(),
                 );
+            /*
             let inputs: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
                 Matrix::from_vec_generic(
                     Dim::from_usize(INPUT_DIM),
@@ -159,7 +160,6 @@ fn run_sliding<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const
                     values[i - TRAIN_LEN - VALIDATION_LEN..i].to_vec(),
                 );
 
-            /*
             opt.step(
                 Arc::new(train_inputs),
                 Arc::new(train_targets),

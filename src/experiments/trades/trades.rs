@@ -63,6 +63,12 @@ pub(crate) fn start() {
         Dim::from_usize(TRAINING_WINDOW),
         values.iter().skip(1).take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>(),
     );
+    let inputs: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+        Matrix::from_vec_generic(
+            Dim::from_usize(INPUT_DIM),
+            Dim::from_usize(values.len() - 1),
+            values.iter().take(values.len() - 1).cloned().collect(),
+        );
 
     let rcs = vec!["ESN", "EuSN", "NG-RC", "ESN-Firefly", "ESN-RandomSearch"];
     let e = Select::with_theme(&ColorfulTheme::default())
@@ -106,8 +112,7 @@ pub(crate) fn start() {
 
             run_trained_rc(
                 &mut rc,
-                &values,
-                washout_pct,
+                &inputs,
                 &mut plot_targets,
                 &mut train_predictions,
                 &mut test_predictions,
@@ -122,7 +127,6 @@ pub(crate) fn start() {
             );
         }
         1 => {
-            let washout_frac = 0.05;
             let params = eusn::Params {
                 input_sparsity: 1.0,
                 input_weight_scaling: 0.05,
@@ -149,8 +153,7 @@ pub(crate) fn start() {
 
             run_trained_rc::<eusn::EulerStateNetwork<1, 1>, eusn::Params, 1, 1>(
                 &mut rc,
-                &values,
-                washout_frac,
+                &inputs,
                 &mut plot_targets,
                 &mut train_predictions,
                 &mut test_predictions,
@@ -168,12 +171,6 @@ pub(crate) fn start() {
             todo!()
         }
         3 => {
-            let inputs: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(INPUT_DIM),
-                    Dim::from_usize(values.len() - 1),
-                    values.iter().take(values.len() - 1).cloned().collect(),
-                );
             let targets: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
                 Matrix::from_vec_generic(
                     Dim::from_usize(OUTPUT_DIM),
@@ -183,14 +180,14 @@ pub(crate) fn start() {
 
             let train_inputs = Arc::new(train_inputs);
             let train_targets = Arc::new(train_targets);
-            let inputs = Arc::new(inputs);
-            let targets = Arc::new(targets);
+            let inputs_arc = Arc::new(inputs.clone());
+            let targets_arc = Arc::new(targets);
 
             let env = FFEnvTradesESN {
                 train_inputs,
                 train_targets,
-                inputs,
-                targets,
+                inputs: inputs_arc,
+                targets: targets_arc,
                 input_sparsity_range: (0.05, 0.25),
                 input_activation: Activation::Identity,
                 input_weight_scaling_range: (0.1, 0.3),
@@ -211,7 +208,6 @@ pub(crate) fn start() {
             };
             let env = Arc::new(env);
 
-            let washout_frac = 0.0;
             let num_candidates = 22;
             let params = FireflyParams {
                 gamma: 50.0,
@@ -236,8 +232,7 @@ pub(crate) fn start() {
 
                 run_trained_rc::<esn::ESN<1, 1>, esn::Params, 1, 1>(
                     &mut rc,
-                    &values,
-                    washout_frac,
+                    &inputs,
                     &mut plot_targets,
                     &mut train_predictions,
                     &mut test_predictions,
@@ -254,12 +249,6 @@ pub(crate) fn start() {
             }
         }
         4 => {
-            let inputs: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(INPUT_DIM),
-                    Dim::from_usize(values.len() - 1),
-                    values.iter().take(values.len() - 1).cloned().collect(),
-                );
             let targets: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
                 Matrix::from_vec_generic(
                     Dim::from_usize(OUTPUT_DIM),
@@ -269,15 +258,15 @@ pub(crate) fn start() {
 
             let train_inputs = Arc::new(train_inputs);
             let train_targets = Arc::new(train_targets);
-            let inputs = Arc::new(inputs);
-            let targets = Arc::new(targets);
+            let inputs_arc = Arc::new(inputs.clone());
+            let targets_arc = Arc::new(targets);
 
             let seed = Some(0);
             let env = FFEnvTradesESN {
                 train_inputs,
                 train_targets,
-                inputs,
-                targets,
+                inputs: inputs_arc,
+                targets: targets_arc,
                 input_sparsity_range: (0.05, 0.25),
                 input_activation: Activation::Identity,
                 input_weight_scaling_range: (0.1, 0.3),
@@ -319,11 +308,9 @@ pub(crate) fn start() {
                 let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
                 let mut test_predictions: Series = Vec::with_capacity(1_000_000);
 
-                let washout_frac = 0.0;
                 run_trained_rc::<esn::ESN<1, 1>, esn::Params, 1, 1>(
                     &mut rc,
-                    &values,
-                    washout_frac,
+                    &inputs,
                     &mut plot_targets,
                     &mut train_predictions,
                     &mut test_predictions,
@@ -347,22 +334,13 @@ pub(crate) fn start() {
 // TODO: Is it possible to merge with sliding_window_trades?
 fn run_trained_rc<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: usize>(
     rc: &mut R,
-    values: &Vec<f64>,
-    washout_pct: f64,
+    inputs: &Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>,
     plot_targets: &mut Series,
     train_predictions: &mut Series,
     test_predictions: &mut Series,
 ) {
-    let washout_len = (values.len() as f64 * washout_pct) as usize;
-
-    let n_vals = values.len();
-    let init_val = values[washout_len];
-    let inputs: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
-        Matrix::from_vec_generic(
-            Dim::from_usize(I),
-            Dim::from_usize(values.len()),
-            values.to_vec(),
-        );
+    let n_vals = inputs.ncols();
+    let init_val = *inputs.column(0).get(0).unwrap();
     let state = Matrix::from_element_generic(
         Dim::from_usize(rc.params().reservoir_size()),
         Dim::from_usize(1),
@@ -372,9 +350,6 @@ fn run_trained_rc<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, co
 
     for j in 0..n_vals {
         plot_targets.push((j as f64, *inputs.column(j).get(0).unwrap()));
-        if j < washout_len {
-            continue;
-        }
 
         let predicted_out = rc.readout();
         let last_prediction = *predicted_out.get(0).unwrap();

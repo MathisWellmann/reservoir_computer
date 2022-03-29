@@ -1,12 +1,10 @@
-use std::{cmp::max, sync::Arc, time::Instant};
+use std::{cmp::max, sync::Arc};
 
 use crossbeam::channel::unbounded;
-use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 use nanorand::{Rng, WyRand};
 use threadpool::ThreadPool;
 
 use super::OptEnvironment;
-use crate::reservoir_computers::{RCParams, ReservoirComputer};
 
 // TODO: rename to Params
 #[derive(Debug, Clone)]
@@ -114,37 +112,6 @@ impl<const N: usize> FireflyOptimizer<N> {
         }
     }
 
-    /// Evaluate the performance of the ESN
-    fn evaluate<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: usize>(
-        rc: &mut R,
-        inputs: &Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>,
-        targets: &Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>,
-    ) -> f64 {
-        let t0 = Instant::now();
-        let mut rmse = 0.0;
-        let n = inputs.ncols();
-        for j in 0..n {
-            let predicted_out = rc.readout();
-            let last_prediction = *predicted_out.get(0).unwrap();
-
-            // To begin forecasting, replace target input with it's own prediction
-            let m: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
-                Matrix::from_fn_generic(Dim::from_usize(I), Dim::from_usize(1), |i, _| {
-                    *predicted_out.get(i).unwrap()
-                });
-            let target = *targets.column(j).get(0).unwrap();
-            if j > n / 4 {
-                rmse += (last_prediction - target).powi(2);
-            }
-            let input = m.column(0);
-
-            rc.update_state(&input, &predicted_out);
-        }
-        info!("evaluation took {}ms, rmse: {}", t0.elapsed().as_millis(), rmse);
-
-        rmse
-    }
-
     // ensure the parameter bounds of the problem
     fn bounds_checked(old: f64, new: f64) -> f64 {
         return if new > 1.0 {
@@ -166,6 +133,7 @@ impl<const N: usize> FireflyOptimizer<N> {
         &self.fits
     }
 
+    #[inline(always)]
     pub fn candidates(&self) -> &Vec<[f64; N]> {
         &self.candidates
     }
