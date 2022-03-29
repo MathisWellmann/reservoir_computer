@@ -131,6 +131,6 @@ impl FFEnv<4> for FFEnvTradesESN {
             rc.update_state(&input, &predicted_out);
         }
 
-        1.0 / rmse
+        rmse
     }
 }
