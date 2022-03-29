@@ -93,11 +93,10 @@ impl OptEnvironment<4> for FFEnvTradesESN {
 
         rc.train(&self.train_inputs, &self.train_targets);
 
-        let washout_len = (self.inputs.len() as f64 * self.washout_pct) as usize;
         let training_len = self.train_inputs.ncols();
 
         let n_vals = self.inputs.len();
-        let init_val = *self.inputs.column(washout_len).get(0).unwrap();
+        let init_val = *self.inputs.column(0).get(0).unwrap();
         let state: StateMatrix = Matrix::from_element_generic(
             Dim::from_usize(rc.params().reservoir_size()),
             Dim::from_usize(1),
@@ -107,10 +106,6 @@ impl OptEnvironment<4> for FFEnvTradesESN {
 
         let mut rmse: f64 = 0.0;
         for j in 0..n_vals {
-            if j < washout_len {
-                continue;
-            }
-
             let predicted_out = rc.readout();
             let last_prediction = *predicted_out.get(0).unwrap();
 
