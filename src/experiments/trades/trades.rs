@@ -178,14 +178,12 @@ pub(crate) fn start() {
                     values.iter().skip(1).cloned().collect::<Vec<f64>>(),
                 );
 
-            let train_inputs = Arc::new(train_inputs);
-            let train_targets = Arc::new(train_targets);
             let inputs_arc = Arc::new(inputs.clone());
             let targets_arc = Arc::new(targets);
 
             let env = FFEnvTradesESN {
-                train_inputs,
-                train_targets,
+                train_inputs: Arc::new(train_inputs.clone()),
+                train_targets: Arc::new(train_targets.clone()),
                 inputs: inputs_arc,
                 targets: targets_arc,
                 input_sparsity_range: (0.15, 0.25),
@@ -226,6 +224,8 @@ pub(crate) fn start() {
                 let params = env.map_params(opt.elite_params());
                 let mut rc = esn::ESN::new(params);
 
+                rc.train(&train_inputs, &train_targets);
+
                 let mut plot_targets: Series = Vec::with_capacity(1_000_000);
                 let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
                 let mut test_predictions: Series = Vec::with_capacity(1_000_000);
@@ -256,23 +256,21 @@ pub(crate) fn start() {
                     values.iter().skip(1).cloned().collect::<Vec<f64>>(),
                 );
 
-            let train_inputs = Arc::new(train_inputs);
-            let train_targets = Arc::new(train_targets);
             let inputs_arc = Arc::new(inputs.clone());
             let targets_arc = Arc::new(targets);
 
             let seed = Some(0);
             let env = FFEnvTradesESN {
-                train_inputs,
-                train_targets,
+                train_inputs: Arc::new(train_inputs.clone()),
+                train_targets: Arc::new(train_targets.clone()),
                 inputs: inputs_arc,
                 targets: targets_arc,
-                input_sparsity_range: (0.15, 0.25),
+                input_sparsity_range: (0.199, 0.201),
                 input_activation: Activation::Identity,
-                input_weight_scaling_range: (0.15, 0.25),
+                input_weight_scaling_range: (0.199, 0.201),
                 reservoir_size: 500,
-                reservoir_bias_scaling_range: (0.0, 0.1),
-                reservoir_sparsity_range: (0.01, 0.03),
+                reservoir_bias_scaling_range: (0.049, 0.051),
+                reservoir_sparsity_range: (0.019, 0.021),
                 reservoir_activation: Activation::Tanh,
                 feedback_gain: 0.0,
                 spectral_radius: 0.9,
@@ -304,9 +302,11 @@ pub(crate) fn start() {
                 let params = env.map_params(opt.elite_params());
                 let mut rc = esn::ESN::<1, 1>::new(params);
 
-                let mut plot_targets: Series = Vec::with_capacity(1_000_000);
+                rc.train(&train_inputs, &train_targets);
+
+                let mut plot_targets: Series = Vec::with_capacity(TRAINING_WINDOW + TEST_WINDOW);
                 let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
-                let mut test_predictions: Series = Vec::with_capacity(1_000_000);
+                let mut test_predictions: Series = Vec::with_capacity(TEST_WINDOW);
 
                 run_trained_rc::<esn::ESN<1, 1>, esn::Params, 1, 1>(
                     &mut rc,
