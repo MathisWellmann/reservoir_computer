@@ -22,14 +22,14 @@ pub struct FFEnvTradesESN {
     pub input_sparsity_range: Range,
     pub input_activation: Activation,
     pub input_weight_scaling_range: Range,
-    pub reservoir_size: usize,
+    pub reservoir_size_range: Range,
     pub reservoir_bias_scaling_range: Range,
     pub reservoir_sparsity_range: Range,
     pub reservoir_activation: Activation,
     pub feedback_gain: f64,
     pub spectral_radius: f64,
-    pub leaking_rate: f64,
-    pub regularization_coeff: f64,
+    pub leaking_rate_range: Range,
+    pub regularization_coeff_range: Range,
     pub washout_pct: f64,
     pub output_activation: Activation,
     pub seed: Option<u64>,
@@ -39,7 +39,7 @@ pub struct FFEnvTradesESN {
 }
 
 impl FFEnvTradesESN {
-    pub fn map_params(&self, params: &[f64; 4]) -> esn::Params {
+    pub fn map_params(&self, params: &[f64; 7]) -> esn::Params {
         esn::Params {
             input_sparsity: scale(
                 0.0,
@@ -56,26 +56,44 @@ impl FFEnvTradesESN {
                 self.input_weight_scaling_range.1,
                 params[1],
             ),
-            reservoir_size: self.reservoir_size,
+            reservoir_size: scale(
+                0.0,
+                1.0,
+                self.reservoir_size_range.0,
+                self.reservoir_size_range.1,
+                params[2],
+            ) as usize,
             reservoir_bias_scaling: scale(
                 0.0,
                 1.0,
                 self.reservoir_bias_scaling_range.0,
                 self.reservoir_bias_scaling_range.1,
-                params[2],
+                params[3],
             ),
             reservoir_sparsity: scale(
                 0.0,
                 1.0,
                 self.reservoir_sparsity_range.0,
                 self.reservoir_sparsity_range.1,
-                params[3],
+                params[4],
             ),
             reservoir_activation: self.reservoir_activation,
             feedback_gain: self.feedback_gain,
             spectral_radius: self.spectral_radius,
-            leaking_rate: self.leaking_rate,
-            regularization_coeff: self.regularization_coeff,
+            leaking_rate: scale(
+                0.0,
+                1.0,
+                self.leaking_rate_range.0,
+                self.leaking_rate_range.1,
+                params[5],
+            ),
+            regularization_coeff: scale(
+                0.0,
+                1.0,
+                self.regularization_coeff_range.0,
+                self.regularization_coeff_range.1,
+                params[6],
+            ),
             washout_pct: self.washout_pct,
             output_activation: self.output_activation,
             seed: self.seed,
@@ -86,8 +104,8 @@ impl FFEnvTradesESN {
     }
 }
 
-impl OptEnvironment<4> for FFEnvTradesESN {
-    fn evaluate(&self, params: &[f64; 4]) -> f64 {
+impl OptEnvironment<7> for FFEnvTradesESN {
+    fn evaluate(&self, params: &[f64; 7]) -> f64 {
         let params = self.map_params(params);
         let mut rc = esn::ESN::<1, 1>::new(params);
 
