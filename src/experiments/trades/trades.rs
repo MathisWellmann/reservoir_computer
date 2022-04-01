@@ -208,9 +208,9 @@ pub(crate) fn start() {
 
             let num_candidates = 22;
             let params = FireflyParams {
-                gamma: 50.0,
+                gamma: 10.0,
                 alpha: 0.005,
-                step_size: 0.005,
+                step_size: 0.01,
                 num_candidates,
             };
             let mut opt = FireflyOptimizer::new(params);

@@ -4,6 +4,7 @@ use dialoguer::{theme::ColorfulTheme, Select};
 extern crate log;
 
 mod activation;
+mod ensemble;
 mod errors;
 mod experiments;
 mod load_sample_data;
