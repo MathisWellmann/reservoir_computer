@@ -69,6 +69,11 @@ impl<const N: usize> RandomSearch<N> {
     }
 
     #[inline(always)]
+    pub fn best_rmse(&self) -> f64 {
+        self.best_error
+    }
+
+    #[inline(always)]
     pub fn candidates(&self) -> &Vec<[f64; N]> {
         &self.candidates
     }

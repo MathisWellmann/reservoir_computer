@@ -206,7 +206,7 @@ pub(crate) fn start() {
             };
             let env = Arc::new(env);
 
-            let num_candidates = 22;
+            let num_candidates = 96;
             let params = FireflyParams {
                 gamma: 10.0,
                 alpha: 0.005,
@@ -245,7 +245,12 @@ pub(crate) fn start() {
                     i,
                     opt.candidates(),
                 );
-                info!("generation {} took {}ms", i, t0.elapsed().as_millis());
+                info!(
+                    "generation {} took {}ms. best rmse: {}",
+                    i,
+                    t0.elapsed().as_millis(),
+                    opt.best_rmse()
+                );
             }
         }
         4 => {
@@ -324,7 +329,12 @@ pub(crate) fn start() {
                     opt.candidates(),
                 );
 
-                info!("generation {} took {}ms", i, t0.elapsed().as_millis());
+                info!(
+                    "generation {} took {}ms. best rmse: {}",
+                    i,
+                    t0.elapsed().as_millis(),
+                    opt.best_rmse()
+                );
             }
         }
         _ => panic!("invalid reservoir computer selection"),

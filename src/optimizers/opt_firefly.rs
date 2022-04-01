@@ -22,6 +22,7 @@ pub struct FireflyOptimizer<const N: usize> {
     params: FireflyParams,
     candidates: Vec<[f64; N]>,
     fits: Vec<f64>,
+    best_rmse: f64,
     elite_idx: usize,
     rng: WyRand,
 }
@@ -45,6 +46,7 @@ impl<const N: usize> FireflyOptimizer<N> {
             params,
             candidates,
             fits,
+            best_rmse: f64::MAX,
             elite_idx: 0,
             rng,
         }
@@ -79,7 +81,10 @@ impl<const N: usize> FireflyOptimizer<N> {
                 min_idx = i;
             }
         }
-        self.elite_idx = min_idx;
+        if min_rmse < self.best_rmse {
+            self.best_rmse = min_rmse;
+            self.elite_idx = min_idx;
+        }
     }
 
     fn update_candidates(&mut self) {
@@ -126,6 +131,11 @@ impl<const N: usize> FireflyOptimizer<N> {
     #[inline(always)]
     pub fn elite_params(&self) -> &[f64; N] {
         &self.candidates[self.elite_idx]
+    }
+
+    #[inline(always)]
+    pub fn best_rmse(&self) -> f64 {
+        self.best_rmse
     }
 
     #[inline(always)]
