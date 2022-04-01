@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
@@ -6,8 +6,12 @@ use sliding_features::{Constant, Echo, Multiply, View, ALMA, VSCT};
 
 use crate::{
     activation::Activation,
-    experiments::trades::gif_render::GifRender,
+    experiments::trades::{gif_render::GifRender, gif_render_firefly::GifRenderFirefly},
     load_sample_data,
+    optimizers::{
+        environment_trades::FFEnvTradesESN,
+        opt_firefly::{FireflyOptimizer, FireflyParams},
+    },
     reservoir_computers::{esn, eusn, RCParams, ReservoirComputer},
     Series,
 };
@@ -31,7 +35,7 @@ pub(crate) fn start() {
     }
     info!("got {} datapoints", values.len());
 
-    let rcs = vec!["ESN", "EuSN", "NG-RC"];
+    let rcs = vec!["ESN", "EuSN", "NG-RC", "ESN-Firefly"];
     let e = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select Reservoir Computer")
         .items(&rcs)
@@ -96,8 +100,124 @@ pub(crate) fn start() {
         2 => {
             todo!()
         }
+        3 => {
+            run_sliding_opt_firefly::<esn::ESN<1, 1>, esn::Params>(
+                values,
+                "img/trades_sliding_window_esn_firefly.gif",
+            );
+        }
         _ => panic!("invalid reservoir computer selection"),
     }
+}
+
+fn run_sliding_opt_firefly<R: ReservoirComputer<P, 1, 1>, P: RCParams>(
+    values: Vec<f64>,
+    filename: &str,
+) {
+    let t0 = Instant::now();
+
+    let num_candidates = 96;
+    let params = FireflyParams {
+        gamma: 10.0,
+        alpha: 0.005,
+        step_size: 0.01,
+        num_candidates,
+    };
+    let mut opt = FireflyOptimizer::new(params);
+
+    let mut gif_render = GifRenderFirefly::new(filename, (1080, 1080), num_candidates);
+    // TODO: iterate over all data
+    for i in (TRAIN_LEN + VALIDATION_LEN + 1)..100_000 {
+        if i % 100 == 0 {
+            info!("step @ {}", i);
+            let t1 = Instant::now();
+
+            let train_inputs: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+                Matrix::from_vec_generic(
+                    Dim::from_usize(INPUT_DIM),
+                    Dim::from_usize(TRAIN_LEN),
+                    values[i - TRAIN_LEN - VALIDATION_LEN - 1..i - VALIDATION_LEN - 1].to_vec(),
+                );
+            let train_targets: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+                Matrix::from_vec_generic(
+                    Dim::from_usize(INPUT_DIM),
+                    Dim::from_usize(TRAIN_LEN),
+                    values[i - TRAIN_LEN - VALIDATION_LEN..i - VALIDATION_LEN].to_vec(),
+                );
+
+            let inputs: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+                Matrix::from_vec_generic(
+                    Dim::from_usize(INPUT_DIM),
+                    Dim::from_usize(TRAIN_LEN + VALIDATION_LEN),
+                    values[i - TRAIN_LEN - VALIDATION_LEN - 1..i - 1].to_vec(),
+                );
+            let targets: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+                Matrix::from_vec_generic(
+                    Dim::from_usize(INPUT_DIM),
+                    Dim::from_usize(TRAIN_LEN + VALIDATION_LEN),
+                    values[i - TRAIN_LEN - VALIDATION_LEN..i].to_vec(),
+                );
+
+            let env = FFEnvTradesESN {
+                train_inputs: Arc::new(train_inputs.clone()),
+                train_targets: Arc::new(train_targets.clone()),
+                inputs: Arc::new(inputs),
+                targets: Arc::new(targets),
+                input_sparsity_range: (0.15, 0.25),
+                input_activation: Activation::Identity,
+                input_weight_scaling_range: (0.15, 0.25),
+                reservoir_size_range: (200.0, 700.0),
+                reservoir_bias_scaling_range: (0.0, 0.1),
+                reservoir_sparsity_range: (0.01, 0.03),
+                reservoir_activation: Activation::Tanh,
+                feedback_gain: 0.0,
+                spectral_radius: 0.9,
+                leaking_rate_range: (0.0, 0.1),
+                regularization_coeff_range: (0.0, 0.1),
+                washout_pct: 0.0,
+                output_activation: Activation::Identity,
+                seed: Some(0),
+                state_update_noise_frac: 0.001,
+                initial_state_value: values[0],
+                readout_from_input_as_well: false,
+            };
+            let env = Arc::new(env);
+
+            opt.step(env.clone());
+            let params = env.map_params(opt.elite_params());
+            let mut rc = esn::ESN::new(params);
+            rc.train(&train_inputs, &train_targets);
+
+            let vals_matrix: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+                Matrix::from_vec_generic(
+                    Dim::from_usize(INPUT_DIM),
+                    Dim::from_usize(TRAIN_LEN + VALIDATION_LEN + 1),
+                    values[i - TRAIN_LEN - VALIDATION_LEN - 1..i].to_vec(),
+                );
+
+            let state = Matrix::from_element_generic(
+                Dim::from_usize(rc.params().reservoir_size()),
+                Dim::from_usize(1),
+                values[i - TRAIN_LEN - VALIDATION_LEN - 1],
+            );
+            rc.set_state(state);
+
+            let (plot_targets, train_preds, test_preds) =
+                gather_plot_data::<esn::ESN<1, 1>, esn::Params, 1, 1>(&vals_matrix, &mut rc);
+            gif_render.update(
+                &plot_targets,
+                &train_preds,
+                &test_preds,
+                opt.fits(),
+                i,
+                opt.candidates(),
+            );
+
+            info!("step took {}s", t1.elapsed().as_secs());
+        }
+    }
+
+    info!("took {}s", t0.elapsed().as_secs());
 }
 
 fn run_sliding<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: usize>(
@@ -106,26 +226,6 @@ fn run_sliding<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const
     filename: &str,
 ) {
     let t0 = Instant::now();
-    /*
-    let params = FireflyParams {
-        gamma: 50.0,
-        alpha: 0.005,
-        step_size: 0.005,
-        num_candidates,
-        param_mapping: ParameterMapper::new(
-            vec![(0.05, 0.15), (0.9, 1.0), (0.0, 0.05), (7.0, 9.0)],
-            Activation::Identity,
-            100,
-            Activation::Tanh,
-            0.02,
-            0.1,
-            Some(0),
-            0.0005,
-            0.0,
-        ),
-    };
-    let mut opt = FireflyOptimizer::<R, I, O>::new(params);
-    */
 
     let mut gif_render = GifRender::new(filename, (1080, 1080));
     // TODO: iterate over all data
@@ -146,28 +246,6 @@ fn run_sliding<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const
                     Dim::from_usize(TRAIN_LEN),
                     values[i - TRAIN_LEN - VALIDATION_LEN..i - VALIDATION_LEN].to_vec(),
                 );
-            /*
-            let inputs: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(INPUT_DIM),
-                    Dim::from_usize(TRAIN_LEN + VALIDATION_LEN),
-                    values[i - TRAIN_LEN - VALIDATION_LEN - 1..i - 1].to_vec(),
-                );
-            let targets: Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(INPUT_DIM),
-                    Dim::from_usize(TRAIN_LEN + VALIDATION_LEN),
-                    values[i - TRAIN_LEN - VALIDATION_LEN..i].to_vec(),
-                );
-
-            opt.step(
-                Arc::new(train_inputs),
-                Arc::new(train_targets),
-                Arc::new(inputs),
-                Arc::new(targets),
-            );
-            let mut rc = opt.elite();
-             */
 
             rc.train(&train_inputs, &train_targets);
 
