@@ -7,13 +7,14 @@ use time_series_generator::generate_sine_wave;
 use crate::{
     activation::Activation,
     plot::plot,
-    reservoir_computers::{esn, RCParams, ReservoirComputer},
+    reservoir_computers::{esn, eusn, RCParams, ReservoirComputer},
     Series,
 };
 
 const INPUT_DIM: usize = 1;
 const OUTPUT_DIM: usize = 1;
 const TRAINING_WINDOW: usize = 600;
+const SEED: Option<u64> = Some(0);
 
 pub(crate) fn start() {
     info!("loading sample data");
@@ -62,7 +63,7 @@ pub(crate) fn start() {
                 regularization_coeff: 0.1,
                 washout_pct: 0.1,
                 output_activation: Activation::Identity,
-                seed: Some(0),
+                seed: SEED,
                 state_update_noise_frac: 0.005,
                 initial_state_value: 0.0,
                 readout_from_input_as_well: true,
@@ -76,7 +77,27 @@ pub(crate) fn start() {
             run_rc::<esn::ESN<1, 1>, esn::Params, 1, 1>(&mut rc, values, "img/sine_esn.png");
         }
         1 => {
-            todo!()
+            let params = eusn::Params {
+                input_sparsity: 0.1,
+                input_weight_scaling: 1.0,
+                reservoir_size: 100,
+                reservoir_weight_scaling: 0.05,
+                reservoir_bias_scaling: 0.5,
+                reservoir_activation: Activation::Tanh,
+                initial_state_value: 0.0,
+                seed: SEED,
+                washout_frac: 0.1,
+                regularization_coeff: 0.01,
+                epsilon: 0.01,
+                gamma: 0.001,
+            };
+            let mut rc = eusn::EulerStateNetwork::new(params);
+
+            let t0 = Instant::now();
+            rc.train(&train_inputs, &train_targets);
+            info!("ESN training done in {}ms", t0.elapsed().as_millis());
+
+            run_rc(&mut rc, values, "img/sine_eusn.png");
         }
         2 => {
             todo!()

@@ -94,7 +94,7 @@ pub(crate) fn start() {
             rc.train(&train_inputs, &train_targets);
             info!("ESN training done in {}ms", t0.elapsed().as_millis());
 
-            run_rc(&mut rc, values, "img/mackey_glass_eusn");
+            run_rc(&mut rc, values, "img/mackey_glass_eusn.png");
         }
         2 => {
             todo!()

@@ -84,7 +84,7 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for EulerSt
         );
         // This satisfies the constraint of being anti-symmetric
         reservoir_matrix =
-            &reservoir_matrix - reservoir_matrix.transpose() - params.gamma * identity_m;
+            (&reservoir_matrix - reservoir_matrix.transpose()) - (params.gamma * identity_m);
 
         let reservoir_biases = Matrix::from_fn_generic(
             Dim::from_usize(params.reservoir_size),
@@ -131,10 +131,10 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for EulerSt
 
         let mut design_matrix: DMatrix<f64> = DMatrix::from_element_generic(
             Dim::from_usize(harvest_len),
-            Dim::from_usize(1 + self.params.reservoir_size),
+            Dim::from_usize(self.params.reservoir_size),
             0.0,
         );
-        let mut target_matrix: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+        let mut target_matrix: Matrix<f64, Dynamic, Const<O>, VecStorage<f64, Dynamic, Const<O>>> =
             Matrix::from_element_generic(Dim::from_usize(harvest_len), Dim::from_usize(1), 0.0);
         let curr_pred = self.readout();
         for j in 0..inputs.ncols() {
@@ -145,41 +145,36 @@ impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for EulerSt
                 let design: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
                     Matrix::from_fn_generic(
                         Dim::from_usize(1),
-                        Dim::from_usize(1 + self.params.reservoir_size),
-                        |_, j| {
-                            if j == 0 {
-                                1.0
-                            } else {
-                                *self.state.get(j - 1).unwrap()
-                            }
-                        },
+                        Dim::from_usize(self.params.reservoir_size),
+                        |_, j| *self.state.get(j).unwrap(),
                     );
                 design_matrix.set_row(j - washout_len, &design);
                 let target_col = targets.column(j);
-                let target: Matrix<f64, Const<1>, Const<1>, ArrayStorage<f64, 1, 1>> =
-                    Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |i, _j| {
+                let target: Matrix<f64, Const<1>, Const<O>, ArrayStorage<f64, 1, O>> =
+                    Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(O), |i, _j| {
                         *target_col.get(i).unwrap()
                     });
                 target_matrix.set_row(j - washout_len, &target);
             }
         }
 
-        let k = design_matrix.transpose() * &design_matrix;
-        let identity_m: DMatrix<f64> = DMatrix::from_diagonal_element_generic(
-            Dim::from_usize(1 + self.params.reservoir_size),
-            Dim::from_usize(1 + self.params.reservoir_size),
-            1.0,
-        );
-        let p = (k + self.params.regularization_coeff * identity_m).try_inverse().unwrap();
-        let xt_y = design_matrix.transpose() * &target_matrix;
-        let readout_matrix = p * xt_y;
-        self.readout_matrix = Matrix::from_fn_generic(
-            Dim::from_usize(O),
+        // Ridge regression regularization, I think
+        let x: DMatrix<f64> = Matrix::from_fn_generic(
+            Dim::from_usize(harvest_len),
             Dim::from_usize(self.params.reservoir_size),
-            |i, _| *readout_matrix.get(i + 1).unwrap(),
+            |i, j| {
+                if i == j {
+                    *design_matrix.row(i).column(j).get(0).unwrap()
+                        + self.params.regularization_coeff
+                } else {
+                    *design_matrix.row(i).column(j).get(0).unwrap()
+                }
+            },
         );
-
-        info!("trained readout_matrix: {}", self.readout_matrix);
+        let qr = x.qr();
+        let a = qr.r().try_inverse().unwrap() * qr.q().transpose();
+        let b = a * &target_matrix;
+        self.readout_matrix = b.transpose();
     }
 
     /// Propagate an input through the network and update its state
