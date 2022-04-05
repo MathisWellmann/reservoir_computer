@@ -49,7 +49,6 @@ impl<const N: usize> RandomSearch<N> {
         let (ch_fit_s, ch_fit_r) = unbounded();
         for (i, c) in self.candidates.iter().enumerate() {
             let ch_fit_s = ch_fit_s.clone();
-            let params = c.clone();
             let e = env.clone();
             let params = param_mapper.map(&c);
             let mut rc = R::new(params);
