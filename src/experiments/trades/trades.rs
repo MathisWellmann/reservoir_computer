@@ -6,15 +6,15 @@ use sliding_features::{Echo, View, ALMA};
 
 use crate::{
     activation::Activation,
+    environments::environment_trades::FFEnvTrades,
     experiments::trades::gif_render_firefly::GifRenderFirefly,
     load_sample_data,
     optimizers::{
-        environment_trades::FFEnvTradesESN,
         opt_firefly::{FireflyOptimizer, FireflyParams},
         opt_random_search::RandomSearch,
     },
     plot::plot,
-    reservoir_computers::{esn, eusn, RCParams, ReservoirComputer},
+    reservoir_computers::{esn, eusn, OptParamMapper, RCParams, ReservoirComputer},
     utils::scale,
     Series,
 };
@@ -70,7 +70,7 @@ pub(crate) fn start() {
             values.iter().take(values.len() - 1).cloned().collect(),
         );
 
-    let rcs = vec!["ESN", "EuSN", "NG-RC", "ESN-Firefly", "ESN-RandomSearch"];
+    let rcs = vec!["ESN", "EuSN", "NG-RC", "ESN-Firefly", "ESN-RandomSearch", "EuSN-Firefly"];
     let e = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select Reservoir Computer")
         .items(&rcs)
@@ -128,16 +128,16 @@ pub(crate) fn start() {
         }
         1 => {
             let params = eusn::Params {
-                input_sparsity: 1.0,
-                input_weight_scaling: 0.05,
+                input_sparsity: 0.1,
+                input_weight_scaling: 0.1,
                 reservoir_size: 500,
                 reservoir_weight_scaling: 0.1,
-                reservoir_bias_scaling: 0.04,
+                reservoir_bias_scaling: 0.5,
                 reservoir_activation: Activation::Tanh,
-                initial_state_value: values[0],
+                initial_state_value: 0.0,
                 seed: Some(0),
-                washout_frac: 0.05,
-                regularization_coeff: 0.1,
+                washout_frac: 0.1,
+                regularization_coeff: 0.01,
                 epsilon: 0.01,
                 gamma: 0.001,
             };
@@ -151,7 +151,7 @@ pub(crate) fn start() {
             let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
             let mut test_predictions: Series = Vec::with_capacity(1_000_000);
 
-            run_trained_rc::<eusn::EulerStateNetwork<1, 1>, eusn::Params, 1, 1>(
+            run_trained_rc::<eusn::EulerStateNetwork<1, 1>, 1, 1, 7>(
                 &mut rc,
                 &inputs,
                 &mut plot_targets,
@@ -163,7 +163,7 @@ pub(crate) fn start() {
                 &plot_targets,
                 &train_predictions,
                 &test_predictions,
-                "img/trades_esn.png",
+                "img/trades_eusn.png",
                 (2160, 2160),
             );
         }
@@ -181,11 +181,7 @@ pub(crate) fn start() {
             let inputs_arc = Arc::new(inputs.clone());
             let targets_arc = Arc::new(targets);
 
-            let env = FFEnvTradesESN {
-                train_inputs: Arc::new(train_inputs.clone()),
-                train_targets: Arc::new(train_targets.clone()),
-                inputs: inputs_arc,
-                targets: targets_arc,
+            let param_mapper = esn::ParamMapper {
                 input_sparsity_range: (0.15, 0.25),
                 input_activation: Activation::Identity,
                 input_weight_scaling_range: (0.15, 0.25),
@@ -204,6 +200,13 @@ pub(crate) fn start() {
                 initial_state_value: values[0],
                 readout_from_input_as_well: false,
             };
+
+            let env = FFEnvTrades {
+                train_inputs: Arc::new(train_inputs.clone()),
+                train_targets: Arc::new(train_targets.clone()),
+                inputs: inputs_arc,
+                targets: targets_arc,
+            };
             let env = Arc::new(env);
 
             let num_candidates = 96;
@@ -213,15 +216,15 @@ pub(crate) fn start() {
                 step_size: 0.01,
                 num_candidates,
             };
-            let mut opt = FireflyOptimizer::new(params);
+            let mut opt = FireflyOptimizer::<7>::new(params);
 
             let mut gif_render =
                 GifRenderFirefly::new("img/trades_esn_firefly.gif", (1080, 1080), num_candidates);
             for i in 0..1000 {
                 let t0 = Instant::now();
 
-                opt.step(env.clone());
-                let params = env.map_params(opt.elite_params());
+                opt.step::<esn::ESN<1, 1>, 1, 1>(env.clone(), &param_mapper);
+                let params = param_mapper.map(opt.elite_params());
                 let mut rc = esn::ESN::new(params);
 
                 rc.train(&train_inputs, &train_targets);
@@ -230,7 +233,7 @@ pub(crate) fn start() {
                 let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
                 let mut test_predictions: Series = Vec::with_capacity(1_000_000);
 
-                run_trained_rc::<esn::ESN<1, 1>, esn::Params, 1, 1>(
+                run_trained_rc::<esn::ESN<1, 1>, 1, 1, 7>(
                     &mut rc,
                     &inputs,
                     &mut plot_targets,
@@ -265,11 +268,8 @@ pub(crate) fn start() {
             let targets_arc = Arc::new(targets);
 
             let seed = Some(0);
-            let env = FFEnvTradesESN {
-                train_inputs: Arc::new(train_inputs.clone()),
-                train_targets: Arc::new(train_targets.clone()),
-                inputs: inputs_arc,
-                targets: targets_arc,
+
+            let param_mapper = esn::ParamMapper {
                 input_sparsity_range: (0.15, 0.25),
                 input_activation: Activation::Identity,
                 input_weight_scaling_range: (0.1, 0.3),
@@ -288,10 +288,17 @@ pub(crate) fn start() {
                 initial_state_value: values[0],
                 readout_from_input_as_well: false,
             };
+
+            let env = FFEnvTrades {
+                train_inputs: Arc::new(train_inputs.clone()),
+                train_targets: Arc::new(train_targets.clone()),
+                inputs: inputs_arc,
+                targets: targets_arc,
+            };
             let env = Arc::new(env);
 
             let num_candidates = 23;
-            let mut opt = RandomSearch::new(seed, num_candidates);
+            let mut opt = RandomSearch::<7>::new(seed, num_candidates);
 
             let mut gif_render = GifRenderFirefly::new(
                 "img/trades_esn_random_search.gif",
@@ -302,9 +309,9 @@ pub(crate) fn start() {
             for i in 0..1000 {
                 let t0 = Instant::now();
 
-                opt.step(env.clone());
+                opt.step::<esn::ESN<1, 1>, 1, 1>(env.clone(), &param_mapper);
 
-                let params = env.map_params(opt.elite_params());
+                let params = param_mapper.map(opt.elite_params());
                 let mut rc = esn::ESN::<1, 1>::new(params);
 
                 rc.train(&train_inputs, &train_targets);
@@ -313,7 +320,7 @@ pub(crate) fn start() {
                 let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
                 let mut test_predictions: Series = Vec::with_capacity(TEST_WINDOW);
 
-                run_trained_rc::<esn::ESN<1, 1>, esn::Params, 1, 1>(
+                run_trained_rc::<esn::ESN<1, 1>, 1, 1, 7>(
                     &mut rc,
                     &inputs,
                     &mut plot_targets,
@@ -337,18 +344,23 @@ pub(crate) fn start() {
                 );
             }
         }
+        5 => {
+            todo!()
+        }
         _ => panic!("invalid reservoir computer selection"),
     }
 }
 
 // TODO: Is it possible to merge with sliding_window_trades?
-fn run_trained_rc<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: usize>(
+fn run_trained_rc<R, const I: usize, const O: usize, const N: usize>(
     rc: &mut R,
     inputs: &Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>,
     plot_targets: &mut Series,
     train_predictions: &mut Series,
     test_predictions: &mut Series,
-) {
+) where
+    R: ReservoirComputer<I, O, N>,
+{
     let n_vals = inputs.ncols();
     let init_val = *inputs.column(0).get(0).unwrap();
     let state = Matrix::from_element_generic(

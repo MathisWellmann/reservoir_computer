@@ -4,7 +4,7 @@ use crossbeam::channel::unbounded;
 use nanorand::{Rng, WyRand};
 use threadpool::ThreadPool;
 
-use super::OptEnvironment;
+use crate::{reservoir_computers::OptParamMapper, OptEnvironment, ReservoirComputer};
 
 pub struct RandomSearch<const N: usize> {
     /// Minimization objective
@@ -35,7 +35,13 @@ impl<const N: usize> RandomSearch<N> {
         }
     }
 
-    pub fn step(&mut self, env: Arc<dyn OptEnvironment<N> + Send + Sync>) {
+    pub fn step<R, const I: usize, const O: usize>(
+        &mut self,
+        env: Arc<dyn OptEnvironment<R, I, O, N> + Send + Sync>,
+        param_mapper: &R::ParamMapper,
+    ) where
+        R: ReservoirComputer<I, O, N> + Send + Sync + 'static,
+    {
         let pool = ThreadPool::new(max(num_cpus::get() - 1, 1));
 
         self.candidates = self.gen_candidates(self.num_candidates);
@@ -45,8 +51,10 @@ impl<const N: usize> RandomSearch<N> {
             let ch_fit_s = ch_fit_s.clone();
             let params = c.clone();
             let e = env.clone();
+            let params = param_mapper.map(&c);
+            let mut rc = R::new(params);
             pool.execute(move || {
-                let f = e.evaluate(&params);
+                let f = e.evaluate(&mut rc);
                 ch_fit_s.send((i, f)).unwrap();
             });
         }

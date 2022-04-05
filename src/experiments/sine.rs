@@ -74,7 +74,7 @@ pub(crate) fn start() {
             rc.train(&train_inputs, &train_targets);
             info!("training done in: {}ms", t0.elapsed().as_millis());
 
-            run_rc::<esn::ESN<1, 1>, esn::Params, 1, 1>(&mut rc, values, "img/sine_esn.png");
+            run_rc::<esn::ESN<1, 1>, 1, 1, 7>(&mut rc, values, "img/sine_esn.png");
         }
         1 => {
             let params = eusn::Params {
@@ -106,7 +106,7 @@ pub(crate) fn start() {
     }
 }
 
-fn run_rc<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: usize>(
+fn run_rc<R: ReservoirComputer<I, O, N>, const I: usize, const O: usize, const N: usize>(
     rc: &mut R,
     values: Vec<f64>,
     filename: &str,

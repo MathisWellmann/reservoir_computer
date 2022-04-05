@@ -1,8 +1,8 @@
 use nalgebra::{ArrayStorage, Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 use nanorand::{Rng, WyRand};
 
-use super::{RCParams, ReservoirComputer, StateMatrix};
-use crate::activation::Activation;
+use super::{OptParamMapper, RCParams, Range, ReservoirComputer, StateMatrix};
+use crate::{activation::Activation, utils::scale};
 
 // TODO: value validation
 #[derive(Debug, Clone)]
@@ -40,6 +40,74 @@ impl RCParams for Params {
     }
 }
 
+pub struct ParamMapper {
+    pub input_sparsity_range: Range,
+    pub input_weight_scaling_range: Range,
+    pub reservoir_size_range: Range,
+    pub reservoir_weight_scaling_range: Range,
+    pub reservoir_bias_scaling_range: Range,
+    pub reservoir_activation: Activation,
+    pub initial_state_value: f64,
+    pub seed: Option<u64>,
+    pub washout_frac: f64,
+    pub regularization_coeff: f64,
+    pub epsilon_range: Range,
+    pub gamma_range: Range,
+}
+
+const PARAM_DIM: usize = 7;
+
+impl OptParamMapper<PARAM_DIM> for ParamMapper {
+    type Params = Params;
+
+    fn map(&self, params: &[f64; PARAM_DIM]) -> Self::Params {
+        Params {
+            input_sparsity: scale(
+                0.0,
+                1.0,
+                self.input_sparsity_range.0,
+                self.input_sparsity_range.1,
+                params[0],
+            ),
+            input_weight_scaling: scale(
+                0.0,
+                1.0,
+                self.input_weight_scaling_range.0,
+                self.input_weight_scaling_range.1,
+                params[1],
+            ),
+            reservoir_size: scale(
+                0.0,
+                1.0,
+                self.reservoir_size_range.0,
+                self.reservoir_size_range.1,
+                params[2],
+            ) as usize,
+            reservoir_weight_scaling: scale(
+                0.0,
+                1.0,
+                self.reservoir_weight_scaling_range.0,
+                self.reservoir_weight_scaling_range.1,
+                params[3],
+            ),
+            reservoir_bias_scaling: scale(
+                0.0,
+                1.0,
+                self.reservoir_bias_scaling_range.0,
+                self.reservoir_bias_scaling_range.1,
+                params[4],
+            ),
+            reservoir_activation: self.reservoir_activation,
+            initial_state_value: self.initial_state_value,
+            seed: self.seed,
+            washout_frac: self.washout_frac,
+            regularization_coeff: self.regularization_coeff,
+            epsilon: scale(0.0, 1.0, self.epsilon_range.0, self.epsilon_range.1, params[5]),
+            gamma: scale(0.0, 1.0, self.gamma_range.0, self.gamma_range.1, params[6]),
+        }
+    }
+}
+
 /// Euler State Network (EuSN)
 /// from: https://arxiv.org/pdf/2203.09382.pdf
 pub struct EulerStateNetwork<const I: usize, const O: usize> {
@@ -51,7 +119,11 @@ pub struct EulerStateNetwork<const I: usize, const O: usize> {
     readout_matrix: Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>,
 }
 
-impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for EulerStateNetwork<I, O> {
+impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM>
+    for EulerStateNetwork<I, O>
+{
+    type ParamMapper = ParamMapper;
+
     /// Create a new untrained EuSN with the given parameters
     fn new(params: Params) -> Self {
         let state = Matrix::from_element_generic(

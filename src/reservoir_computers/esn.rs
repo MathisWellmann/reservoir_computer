@@ -3,8 +3,8 @@ use nalgebra::{
 };
 use nanorand::{Rng, WyRand};
 
-use super::{RCParams, ReservoirComputer, StateMatrix};
-use crate::activation::Activation;
+use super::{OptParamMapper, RCParams, Range, ReservoirComputer, StateMatrix};
+use crate::{activation::Activation, utils::scale};
 
 /// The parameters of the Echo State Network
 #[derive(Debug, Clone)]
@@ -71,6 +71,98 @@ impl RCParams for Params {
     }
 }
 
+pub struct ParamMapper {
+    /// Parameter ranges
+    pub input_sparsity_range: Range,
+    pub input_activation: Activation,
+    pub input_weight_scaling_range: Range,
+    pub reservoir_size_range: Range,
+    pub reservoir_bias_scaling_range: Range,
+    pub reservoir_sparsity_range: Range,
+    pub reservoir_activation: Activation,
+    pub feedback_gain: f64,
+    pub spectral_radius: f64,
+    pub leaking_rate_range: Range,
+    pub regularization_coeff_range: Range,
+    pub washout_pct: f64,
+    pub output_activation: Activation,
+    pub seed: Option<u64>,
+    pub state_update_noise_frac: f64,
+    pub initial_state_value: f64,
+    pub readout_from_input_as_well: bool,
+}
+
+/// Dimensionality of the parameter space
+pub const PARAM_DIM: usize = 7;
+
+impl OptParamMapper<PARAM_DIM> for ParamMapper {
+    type Params = Params;
+
+    fn map(&self, params: &[f64; PARAM_DIM]) -> Params {
+        Params {
+            input_sparsity: scale(
+                0.0,
+                1.0,
+                self.input_sparsity_range.0,
+                self.input_sparsity_range.1,
+                params[0],
+            ),
+            input_activation: self.input_activation,
+            input_weight_scaling: scale(
+                0.0,
+                1.0,
+                self.input_weight_scaling_range.0,
+                self.input_weight_scaling_range.1,
+                params[1],
+            ),
+            reservoir_size: scale(
+                0.0,
+                1.0,
+                self.reservoir_size_range.0,
+                self.reservoir_size_range.1,
+                params[2],
+            ) as usize,
+            reservoir_bias_scaling: scale(
+                0.0,
+                1.0,
+                self.reservoir_bias_scaling_range.0,
+                self.reservoir_bias_scaling_range.1,
+                params[3],
+            ),
+            reservoir_sparsity: scale(
+                0.0,
+                1.0,
+                self.reservoir_sparsity_range.0,
+                self.reservoir_sparsity_range.1,
+                params[4],
+            ),
+            reservoir_activation: self.reservoir_activation,
+            feedback_gain: self.feedback_gain,
+            spectral_radius: self.spectral_radius,
+            leaking_rate: scale(
+                0.0,
+                1.0,
+                self.leaking_rate_range.0,
+                self.leaking_rate_range.1,
+                params[5],
+            ),
+            regularization_coeff: scale(
+                0.0,
+                1.0,
+                self.regularization_coeff_range.0,
+                self.regularization_coeff_range.1,
+                params[6],
+            ),
+            washout_pct: self.washout_pct,
+            output_activation: self.output_activation,
+            seed: self.seed,
+            state_update_noise_frac: self.state_update_noise_frac,
+            initial_state_value: self.initial_state_value,
+            readout_from_input_as_well: self.readout_from_input_as_well,
+        }
+    }
+}
+
 /// The Reseoir Computer, Leaky Echo State Network
 #[derive(Debug)]
 pub struct ESN<const I: usize, const O: usize> {
@@ -85,7 +177,9 @@ pub struct ESN<const I: usize, const O: usize> {
     rng: WyRand,
 }
 
-impl<const I: usize, const O: usize> ReservoirComputer<Params, I, O> for ESN<I, O> {
+impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for ESN<I, O> {
+    type ParamMapper = ParamMapper;
+
     /// Create a new reservoir, with random initiallization
     /// # Arguments
     fn new(params: Params) -> Self {

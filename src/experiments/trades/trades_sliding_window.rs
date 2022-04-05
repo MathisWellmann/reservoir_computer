@@ -6,13 +6,11 @@ use sliding_features::{Constant, Echo, Multiply, View, ALMA, VSCT};
 
 use crate::{
     activation::Activation,
+    environments::environment_trades::FFEnvTrades,
     experiments::trades::{gif_render::GifRender, gif_render_firefly::GifRenderFirefly},
     load_sample_data,
-    optimizers::{
-        environment_trades::FFEnvTradesESN,
-        opt_firefly::{FireflyOptimizer, FireflyParams},
-    },
-    reservoir_computers::{esn, eusn, RCParams, ReservoirComputer},
+    optimizers::opt_firefly::{FireflyOptimizer, FireflyParams},
+    reservoir_computers::{esn, eusn, OptParamMapper, RCParams, ReservoirComputer},
     Series,
 };
 
@@ -68,7 +66,7 @@ pub(crate) fn start() {
 
             let mut rc = esn::ESN::new(params);
 
-            run_sliding::<esn::ESN<1, 1>, esn::Params, 1, 1>(
+            run_sliding::<esn::ESN<1, 1>, 1, 1, 7>(
                 &mut rc,
                 values,
                 "img/trades_sliding_window_esn.gif",
@@ -91,7 +89,7 @@ pub(crate) fn start() {
             };
             let mut rc = eusn::EulerStateNetwork::new(params);
 
-            run_sliding::<eusn::EulerStateNetwork<1, 1>, eusn::Params, 1, 1>(
+            run_sliding::<eusn::EulerStateNetwork<1, 1>, 1, 1, 7>(
                 &mut rc,
                 values,
                 "img/trades_sliding_window_eusn.gif",
@@ -101,19 +99,42 @@ pub(crate) fn start() {
             todo!()
         }
         3 => {
-            run_sliding_opt_firefly::<esn::ESN<1, 1>, esn::Params>(
+            let param_mapper = esn::ParamMapper {
+                input_sparsity_range: (0.15, 0.25),
+                input_activation: Activation::Identity,
+                input_weight_scaling_range: (0.15, 0.25),
+                reservoir_size_range: (200.0, 700.0),
+                reservoir_bias_scaling_range: (0.0, 0.1),
+                reservoir_sparsity_range: (0.01, 0.03),
+                reservoir_activation: Activation::Tanh,
+                feedback_gain: 0.0,
+                spectral_radius: 0.9,
+                leaking_rate_range: (0.0, 0.1),
+                regularization_coeff_range: (0.0, 0.1),
+                washout_pct: 0.0,
+                output_activation: Activation::Identity,
+                seed: Some(0),
+                state_update_noise_frac: 0.001,
+                initial_state_value: values[0],
+                readout_from_input_as_well: false,
+            };
+            run_sliding_opt_firefly::<esn::ESN<1, 1>, 7>(
                 values,
                 "img/trades_sliding_window_esn_firefly.gif",
+                &param_mapper,
             );
         }
         _ => panic!("invalid reservoir computer selection"),
     }
 }
 
-fn run_sliding_opt_firefly<R: ReservoirComputer<P, 1, 1>, P: RCParams>(
+fn run_sliding_opt_firefly<R, const N: usize>(
     values: Vec<f64>,
     filename: &str,
-) {
+    param_mapper: &R::ParamMapper,
+) where
+    R: ReservoirComputer<1, 1, N> + Send + Sync + 'static,
+{
     let t0 = Instant::now();
 
     let num_candidates = 96;
@@ -123,7 +144,7 @@ fn run_sliding_opt_firefly<R: ReservoirComputer<P, 1, 1>, P: RCParams>(
         step_size: 0.01,
         num_candidates,
     };
-    let mut opt = FireflyOptimizer::new(params);
+    let mut opt = FireflyOptimizer::<N>::new(params);
 
     let mut gif_render = GifRenderFirefly::new(filename, (1080, 1080), num_candidates);
     // TODO: iterate over all data
@@ -157,35 +178,17 @@ fn run_sliding_opt_firefly<R: ReservoirComputer<P, 1, 1>, P: RCParams>(
                     Dim::from_usize(TRAIN_LEN + VALIDATION_LEN),
                     values[i - TRAIN_LEN - VALIDATION_LEN..i].to_vec(),
                 );
-
-            let env = FFEnvTradesESN {
+            let env = FFEnvTrades {
                 train_inputs: Arc::new(train_inputs.clone()),
                 train_targets: Arc::new(train_targets.clone()),
                 inputs: Arc::new(inputs),
                 targets: Arc::new(targets),
-                input_sparsity_range: (0.15, 0.25),
-                input_activation: Activation::Identity,
-                input_weight_scaling_range: (0.15, 0.25),
-                reservoir_size_range: (200.0, 700.0),
-                reservoir_bias_scaling_range: (0.0, 0.1),
-                reservoir_sparsity_range: (0.01, 0.03),
-                reservoir_activation: Activation::Tanh,
-                feedback_gain: 0.0,
-                spectral_radius: 0.9,
-                leaking_rate_range: (0.0, 0.1),
-                regularization_coeff_range: (0.0, 0.1),
-                washout_pct: 0.0,
-                output_activation: Activation::Identity,
-                seed: Some(0),
-                state_update_noise_frac: 0.001,
-                initial_state_value: values[0],
-                readout_from_input_as_well: false,
             };
             let env = Arc::new(env);
 
-            opt.step(env.clone());
-            let params = env.map_params(opt.elite_params());
-            let mut rc = esn::ESN::new(params);
+            opt.step::<R, 1, 1>(env.clone(), &param_mapper);
+            let params = param_mapper.map(opt.elite_params());
+            let mut rc = R::new(params);
             rc.train(&train_inputs, &train_targets);
 
             let vals_matrix: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
@@ -202,8 +205,7 @@ fn run_sliding_opt_firefly<R: ReservoirComputer<P, 1, 1>, P: RCParams>(
             );
             rc.set_state(state);
 
-            let (plot_targets, train_preds, test_preds) =
-                gather_plot_data::<esn::ESN<1, 1>, esn::Params, 1, 1>(&vals_matrix, &mut rc);
+            let (plot_targets, train_preds, test_preds) = gather_plot_data(&vals_matrix, &mut rc);
             gif_render.update(
                 &plot_targets,
                 &train_preds,
@@ -220,11 +222,13 @@ fn run_sliding_opt_firefly<R: ReservoirComputer<P, 1, 1>, P: RCParams>(
     info!("took {}s", t0.elapsed().as_secs());
 }
 
-fn run_sliding<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: usize>(
+fn run_sliding<R, const I: usize, const O: usize, const N: usize>(
     rc: &mut R,
     values: Vec<f64>,
     filename: &str,
-) {
+) where
+    R: ReservoirComputer<I, O, N>,
+{
     let t0 = Instant::now();
 
     let mut gif_render = GifRender::new(filename, (1080, 1080));
@@ -273,10 +277,13 @@ fn run_sliding<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const
     info!("took {}s", t0.elapsed().as_secs());
 }
 
-fn gather_plot_data<R: ReservoirComputer<P, I, O>, P: RCParams, const I: usize, const O: usize>(
+fn gather_plot_data<R, const I: usize, const O: usize, const N: usize>(
     values: &Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>,
     rc: &mut R,
-) -> (Series, Series, Series) {
+) -> (Series, Series, Series)
+where
+    R: ReservoirComputer<I, O, N>,
+{
     let mut plot_targets = Vec::with_capacity(values.len());
     let mut train_preds = vec![];
     let mut test_preds = vec![];

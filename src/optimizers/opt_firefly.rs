@@ -4,7 +4,7 @@ use crossbeam::channel::unbounded;
 use nanorand::{Rng, WyRand};
 use threadpool::ThreadPool;
 
-use super::OptEnvironment;
+use crate::{reservoir_computers::OptParamMapper, OptEnvironment, ReservoirComputer};
 
 // TODO: rename to Params
 #[derive(Debug, Clone)]
@@ -52,7 +52,13 @@ impl<const N: usize> FireflyOptimizer<N> {
         }
     }
 
-    pub fn step(&mut self, env: Arc<dyn OptEnvironment<N> + Send + Sync>) {
+    pub fn step<R, const I: usize, const O: usize>(
+        &mut self,
+        env: Arc<dyn OptEnvironment<R, I, O, N> + Send + Sync>,
+        param_mapper: &R::ParamMapper,
+    ) where
+        R: ReservoirComputer<I, O, N> + Send + Sync + 'static,
+    {
         self.update_candidates();
 
         let pool = ThreadPool::new(max(num_cpus::get() - 1, 1));
@@ -60,10 +66,12 @@ impl<const N: usize> FireflyOptimizer<N> {
         let (ch_fit_s, ch_fit_r) = unbounded();
         for (i, c) in self.candidates.iter().enumerate() {
             let ch_fit_s = ch_fit_s.clone();
-            let params = c.clone();
+            let c = c.clone();
             let e = env.clone();
+            let params = param_mapper.map(&c);
+            let mut rc = R::new(params);
             pool.execute(move || {
-                let f = e.evaluate(&params);
+                let f = e.evaluate(&mut rc);
                 ch_fit_s.send((i, f)).unwrap();
             });
         }
@@ -119,13 +127,13 @@ impl<const N: usize> FireflyOptimizer<N> {
 
     // ensure the parameter bounds of the problem
     fn bounds_checked(old: f64, new: f64) -> f64 {
-        return if new > 1.0 {
+        if new > 1.0 {
             old
         } else if new < 0.0 {
             old
         } else {
             new
-        };
+        }
     }
 
     #[inline(always)]

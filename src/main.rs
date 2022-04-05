@@ -5,6 +5,7 @@ extern crate log;
 
 mod activation;
 mod ensemble;
+mod environments;
 mod errors;
 mod experiments;
 mod load_sample_data;
@@ -13,6 +14,7 @@ pub(crate) mod plot;
 mod reservoir_computers;
 mod utils;
 
+pub use environments::OptEnvironment;
 pub use reservoir_computers::{RCParams, ReservoirComputer};
 
 pub(crate) type Series = Vec<(f64, f64)>;
