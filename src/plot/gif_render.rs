@@ -2,13 +2,13 @@ use plotters::{coord::Shift, prelude::*};
 
 use crate::Series;
 
-pub(crate) struct GifRender<'a> {
+pub struct GifRender<'a> {
     root: DrawingArea<BitMapBackend<'a>, Shift>,
     filename: &'a str,
 }
 
 impl<'a> GifRender<'a> {
-    pub(crate) fn new(filename: &'a str, dims: (u32, u32)) -> Self {
+    pub fn new(filename: &'a str, dims: (u32, u32)) -> Self {
         let root = BitMapBackend::gif(filename, dims, 100).unwrap().into_drawing_area();
 
         Self {
@@ -17,7 +17,7 @@ impl<'a> GifRender<'a> {
         }
     }
 
-    pub(crate) fn update(&mut self, targets: &Series, train_preds: &Series, test_preds: &Series) {
+    pub fn update(&mut self, targets: &Series, train_preds: &Series, test_preds: &Series) {
         self.root.fill(&WHITE).unwrap();
         let ts_min = targets[0].0;
         let ts_max = targets[targets.len() - 1].0;

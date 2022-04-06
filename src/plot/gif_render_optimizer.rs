@@ -2,14 +2,14 @@ use plotters::{coord::Shift, prelude::*};
 
 use crate::Series;
 
-pub(crate) struct GifRenderFirefly<'a> {
+pub struct GifRenderOptimizer<'a> {
     root: DrawingArea<BitMapBackend<'a>, Shift>,
     fits: Vec<Series>,
     max_ts: f64,
 }
 
-impl<'a> GifRenderFirefly<'a> {
-    pub(crate) fn new(filename: &str, dims: (u32, u32), num_candidates: usize) -> Self {
+impl<'a> GifRenderOptimizer<'a> {
+    pub fn new(filename: &str, dims: (u32, u32), num_candidates: usize) -> Self {
         let root = BitMapBackend::gif(filename, dims, 100).unwrap().into_drawing_area();
 
         Self {
@@ -19,7 +19,7 @@ impl<'a> GifRenderFirefly<'a> {
         }
     }
 
-    pub(crate) fn update<const N: usize>(
+    pub fn update<const N: usize>(
         &mut self,
         targets: &Series,
         train_preds: &Series,

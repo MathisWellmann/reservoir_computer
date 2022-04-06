@@ -1,19 +1,18 @@
 use std::{sync::Arc, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
-use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
+use nalgebra::{Dim, Matrix};
 use sliding_features::{Echo, View, ALMA};
 
 use crate::{
     activation::Activation,
     environments::{env_trades::EnvTrades, PlotGather},
-    experiments::trades::gif_render_firefly::GifRenderFirefly,
     load_sample_data,
     optimizers::{
         opt_firefly::{FireflyOptimizer, FireflyParams},
         opt_random_search::RandomSearch,
     },
-    plot::plot,
+    plot::{plot, GifRenderOptimizer},
     reservoir_computers::{esn, eusn, OptParamMapper, ReservoirComputer},
     utils::scale,
     OptEnvironment, SingleDimIo,
@@ -160,16 +159,6 @@ pub(crate) fn start() {
             todo!()
         }
         3 => {
-            let targets: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(OUTPUT_DIM),
-                    Dim::from_usize(values.len() - 1),
-                    values.iter().skip(1).cloned().collect::<Vec<f64>>(),
-                );
-
-            let inputs_arc = Arc::new(inputs.clone());
-            let targets_arc = Arc::new(targets);
-
             let param_mapper = esn::ParamMapper {
                 input_sparsity_range: (0.15, 0.25),
                 input_activation: Activation::Identity,
@@ -193,8 +182,8 @@ pub(crate) fn start() {
             let env = EnvTrades::new(
                 Arc::new(train_inputs.clone()),
                 Arc::new(train_targets.clone()),
-                inputs_arc,
-                targets_arc,
+                Arc::new(inputs.clone()),
+                Arc::new(targets),
             );
             let env = Arc::new(env);
 
@@ -208,7 +197,7 @@ pub(crate) fn start() {
             let mut opt = FireflyOptimizer::<7>::new(params);
 
             let mut gif_render =
-                GifRenderFirefly::new("img/trades_esn_firefly.gif", (1080, 1080), num_candidates);
+                GifRenderOptimizer::new("img/trades_esn_firefly.gif", (1080, 1080), num_candidates);
             for i in 0..1000 {
                 let t0 = Instant::now();
 
@@ -236,16 +225,6 @@ pub(crate) fn start() {
             }
         }
         4 => {
-            let targets: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(OUTPUT_DIM),
-                    Dim::from_usize(values.len() - 1),
-                    values.iter().skip(1).cloned().collect::<Vec<f64>>(),
-                );
-
-            let inputs_arc = Arc::new(inputs.clone());
-            let targets_arc = Arc::new(targets);
-
             let seed = Some(0);
 
             let param_mapper = esn::ParamMapper {
@@ -271,15 +250,15 @@ pub(crate) fn start() {
             let env = EnvTrades::new(
                 Arc::new(train_inputs.clone()),
                 Arc::new(train_targets.clone()),
-                inputs_arc,
-                targets_arc,
+                Arc::new(inputs.clone()),
+                Arc::new(targets),
             );
             let env = Arc::new(env);
 
             let num_candidates = 23;
             let mut opt = RandomSearch::<7>::new(seed, num_candidates);
 
-            let mut gif_render = GifRenderFirefly::new(
+            let mut gif_render = GifRenderOptimizer::new(
                 "img/trades_esn_random_search.gif",
                 (1080, 1080),
                 num_candidates,

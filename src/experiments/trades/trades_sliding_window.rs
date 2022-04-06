@@ -7,9 +7,9 @@ use sliding_features::{Constant, Echo, Multiply, View, ALMA, VSCT};
 use crate::{
     activation::Activation,
     environments::env_trades::EnvTrades,
-    experiments::trades::{gif_render::GifRender, gif_render_firefly::GifRenderFirefly},
     load_sample_data,
     optimizers::opt_firefly::{FireflyOptimizer, FireflyParams},
+    plot::{GifRender, GifRenderOptimizer},
     reservoir_computers::{esn, eusn, OptParamMapper, RCParams, ReservoirComputer},
     Series,
 };
@@ -146,7 +146,7 @@ fn run_sliding_opt_firefly<R, const N: usize>(
     };
     let mut opt = FireflyOptimizer::<N>::new(params);
 
-    let mut gif_render = GifRenderFirefly::new(filename, (1080, 1080), num_candidates);
+    let mut gif_render = GifRenderOptimizer::new(filename, (1080, 1080), num_candidates);
     // TODO: iterate over all data
     for i in (TRAIN_LEN + VALIDATION_LEN + 1)..100_000 {
         if i % 100 == 0 {

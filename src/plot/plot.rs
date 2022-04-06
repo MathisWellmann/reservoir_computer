@@ -2,7 +2,7 @@ use plotters::prelude::*;
 
 use crate::Series;
 
-pub(crate) fn plot(
+pub fn plot(
     targets: &Series,
     train_preds: &Series,
     test_preds: &Series,
