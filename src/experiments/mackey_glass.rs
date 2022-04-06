@@ -7,7 +7,10 @@ use nanorand::{Rng, WyRand};
 use crate::{
     activation::Activation,
     environments::{env_mackey_glass::EnvMackeyGlass, PlotGather},
-    optimizers::opt_firefly::{FireflyOptimizer, FireflyParams},
+    optimizers::{
+        opt_firefly::{FireflyOptimizer, FireflyParams},
+        opt_random_search::RandomSearch,
+    },
     plot::{plot, GifRenderOptimizer},
     reservoir_computers::{esn, eusn, OptParamMapper, ReservoirComputer},
     OptEnvironment,
@@ -152,12 +155,12 @@ pub(crate) fn start() {
                 input_weight_scaling_range: (0.1, 1.0),
                 reservoir_size_range: (200.0, 800.0),
                 reservoir_bias_scaling_range: (0.0, 0.1),
-                reservoir_sparsity_range: (0.01, 0.03),
+                reservoir_sparsity_range: (0.01, 0.2),
                 reservoir_activation: Activation::Tanh,
                 feedback_gain: 0.0,
                 spectral_radius: 0.9,
-                leaking_rate_range: (0.0, 0.1),
-                regularization_coeff_range: (0.0, 0.1),
+                leaking_rate_range: (0.0, 0.2),
+                regularization_coeff_range: (0.0, 0.2),
                 washout_pct: 0.0,
                 output_activation: Activation::Identity,
                 seed: Some(0),
@@ -215,7 +218,72 @@ pub(crate) fn start() {
             }
         }
         4 => {
-            todo!("ESN-RandomSearch is not implemented for mackey-glass")
+            let seed = Some(0);
+
+            let param_mapper = esn::ParamMapper {
+                input_sparsity_range: (0.05, 0.2),
+                input_activation: Activation::Identity,
+                input_weight_scaling_range: (0.1, 1.0),
+                reservoir_size_range: (200.0, 800.0),
+                reservoir_bias_scaling_range: (0.0, 0.1),
+                reservoir_sparsity_range: (0.01, 0.2),
+                reservoir_activation: Activation::Tanh,
+                feedback_gain: 0.0,
+                spectral_radius: 0.9,
+                leaking_rate_range: (0.0, 0.2),
+                regularization_coeff_range: (0.0, 0.2),
+                washout_pct: 0.0,
+                output_activation: Activation::Identity,
+                seed,
+                state_update_noise_frac: 0.001,
+                initial_state_value: values[0],
+                readout_from_input_as_well: false,
+            };
+
+            let env = EnvMackeyGlass::new(
+                Arc::new(train_inputs.clone()),
+                Arc::new(train_targets.clone()),
+                Arc::new(inputs.clone()),
+                Arc::new(targets),
+            );
+            let env = Arc::new(env);
+
+            let num_candidates = 23;
+            let mut opt = RandomSearch::<7>::new(seed, num_candidates);
+
+            let mut gif_render = GifRenderOptimizer::new(
+                "img/mackey_glass_esn_random_search.gif",
+                (1080, 1080),
+                num_candidates,
+            );
+
+            for i in 0..1000 {
+                let t0 = Instant::now();
+
+                opt.step::<esn::ESN<1, 1>, 1, 1>(env.clone(), &param_mapper);
+
+                let params = param_mapper.map(opt.elite_params());
+                let mut rc = esn::ESN::<1, 1>::new(params);
+
+                let mut p = PlotGather::default();
+                env.evaluate(&mut rc, Some(&mut p));
+
+                gif_render.update(
+                    &p.plot_targets(),
+                    &p.train_predictions(),
+                    &p.test_predictions(),
+                    opt.errors(),
+                    i,
+                    opt.candidates(),
+                );
+
+                info!(
+                    "generation {} took {}ms. best rmse: {}",
+                    i,
+                    t0.elapsed().as_millis(),
+                    opt.best_rmse()
+                );
+            }
         }
         5 => {
             todo!("EuSN-Firefly is not implemented for mackey-glass")
