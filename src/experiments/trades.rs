@@ -73,7 +73,15 @@ pub(crate) fn start() {
         values.iter().skip(1).cloned().collect(),
     );
 
-    let rcs = vec!["ESN", "EuSN", "NG-RC", "ESN-Firefly", "ESN-RandomSearch", "EuSN-Firefly"];
+    let rcs = vec![
+        "ESN",
+        "EuSN",
+        "NG-RC",
+        "ESN-Firefly",
+        "ESN-RandomSearch",
+        "EuSN-Firefly",
+        "EuSN-RandomSearch",
+    ];
     let e = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select Reservoir Computer")
         .items(&rcs)
@@ -293,7 +301,10 @@ pub(crate) fn start() {
             }
         }
         5 => {
-            todo!()
+            todo!("EuSN-Firefly is not implemented for trades experiment yet")
+        }
+        6 => {
+            todo!("EuSN-RandomSearch is not implemented for trades experiment yet")
         }
         _ => panic!("invalid reservoir computer selection"),
     }
