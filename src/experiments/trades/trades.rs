@@ -6,7 +6,7 @@ use sliding_features::{Echo, View, ALMA};
 
 use crate::{
     activation::Activation,
-    environments::env_trades::EnvTrades,
+    environments::{env_trades::EnvTrades, PlotGather},
     experiments::trades::gif_render_firefly::GifRenderFirefly,
     load_sample_data,
     optimizers::{
@@ -14,9 +14,9 @@ use crate::{
         opt_random_search::RandomSearch,
     },
     plot::plot,
-    reservoir_computers::{esn, eusn, OptParamMapper, RCParams, ReservoirComputer},
+    reservoir_computers::{esn, eusn, OptParamMapper, ReservoirComputer},
     utils::scale,
-    Series,
+    OptEnvironment, SingleDimIo,
 };
 
 const INPUT_DIM: usize = 1;
@@ -63,12 +63,16 @@ pub(crate) fn start() {
         Dim::from_usize(TRAINING_WINDOW),
         values.iter().skip(1).take(TRAINING_WINDOW).cloned().collect::<Vec<f64>>(),
     );
-    let inputs: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
-        Matrix::from_vec_generic(
-            Dim::from_usize(INPUT_DIM),
-            Dim::from_usize(values.len() - 1),
-            values.iter().take(values.len() - 1).cloned().collect(),
-        );
+    let inputs: SingleDimIo = Matrix::from_vec_generic(
+        Dim::from_usize(INPUT_DIM),
+        Dim::from_usize(values.len() - 1),
+        values.iter().take(values.len() - 1).cloned().collect(),
+    );
+    let targets: SingleDimIo = Matrix::from_vec_generic(
+        Dim::from_usize(INPUT_DIM),
+        Dim::from_usize(values.len() - 1),
+        values.iter().skip(1).cloned().collect(),
+    );
 
     let rcs = vec!["ESN", "EuSN", "NG-RC", "ESN-Firefly", "ESN-RandomSearch", "EuSN-Firefly"];
     let e = Select::with_theme(&ColorfulTheme::default())
@@ -101,27 +105,19 @@ pub(crate) fn start() {
             };
             let mut rc = esn::ESN::new(params);
 
-            let t0 = Instant::now();
-            rc.train(&train_inputs, &train_targets);
-            info!("trained readout_matrix: {}", rc.readout_matrix());
-            info!("training done in: {}ms", t0.elapsed().as_millis());
-
-            let mut plot_targets: Series = Vec::with_capacity(1_000_000);
-            let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
-            let mut test_predictions: Series = Vec::with_capacity(1_000_000);
-
-            run_trained_rc(
-                &mut rc,
-                &inputs,
-                &mut plot_targets,
-                &mut train_predictions,
-                &mut test_predictions,
+            let env = EnvTrades::new(
+                Arc::new(train_inputs),
+                Arc::new(train_targets),
+                Arc::new(inputs),
+                Arc::new(targets),
             );
+            let mut p = PlotGather::default();
+            env.evaluate(&mut rc, Some(&mut p));
 
             plot(
-                &plot_targets,
-                &train_predictions,
-                &test_predictions,
+                &p.plot_targets(),
+                &p.train_predictions(),
+                &p.test_predictions(),
                 "img/trades_esn.png",
                 (2160, 2160),
             );
@@ -143,26 +139,19 @@ pub(crate) fn start() {
             };
             let mut rc = eusn::EulerStateNetwork::new(params);
 
-            let t0 = Instant::now();
-            rc.train(&train_inputs, &train_targets);
-            info!("training done in: {}ms", t0.elapsed().as_millis());
-
-            let mut plot_targets: Series = Vec::with_capacity(1_000_000);
-            let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
-            let mut test_predictions: Series = Vec::with_capacity(1_000_000);
-
-            run_trained_rc::<eusn::EulerStateNetwork<1, 1>, 1, 1, 7>(
-                &mut rc,
-                &inputs,
-                &mut plot_targets,
-                &mut train_predictions,
-                &mut test_predictions,
+            let env = EnvTrades::new(
+                Arc::new(train_inputs),
+                Arc::new(train_targets),
+                Arc::new(inputs),
+                Arc::new(targets),
             );
+            let mut p = PlotGather::default();
+            env.evaluate(&mut rc, Some(&mut p));
 
             plot(
-                &plot_targets,
-                &train_predictions,
-                &test_predictions,
+                &p.plot_targets(),
+                &p.train_predictions(),
+                &p.test_predictions(),
                 "img/trades_eusn.png",
                 (2160, 2160),
             );
@@ -201,12 +190,12 @@ pub(crate) fn start() {
                 readout_from_input_as_well: false,
             };
 
-            let env = EnvTrades {
-                train_inputs: Arc::new(train_inputs.clone()),
-                train_targets: Arc::new(train_targets.clone()),
-                inputs: inputs_arc,
-                targets: targets_arc,
-            };
+            let env = EnvTrades::new(
+                Arc::new(train_inputs.clone()),
+                Arc::new(train_targets.clone()),
+                inputs_arc,
+                targets_arc,
+            );
             let env = Arc::new(env);
 
             let num_candidates = 96;
@@ -227,23 +216,13 @@ pub(crate) fn start() {
                 let params = param_mapper.map(opt.elite_params());
                 let mut rc = esn::ESN::new(params);
 
-                rc.train(&train_inputs, &train_targets);
+                let mut p = PlotGather::default();
+                env.evaluate(&mut rc, Some(&mut p));
 
-                let mut plot_targets: Series = Vec::with_capacity(1_000_000);
-                let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
-                let mut test_predictions: Series = Vec::with_capacity(1_000_000);
-
-                run_trained_rc::<esn::ESN<1, 1>, 1, 1, 7>(
-                    &mut rc,
-                    &inputs,
-                    &mut plot_targets,
-                    &mut train_predictions,
-                    &mut test_predictions,
-                );
                 gif_render.update(
-                    &plot_targets,
-                    &train_predictions,
-                    &test_predictions,
+                    &p.plot_targets(),
+                    &p.train_predictions(),
+                    &p.test_predictions(),
                     opt.fits(),
                     i,
                     opt.candidates(),
@@ -289,12 +268,12 @@ pub(crate) fn start() {
                 readout_from_input_as_well: false,
             };
 
-            let env = EnvTrades {
-                train_inputs: Arc::new(train_inputs.clone()),
-                train_targets: Arc::new(train_targets.clone()),
-                inputs: inputs_arc,
-                targets: targets_arc,
-            };
+            let env = EnvTrades::new(
+                Arc::new(train_inputs.clone()),
+                Arc::new(train_targets.clone()),
+                inputs_arc,
+                targets_arc,
+            );
             let env = Arc::new(env);
 
             let num_candidates = 23;
@@ -314,23 +293,13 @@ pub(crate) fn start() {
                 let params = param_mapper.map(opt.elite_params());
                 let mut rc = esn::ESN::<1, 1>::new(params);
 
-                rc.train(&train_inputs, &train_targets);
+                let mut p = PlotGather::default();
+                env.evaluate(&mut rc, Some(&mut p));
 
-                let mut plot_targets: Series = Vec::with_capacity(TRAINING_WINDOW + TEST_WINDOW);
-                let mut train_predictions: Series = Vec::with_capacity(TRAINING_WINDOW);
-                let mut test_predictions: Series = Vec::with_capacity(TEST_WINDOW);
-
-                run_trained_rc::<esn::ESN<1, 1>, 1, 1, 7>(
-                    &mut rc,
-                    &inputs,
-                    &mut plot_targets,
-                    &mut train_predictions,
-                    &mut test_predictions,
-                );
                 gif_render.update(
-                    &plot_targets,
-                    &train_predictions,
-                    &test_predictions,
+                    &p.plot_targets(),
+                    &p.train_predictions(),
+                    &p.test_predictions(),
                     opt.errors(),
                     i,
                     opt.candidates(),
@@ -348,47 +317,5 @@ pub(crate) fn start() {
             todo!()
         }
         _ => panic!("invalid reservoir computer selection"),
-    }
-}
-
-// TODO: Is it possible to merge with sliding_window_trades?
-fn run_trained_rc<R, const I: usize, const O: usize, const N: usize>(
-    rc: &mut R,
-    inputs: &Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>,
-    plot_targets: &mut Series,
-    train_predictions: &mut Series,
-    test_predictions: &mut Series,
-) where
-    R: ReservoirComputer<I, O, N>,
-{
-    let n_vals = inputs.ncols();
-    let init_val = *inputs.column(0).get(0).unwrap();
-    let state = Matrix::from_element_generic(
-        Dim::from_usize(rc.params().reservoir_size()),
-        Dim::from_usize(1),
-        init_val,
-    );
-    rc.set_state(state);
-
-    for j in 0..n_vals {
-        plot_targets.push((j as f64, *inputs.column(j).get(0).unwrap()));
-
-        let predicted_out = rc.readout();
-        let last_prediction = *predicted_out.get(0).unwrap();
-
-        // To begin forecasting, replace target input with it's own prediction
-        let m: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
-            Matrix::from_fn_generic(Dim::from_usize(I), Dim::from_usize(1), |i, _| {
-                *predicted_out.get(i).unwrap()
-            });
-        let input = if j > TRAINING_WINDOW {
-            test_predictions.push((j as f64, last_prediction));
-            m.column(0)
-        } else {
-            train_predictions.push((j as f64, last_prediction));
-            inputs.column(j)
-        };
-
-        rc.update_state(&input, &predicted_out);
     }
 }

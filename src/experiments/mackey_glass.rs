@@ -86,7 +86,7 @@ pub(crate) fn start() {
             rc.train(&train_inputs, &train_targets);
             info!("ESN training done in {}ms", t0.elapsed().as_millis());
 
-            let mut env = EnvMackeyGlass::new(
+            let env = EnvMackeyGlass::new(
                 Arc::new(train_inputs),
                 Arc::new(train_targets),
                 Arc::new(inputs),
@@ -124,7 +124,7 @@ pub(crate) fn start() {
             rc.train(&train_inputs, &train_targets);
             info!("ESN training done in {}ms", t0.elapsed().as_millis());
 
-            let mut env = EnvMackeyGlass::new(
+            let env = EnvMackeyGlass::new(
                 Arc::new(train_inputs),
                 Arc::new(train_targets),
                 Arc::new(inputs),

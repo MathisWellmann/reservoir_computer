@@ -3,19 +3,36 @@ use std::sync::Arc;
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 
 use super::{OptEnvironment, PlotGather};
-use crate::{reservoir_computers::StateMatrix, RCParams, ReservoirComputer};
+use crate::{reservoir_computers::StateMatrix, RCParams, ReservoirComputer, SingleDimIo};
 
 pub struct EnvTrades {
-    pub train_inputs: Arc<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
-    pub train_targets: Arc<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
-    pub inputs: Arc<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
-    pub targets: Arc<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
+    train_inputs: Arc<SingleDimIo>,
+    train_targets: Arc<SingleDimIo>,
+    inputs: Arc<SingleDimIo>,
+    targets: Arc<SingleDimIo>,
+}
+
+impl EnvTrades {
+    #[inline(always)]
+    pub fn new(
+        train_inputs: Arc<SingleDimIo>,
+        train_targets: Arc<SingleDimIo>,
+        inputs: Arc<SingleDimIo>,
+        targets: Arc<SingleDimIo>,
+    ) -> Self {
+        Self {
+            train_inputs,
+            train_targets,
+            inputs,
+            targets,
+        }
+    }
 }
 
 impl<R, const N: usize> OptEnvironment<R, 1, 1, N> for EnvTrades
 where R: ReservoirComputer<1, 1, N>
 {
-    fn evaluate(&self, rc: &mut R, plot: Option<&mut PlotGather>) -> f64 {
+    fn evaluate(&self, rc: &mut R, mut plot: Option<&mut PlotGather>) -> f64 {
         rc.train(&self.train_inputs, &self.train_targets);
 
         let training_len = self.train_inputs.ncols();
@@ -31,6 +48,9 @@ where R: ReservoirComputer<1, 1, N>
 
         let mut rmse: f64 = 0.0;
         for j in 0..n_vals {
+            if let Some(plot) = plot.as_mut() {
+                plot.push_target(j as f64, *self.inputs.column(j).get(0).unwrap());
+            }
             let predicted_out = rc.readout();
             let last_prediction = *predicted_out.get(0).unwrap();
 
@@ -43,8 +63,14 @@ where R: ReservoirComputer<1, 1, N>
             rmse += (last_prediction - target).powi(2);
 
             let input = if j > training_len {
+                if let Some(plot) = plot.as_mut() {
+                    plot.push_test_pred(j as f64, last_prediction);
+                }
                 m.column(0)
             } else {
+                if let Some(plot) = plot.as_mut() {
+                    plot.push_train_pred(j as f64, last_prediction);
+                }
                 self.inputs.column(j)
             };
 

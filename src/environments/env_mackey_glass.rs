@@ -3,9 +3,7 @@ use std::sync::Arc;
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 
 use super::PlotGather;
-use crate::{OptEnvironment, RCParams, ReservoirComputer};
-
-pub type SingleDimIo = Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>;
+use crate::{OptEnvironment, RCParams, ReservoirComputer, SingleDimIo};
 
 pub struct EnvMackeyGlass {
     train_inputs: Arc<SingleDimIo>,
@@ -73,7 +71,7 @@ where R: ReservoirComputer<1, 1, N>
                 }
                 self.inputs.column(j)
             };
-            rmse += (*self.inputs.column(j).get(0).unwrap() - last_prediction).powi(2);
+            rmse += (*self.targets.column(j).get(0).unwrap() - last_prediction).powi(2);
 
             rc.update_state(&input, &predicted_out);
         }

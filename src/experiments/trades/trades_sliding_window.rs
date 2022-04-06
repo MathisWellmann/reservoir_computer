@@ -178,12 +178,12 @@ fn run_sliding_opt_firefly<R, const N: usize>(
                     Dim::from_usize(TRAIN_LEN + VALIDATION_LEN),
                     values[i - TRAIN_LEN - VALIDATION_LEN..i].to_vec(),
                 );
-            let env = EnvTrades {
-                train_inputs: Arc::new(train_inputs.clone()),
-                train_targets: Arc::new(train_targets.clone()),
-                inputs: Arc::new(inputs),
-                targets: Arc::new(targets),
-            };
+            let env = EnvTrades::new(
+                Arc::new(train_inputs.clone()),
+                Arc::new(train_targets.clone()),
+                Arc::new(inputs),
+                Arc::new(targets),
+            );
             let env = Arc::new(env);
 
             opt.step::<R, 1, 1>(env.clone(), &param_mapper);

@@ -15,9 +15,13 @@ mod reservoir_computers;
 mod utils;
 
 pub use environments::OptEnvironment;
+use nalgebra::{Const, Dynamic, Matrix, VecStorage};
 pub use reservoir_computers::{RCParams, ReservoirComputer};
 
-pub(crate) type Series = Vec<(f64, f64)>;
+pub type Series = Vec<(f64, f64)>;
+
+/// Used for single dimensional IO to and from the reservoir computers
+pub type SingleDimIo = Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>;
 
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
