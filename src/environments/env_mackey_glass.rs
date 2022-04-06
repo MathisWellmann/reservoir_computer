@@ -2,19 +2,39 @@ use std::sync::Arc;
 
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 
+use super::PlotGather;
 use crate::{OptEnvironment, RCParams, ReservoirComputer};
 
+pub type SingleDimIo = Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>;
+
 pub struct EnvMackeyGlass {
-    pub train_inputs: Arc<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
-    pub train_targets: Arc<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
-    pub inputs: Arc<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
-    pub targets: Arc<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
+    train_inputs: Arc<SingleDimIo>,
+    train_targets: Arc<SingleDimIo>,
+    inputs: Arc<SingleDimIo>,
+    targets: Arc<SingleDimIo>,
+}
+
+impl EnvMackeyGlass {
+    #[inline]
+    pub fn new(
+        train_inputs: Arc<SingleDimIo>,
+        train_targets: Arc<SingleDimIo>,
+        inputs: Arc<SingleDimIo>,
+        targets: Arc<SingleDimIo>,
+    ) -> Self {
+        Self {
+            train_inputs,
+            train_targets,
+            inputs,
+            targets,
+        }
+    }
 }
 
 impl<R, const N: usize> OptEnvironment<R, 1, 1, N> for EnvMackeyGlass
 where R: ReservoirComputer<1, 1, N>
 {
-    fn evaluate(&self, rc: &mut R) -> f64 {
+    fn evaluate(&self, rc: &mut R, mut plot: Option<&mut PlotGather>) -> f64 {
         rc.train(&self.train_inputs, &self.train_targets);
 
         let state = Matrix::from_element_generic(
@@ -27,6 +47,10 @@ where R: ReservoirComputer<1, 1, N>
         let train_len = self.train_inputs.ncols();
         let mut rmse = 0.0;
         for j in 0..self.inputs.ncols() {
+            if let Some(plot) = plot.as_mut() {
+                plot.push_target(j as f64, *self.inputs.column(j).get(0).unwrap());
+            }
+
             let predicted_out = rc.readout();
             let mut last_prediction = *predicted_out.get(0).unwrap();
             if !last_prediction.is_finite() {
@@ -39,12 +63,14 @@ where R: ReservoirComputer<1, 1, N>
                     *predicted_out.get(i).unwrap()
                 });
             let input = if j > train_len {
-                // TODO: plot support
-                //test_predictions.push((j as f64, last_prediction));
+                if let Some(plot) = plot.as_mut() {
+                    plot.push_test_pred(j as f64, last_prediction);
+                }
                 m.column(0)
             } else {
-                // TODO: plot support
-                //train_predictions.push((j as f64, last_prediction));
+                if let Some(plot) = plot.as_mut() {
+                    plot.push_train_pred(j as f64, last_prediction);
+                }
                 self.inputs.column(j)
             };
             rmse += (*self.inputs.column(j).get(0).unwrap() - last_prediction).powi(2);

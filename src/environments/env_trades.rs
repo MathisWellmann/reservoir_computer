@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 
-use super::OptEnvironment;
+use super::{OptEnvironment, PlotGather};
 use crate::{reservoir_computers::StateMatrix, RCParams, ReservoirComputer};
 
 pub struct EnvTrades {
@@ -15,7 +15,7 @@ pub struct EnvTrades {
 impl<R, const N: usize> OptEnvironment<R, 1, 1, N> for EnvTrades
 where R: ReservoirComputer<1, 1, N>
 {
-    fn evaluate(&self, rc: &mut R) -> f64 {
+    fn evaluate(&self, rc: &mut R, plot: Option<&mut PlotGather>) -> f64 {
         rc.train(&self.train_inputs, &self.train_targets);
 
         let training_len = self.train_inputs.ncols();

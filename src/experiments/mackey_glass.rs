@@ -1,14 +1,15 @@
-use std::{collections::VecDeque, time::Instant};
+use std::{collections::VecDeque, sync::Arc, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
-use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
+use nalgebra::{Dim, Matrix};
 use nanorand::{Rng, WyRand};
 
 use crate::{
     activation::Activation,
+    environments::{env_mackey_glass::EnvMackeyGlass, PlotGather},
     plot::plot,
-    reservoir_computers::{esn, eusn, RCParams, ReservoirComputer},
-    Series,
+    reservoir_computers::{esn, eusn, ReservoirComputer},
+    OptEnvironment,
 };
 
 const TRAIN_LEN: usize = 5000;
@@ -28,6 +29,16 @@ pub(crate) fn start() {
         Dim::from_usize(1),
         Dim::from_usize(TRAIN_LEN),
         values.iter().skip(1).take(TRAIN_LEN).cloned().collect::<Vec<f64>>(),
+    );
+    let inputs = Matrix::from_vec_generic(
+        Dim::from_usize(1),
+        Dim::from_usize(values.len() - 1),
+        values.iter().take(values.len() - 1).cloned().collect::<Vec<f64>>(),
+    );
+    let targets = Matrix::from_vec_generic(
+        Dim::from_usize(1),
+        Dim::from_usize(values.len() - 1),
+        values.iter().skip(1).cloned().collect::<Vec<f64>>(),
     );
 
     let rcs = vec![
@@ -75,7 +86,22 @@ pub(crate) fn start() {
             rc.train(&train_inputs, &train_targets);
             info!("ESN training done in {}ms", t0.elapsed().as_millis());
 
-            run_rc::<esn::ESN<1, 1>, 1, 1, 7>(&mut rc, values, "img/mackey_glass_esn.png");
+            let mut env = EnvMackeyGlass::new(
+                Arc::new(train_inputs),
+                Arc::new(train_targets),
+                Arc::new(inputs),
+                Arc::new(targets),
+            );
+            let mut p = PlotGather::default();
+            env.evaluate(&mut rc, Some(&mut p));
+
+            plot(
+                &p.plot_targets(),
+                &p.train_predictions(),
+                &p.test_predictions(),
+                "img/mackey_glass_esn.png",
+                (3840, 1080),
+            );
         }
         1 => {
             let params = eusn::Params {
@@ -98,7 +124,22 @@ pub(crate) fn start() {
             rc.train(&train_inputs, &train_targets);
             info!("ESN training done in {}ms", t0.elapsed().as_millis());
 
-            run_rc(&mut rc, values, "img/mackey_glass_eusn.png");
+            let mut env = EnvMackeyGlass::new(
+                Arc::new(train_inputs),
+                Arc::new(train_targets),
+                Arc::new(inputs),
+                Arc::new(targets),
+            );
+            let mut p = PlotGather::default();
+            env.evaluate(&mut rc, Some(&mut p));
+
+            plot(
+                &p.plot_targets(),
+                &p.train_predictions(),
+                &p.test_predictions(),
+                "img/mackey_glass_esn.png",
+                (3840, 1080),
+            );
         }
         2 => {
             todo!("NG-RC not implemented for mackey-glass")
@@ -118,56 +159,6 @@ pub(crate) fn start() {
 
         _ => panic!("invalid reservoir computer selection"),
     };
-}
-
-fn run_rc<R: ReservoirComputer<I, O, N>, const I: usize, const O: usize, const N: usize>(
-    rc: &mut R,
-    values: Vec<f64>,
-    plot_filename: &str,
-) {
-    let mut plot_targets: Series = vec![];
-    let mut train_predictions: Series = vec![];
-    let mut test_predictions: Series = vec![];
-
-    let n_vals = values.len();
-    let inputs: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
-        Matrix::from_vec_generic(Dim::from_usize(I), Dim::from_usize(values.len()), values);
-    let state = Matrix::from_element_generic(
-        Dim::from_usize(rc.params().reservoir_size()),
-        Dim::from_usize(1),
-        rc.params().initial_state_value(),
-    );
-    rc.set_state(state);
-
-    let mut train_rmse = 0.0;
-    for j in 0..n_vals {
-        plot_targets.push((j as f64, *inputs.column(j).get(0).unwrap()));
-
-        let predicted_out = rc.readout();
-        let mut last_prediction = *predicted_out.get(0).unwrap();
-        if !last_prediction.is_finite() {
-            last_prediction = 0.0;
-        }
-
-        // To begin forecasting, replace target input with it's own prediction
-        let m: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
-            Matrix::from_fn_generic(Dim::from_usize(I), Dim::from_usize(1), |i, _| {
-                *predicted_out.get(i).unwrap()
-            });
-        let input = if j > TRAIN_LEN {
-            test_predictions.push((j as f64, last_prediction));
-            m.column(0)
-        } else {
-            train_rmse += (*inputs.column(j).get(0).unwrap() - last_prediction).powi(2);
-            train_predictions.push((j as f64, last_prediction));
-            inputs.column(j)
-        };
-
-        rc.update_state(&input, &predicted_out);
-    }
-    info!("train_rmse: {}", train_rmse.sqrt());
-
-    plot(&plot_targets, &train_predictions, &test_predictions, plot_filename, (3840, 1080));
 }
 
 /// Mackey glass series generation

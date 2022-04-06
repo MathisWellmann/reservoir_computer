@@ -71,7 +71,7 @@ impl<const N: usize> FireflyOptimizer<N> {
             let params = param_mapper.map(&c);
             let mut rc = R::new(params);
             pool.execute(move || {
-                let f = e.evaluate(&mut rc);
+                let f = e.evaluate(&mut rc, None);
                 ch_fit_s.send((i, f)).unwrap();
             });
         }
