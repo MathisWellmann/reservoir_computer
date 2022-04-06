@@ -6,7 +6,7 @@ use sliding_features::{Constant, Echo, Multiply, View, ALMA, VSCT};
 
 use crate::{
     activation::Activation,
-    environments::environment_trades::FFEnvTrades,
+    environments::env_trades::EnvTrades,
     experiments::trades::{gif_render::GifRender, gif_render_firefly::GifRenderFirefly},
     load_sample_data,
     optimizers::opt_firefly::{FireflyOptimizer, FireflyParams},
@@ -178,7 +178,7 @@ fn run_sliding_opt_firefly<R, const N: usize>(
                     Dim::from_usize(TRAIN_LEN + VALIDATION_LEN),
                     values[i - TRAIN_LEN - VALIDATION_LEN..i].to_vec(),
                 );
-            let env = FFEnvTrades {
+            let env = EnvTrades {
                 train_inputs: Arc::new(train_inputs.clone()),
                 train_targets: Arc::new(train_targets.clone()),
                 inputs: Arc::new(inputs),

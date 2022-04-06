@@ -6,7 +6,7 @@ use sliding_features::{Echo, View, ALMA};
 
 use crate::{
     activation::Activation,
-    environments::environment_trades::FFEnvTrades,
+    environments::env_trades::EnvTrades,
     experiments::trades::gif_render_firefly::GifRenderFirefly,
     load_sample_data,
     optimizers::{
@@ -201,7 +201,7 @@ pub(crate) fn start() {
                 readout_from_input_as_well: false,
             };
 
-            let env = FFEnvTrades {
+            let env = EnvTrades {
                 train_inputs: Arc::new(train_inputs.clone()),
                 train_targets: Arc::new(train_targets.clone()),
                 inputs: inputs_arc,
@@ -289,7 +289,7 @@ pub(crate) fn start() {
                 readout_from_input_as_well: false,
             };
 
-            let env = FFEnvTrades {
+            let env = EnvTrades {
                 train_inputs: Arc::new(train_inputs.clone()),
                 train_targets: Arc::new(train_targets.clone()),
                 inputs: inputs_arc,

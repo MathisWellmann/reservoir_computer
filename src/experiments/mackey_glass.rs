@@ -30,7 +30,15 @@ pub(crate) fn start() {
         values.iter().skip(1).take(TRAIN_LEN).cloned().collect::<Vec<f64>>(),
     );
 
-    let rcs = vec!["ESN", "EuSN", "NG-RC"];
+    let rcs = vec![
+        "ESN",
+        "EuSN",
+        "NG-RC",
+        "ESN-Firefly",
+        "ESN-RandomSearch",
+        "EuSN-Firefly",
+        "EuSN-RandomSearch",
+    ];
     let e = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select Reservoir Computer")
         .items(&rcs)
@@ -93,8 +101,21 @@ pub(crate) fn start() {
             run_rc(&mut rc, values, "img/mackey_glass_eusn.png");
         }
         2 => {
-            todo!()
+            todo!("NG-RC not implemented for mackey-glass")
         }
+        3 => {
+            todo!("ESN-Firefly is not implemented for mackey-glass")
+        }
+        4 => {
+            todo!("ESN-RandomSearch is not implemented for mackey-glass")
+        }
+        5 => {
+            todo!("EuSN-Firefly is not implemented for mackey-glass")
+        }
+        6 => {
+            todo!("EuSN-RandomSearch is not implemented for mackey-glass")
+        }
+
         _ => panic!("invalid reservoir computer selection"),
     };
 }
@@ -149,8 +170,12 @@ fn run_rc<R: ReservoirComputer<I, O, N>, const I: usize, const O: usize, const N
     plot(&plot_targets, &train_predictions, &test_predictions, plot_filename, (3840, 1080));
 }
 
-/// Mackey glass series
-fn mackey_glass_series(sample_len: usize, tau: usize, seed: Option<u64>) -> Vec<f64> {
+/// Mackey glass series generation
+/// # Parameters:
+/// sample_len: the number of datapoints to generate
+/// tau: roughly correlates to the chaotic and complex behaviour of the sequence
+/// seed: An optional seed for the random number generator
+pub(crate) fn mackey_glass_series(sample_len: usize, tau: usize, seed: Option<u64>) -> Vec<f64> {
     let delta_t = 10;
     let mut timeseries = 1.2;
     let history_len = tau * delta_t;

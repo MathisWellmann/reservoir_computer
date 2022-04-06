@@ -2,51 +2,52 @@ use std::sync::Arc;
 
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 
-use super::OptEnvironment;
-use crate::{reservoir_computers::StateMatrix, RCParams, ReservoirComputer};
+use crate::{OptEnvironment, RCParams, ReservoirComputer};
 
-pub struct FFEnvTrades {
+pub struct EnvMackeyGlass {
     pub train_inputs: Arc<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
     pub train_targets: Arc<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
     pub inputs: Arc<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
     pub targets: Arc<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
 }
 
-impl<R, const N: usize> OptEnvironment<R, 1, 1, N> for FFEnvTrades
+impl<R, const N: usize> OptEnvironment<R, 1, 1, N> for EnvMackeyGlass
 where R: ReservoirComputer<1, 1, N>
 {
     fn evaluate(&self, rc: &mut R) -> f64 {
         rc.train(&self.train_inputs, &self.train_targets);
 
-        let training_len = self.train_inputs.ncols();
-
-        let n_vals = self.inputs.len();
-        let init_val = *self.inputs.column(0).get(0).unwrap();
-        let state: StateMatrix = Matrix::from_element_generic(
+        let state = Matrix::from_element_generic(
             Dim::from_usize(rc.params().reservoir_size()),
             Dim::from_usize(1),
-            init_val,
+            rc.params().initial_state_value(),
         );
         rc.set_state(state);
 
-        let mut rmse: f64 = 0.0;
-        for j in 0..n_vals {
+        let train_len = self.train_inputs.ncols();
+        let mut rmse = 0.0;
+        for j in 0..self.inputs.ncols() {
             let predicted_out = rc.readout();
-            let last_prediction = *predicted_out.get(0).unwrap();
+            let mut last_prediction = *predicted_out.get(0).unwrap();
+            if !last_prediction.is_finite() {
+                last_prediction = 0.0;
+            }
 
             // To begin forecasting, replace target input with it's own prediction
             let m: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
                 Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |i, _| {
                     *predicted_out.get(i).unwrap()
                 });
-            let target = *self.targets.column(j).get(0).unwrap();
-            rmse += (last_prediction - target).powi(2);
-
-            let input = if j > training_len {
+            let input = if j > train_len {
+                // TODO: plot support
+                //test_predictions.push((j as f64, last_prediction));
                 m.column(0)
             } else {
+                // TODO: plot support
+                //train_predictions.push((j as f64, last_prediction));
                 self.inputs.column(j)
             };
+            rmse += (*self.inputs.column(j).get(0).unwrap() - last_prediction).powi(2);
 
             rc.update_state(&input, &predicted_out);
         }
