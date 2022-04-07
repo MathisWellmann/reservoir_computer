@@ -22,6 +22,7 @@ const INPUT_DIM: usize = 1;
 const OUTPUT_DIM: usize = 1;
 const TRAINING_WINDOW: usize = 10_000;
 const TEST_WINDOW: usize = 5000;
+const NUM_GENS: usize = 100;
 
 pub(crate) fn start() {
     info!("loading sample data");
@@ -168,12 +169,12 @@ pub(crate) fn start() {
         }
         3 => {
             let param_mapper = esn::ParamMapper {
-                input_sparsity_range: (0.15, 0.25),
+                input_sparsity_range: (0.05, 0.25),
                 input_activation: Activation::Identity,
-                input_weight_scaling_range: (0.15, 0.25),
-                reservoir_size_range: (200.0, 700.0),
-                reservoir_bias_scaling_range: (0.0, 0.1),
-                reservoir_sparsity_range: (0.01, 0.03),
+                input_weight_scaling_range: (0.1, 1.0),
+                reservoir_size_range: (200.0, 800.0),
+                reservoir_bias_scaling_range: (0.0, 1.0),
+                reservoir_sparsity_range: (0.01, 0.3),
                 reservoir_activation: Activation::Tanh,
                 feedback_gain: 0.0,
                 spectral_radius: 0.9,
@@ -206,7 +207,7 @@ pub(crate) fn start() {
 
             let mut gif_render =
                 GifRenderOptimizer::new("img/trades_esn_firefly.gif", (1080, 1080), num_candidates);
-            for i in 0..1000 {
+            for i in 0..NUM_GENS {
                 let t0 = Instant::now();
 
                 opt.step::<esn::ESN<1, 1>, 1, 1>(env.clone(), &param_mapper);
@@ -236,12 +237,12 @@ pub(crate) fn start() {
             let seed = Some(0);
 
             let param_mapper = esn::ParamMapper {
-                input_sparsity_range: (0.15, 0.25),
+                input_sparsity_range: (0.05, 0.25),
                 input_activation: Activation::Identity,
-                input_weight_scaling_range: (0.1, 0.3),
-                reservoir_size_range: (200.0, 700.0),
-                reservoir_bias_scaling_range: (0.0, 0.1),
-                reservoir_sparsity_range: (0.01, 0.05),
+                input_weight_scaling_range: (0.1, 1.0),
+                reservoir_size_range: (200.0, 800.0),
+                reservoir_bias_scaling_range: (0.0, 1.0),
+                reservoir_sparsity_range: (0.01, 0.3),
                 reservoir_activation: Activation::Tanh,
                 feedback_gain: 0.0,
                 spectral_radius: 0.9,
@@ -263,7 +264,7 @@ pub(crate) fn start() {
             );
             let env = Arc::new(env);
 
-            let num_candidates = 23;
+            let num_candidates = 96;
             let mut opt = RandomSearch::<7>::new(seed, num_candidates);
 
             let mut gif_render = GifRenderOptimizer::new(
@@ -272,7 +273,7 @@ pub(crate) fn start() {
                 num_candidates,
             );
 
-            for i in 0..1000 {
+            for i in 0..NUM_GENS {
                 let t0 = Instant::now();
 
                 opt.step::<esn::ESN<1, 1>, 1, 1>(env.clone(), &param_mapper);
@@ -301,10 +302,133 @@ pub(crate) fn start() {
             }
         }
         5 => {
-            todo!("EuSN-Firefly is not implemented for trades experiment yet")
+            let param_mapper = eusn::ParamMapper {
+                input_sparsity_range: (0.05, 0.25),
+                input_weight_scaling_range: (0.1, 1.0),
+                reservoir_size_range: (200.0, 800.0),
+                reservoir_weight_scaling_range: (0.01, 1.0),
+                reservoir_bias_scaling_range: (0.0, 1.0),
+                reservoir_activation: Activation::Tanh,
+                initial_state_value: values[0],
+                seed: Some(0),
+                washout_frac: 0.05,
+                regularization_coeff: 0.1,
+                epsilon_range: (0.0001, 0.01),
+                gamma_range: (0.0001, 0.01),
+            };
+
+            let env = EnvTrades::new(
+                Arc::new(train_inputs.clone()),
+                Arc::new(train_targets.clone()),
+                Arc::new(inputs.clone()),
+                Arc::new(targets),
+            );
+            let env = Arc::new(env);
+
+            let num_candidates = 96;
+            let params = FireflyParams {
+                gamma: 10.0,
+                alpha: 0.005,
+                step_size: 0.01,
+                num_candidates,
+            };
+            let mut opt = FireflyOptimizer::new(params);
+
+            let mut gif_render = GifRenderOptimizer::new(
+                "img/trades_eusn_firefly.gif",
+                (1080, 1080),
+                num_candidates,
+            );
+
+            for i in 0..NUM_GENS {
+                let t0 = Instant::now();
+
+                opt.step::<eusn::EulerStateNetwork<1, 1>, 1, 1>(env.clone(), &param_mapper);
+
+                let params = param_mapper.map(opt.elite_params());
+                let mut rc = eusn::EulerStateNetwork::<1, 1>::new(params);
+
+                let mut p = PlotGather::default();
+                env.evaluate(&mut rc, Some(&mut p));
+
+                gif_render.update(
+                    &p.plot_targets(),
+                    &p.train_predictions(),
+                    &p.test_predictions(),
+                    opt.rmses(),
+                    i,
+                    opt.candidates(),
+                );
+
+                info!(
+                    "generation {} took {}ms. best rmse: {}",
+                    i,
+                    t0.elapsed().as_millis(),
+                    opt.best_rmse()
+                );
+            }
         }
         6 => {
-            todo!("EuSN-RandomSearch is not implemented for trades experiment yet")
+            let param_mapper = eusn::ParamMapper {
+                input_sparsity_range: (0.05, 0.25),
+                input_weight_scaling_range: (0.1, 1.0),
+                reservoir_size_range: (200.0, 800.0),
+                reservoir_weight_scaling_range: (0.01, 1.0),
+                reservoir_bias_scaling_range: (0.0, 1.0),
+                reservoir_activation: Activation::Tanh,
+                initial_state_value: values[0],
+                seed: Some(0),
+                washout_frac: 0.05,
+                regularization_coeff: 0.1,
+                epsilon_range: (0.0001, 0.01),
+                gamma_range: (0.0001, 0.01),
+            };
+
+            let env = EnvTrades::new(
+                Arc::new(train_inputs.clone()),
+                Arc::new(train_targets.clone()),
+                Arc::new(inputs.clone()),
+                Arc::new(targets),
+            );
+            let env = Arc::new(env);
+
+            let seed = Some(0);
+            let num_candidates = 96;
+            let mut opt = RandomSearch::new(seed, num_candidates);
+
+            let mut gif_render = GifRenderOptimizer::new(
+                "img/trades_eusn_random_search.gif",
+                (1080, 1080),
+                num_candidates,
+            );
+
+            for i in 0..NUM_GENS {
+                let t0 = Instant::now();
+
+                opt.step::<eusn::EulerStateNetwork<1, 1>, 1, 1>(env.clone(), &param_mapper);
+
+                let params = param_mapper.map(opt.elite_params());
+                let mut rc = eusn::EulerStateNetwork::<1, 1>::new(params);
+
+                let mut p = PlotGather::default();
+                env.evaluate(&mut rc, Some(&mut p));
+
+                gif_render.update(
+                    &p.plot_targets(),
+                    &p.train_predictions(),
+                    &p.test_predictions(),
+                    opt.rmses(),
+                    i,
+                    opt.candidates(),
+                );
+
+                info!(
+                    "generation {} took {}ms. best rmse: {}",
+                    i,
+                    t0.elapsed().as_millis(),
+                    opt.best_rmse()
+                );
+            }
         }
         _ => panic!("invalid reservoir computer selection"),
     }

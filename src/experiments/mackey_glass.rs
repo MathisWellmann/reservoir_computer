@@ -19,6 +19,7 @@ use crate::{
 const TRAIN_LEN: usize = 5000;
 const TEST_LEN: usize = 1000;
 const SEED: Option<u64> = Some(0);
+const NUM_GENS: usize = 100;
 
 pub(crate) fn start() {
     let total_len = TRAIN_LEN + TEST_LEN;
@@ -191,7 +192,7 @@ pub(crate) fn start() {
                 (1080, 1080),
                 num_candidates,
             );
-            for i in 0..1000 {
+            for i in 0..NUM_GENS {
                 let t0 = Instant::now();
 
                 opt.step::<esn::ESN<1, 1>, 1, 1>(env.clone(), &param_mapper);
@@ -257,7 +258,7 @@ pub(crate) fn start() {
                 num_candidates,
             );
 
-            for i in 0..1000 {
+            for i in 0..NUM_GENS {
                 let t0 = Instant::now();
 
                 opt.step::<esn::ESN<1, 1>, 1, 1>(env.clone(), &param_mapper);
@@ -319,12 +320,12 @@ pub(crate) fn start() {
             let mut opt = FireflyOptimizer::new(params);
 
             let mut gif_render = GifRenderOptimizer::new(
-                "img/mackey_glass_esn_random_search.gif",
+                "img/mackey_glass_eusn_firefly.gif",
                 (1080, 1080),
                 num_candidates,
             );
 
-            for i in 0..1000 {
+            for i in 0..NUM_GENS {
                 let t0 = Instant::now();
 
                 opt.step::<eusn::EulerStateNetwork<1, 1>, 1, 1>(env.clone(), &param_mapper);
@@ -381,12 +382,12 @@ pub(crate) fn start() {
             let mut opt = RandomSearch::new(seed, num_candidates);
 
             let mut gif_render = GifRenderOptimizer::new(
-                "img/mackey_glass_esn_random_search.gif",
+                "img/mackey_glass_eusn_random_search.gif",
                 (1080, 1080),
                 num_candidates,
             );
 
-            for i in 0..1000 {
+            for i in 0..NUM_GENS {
                 let t0 = Instant::now();
 
                 opt.step::<eusn::EulerStateNetwork<1, 1>, 1, 1>(env.clone(), &param_mapper);
