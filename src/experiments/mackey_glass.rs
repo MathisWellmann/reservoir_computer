@@ -353,7 +353,66 @@ pub(crate) fn start() {
             }
         }
         6 => {
-            todo!("EuSN-RandomSearch is not implemented for mackey-glass")
+            let param_mapper = eusn::ParamMapper {
+                input_sparsity_range: (0.05, 0.2),
+                input_weight_scaling_range: (0.1, 1.0),
+                reservoir_size_range: (200.0, 800.0),
+                reservoir_weight_scaling_range: (0.01, 0.2),
+                reservoir_bias_scaling_range: (0.0, 1.0),
+                reservoir_activation: Activation::Tanh,
+                initial_state_value: values[0],
+                seed: Some(0),
+                washout_frac: 0.05,
+                regularization_coeff: 0.1,
+                epsilon_range: (0.0001, 0.01),
+                gamma_range: (0.0001, 0.01),
+            };
+
+            let env = EnvMackeyGlass::new(
+                Arc::new(train_inputs.clone()),
+                Arc::new(train_targets.clone()),
+                Arc::new(inputs.clone()),
+                Arc::new(targets),
+            );
+            let env = Arc::new(env);
+
+            let seed = Some(0);
+            let num_candidates = 96;
+            let mut opt = RandomSearch::new(seed, num_candidates);
+
+            let mut gif_render = GifRenderOptimizer::new(
+                "img/mackey_glass_esn_random_search.gif",
+                (1080, 1080),
+                num_candidates,
+            );
+
+            for i in 0..1000 {
+                let t0 = Instant::now();
+
+                opt.step::<eusn::EulerStateNetwork<1, 1>, 1, 1>(env.clone(), &param_mapper);
+
+                let params = param_mapper.map(opt.elite_params());
+                let mut rc = eusn::EulerStateNetwork::<1, 1>::new(params);
+
+                let mut p = PlotGather::default();
+                env.evaluate(&mut rc, Some(&mut p));
+
+                gif_render.update(
+                    &p.plot_targets(),
+                    &p.train_predictions(),
+                    &p.test_predictions(),
+                    opt.errors(),
+                    i,
+                    opt.candidates(),
+                );
+
+                info!(
+                    "generation {} took {}ms. best rmse: {}",
+                    i,
+                    t0.elapsed().as_millis(),
+                    opt.best_rmse()
+                );
+            }
         }
 
         _ => panic!("invalid reservoir computer selection"),

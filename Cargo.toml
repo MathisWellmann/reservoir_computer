@@ -1,6 +1,6 @@
 [package]
 name = "reservoir_computer"
-version = "0.7.8"
+version = "0.7.9"
 edition = "2021"
 authors = ["Mathis Wellmann <wellmannmathis@gmail.com"]
 license = "GNU AGPLv3"
