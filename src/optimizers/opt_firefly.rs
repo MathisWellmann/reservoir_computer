@@ -21,7 +21,7 @@ pub struct FireflyParams {
 pub struct FireflyOptimizer<const N: usize> {
     params: FireflyParams,
     candidates: Vec<[f64; N]>,
-    fits: Vec<f64>,
+    rmses: Vec<f64>,
     best_rmse: f64,
     elite_params: [f64; N],
     rng: WyRand,
@@ -45,7 +45,7 @@ impl<const N: usize> FireflyOptimizer<N> {
         Self {
             params,
             candidates,
-            fits,
+            rmses: fits,
             best_rmse: f64::MAX,
             elite_params: [0.0; N],
             rng,
@@ -77,12 +77,12 @@ impl<const N: usize> FireflyOptimizer<N> {
         }
         drop(ch_fit_s);
         while let Ok((i, fit)) = ch_fit_r.recv() {
-            self.fits[i] = fit;
+            self.rmses[i] = fit;
         }
 
         let mut min_idx = 0;
-        let mut min_rmse = self.fits[0];
-        for (i, fit) in self.fits.iter().enumerate() {
+        let mut min_rmse = self.rmses[0];
+        for (i, fit) in self.rmses.iter().enumerate() {
             // minimizing rmse
             if *fit < min_rmse {
                 min_rmse = *fit;
@@ -96,9 +96,9 @@ impl<const N: usize> FireflyOptimizer<N> {
     }
 
     fn update_candidates(&mut self) {
-        for i in 0..self.fits.len() {
-            for j in 0..self.fits.len() {
-                if self.fits[i] > self.fits[j] {
+        for i in 0..self.rmses.len() {
+            for j in 0..self.rmses.len() {
+                if self.rmses[i] > self.rmses[j] {
                     continue;
                 }
 
@@ -108,7 +108,7 @@ impl<const N: usize> FireflyOptimizer<N> {
                 for p in 0..self.candidates[i].len() {
                     dist += (self.candidates[i][p] - self.candidates[j][p]).powi(2);
                 }
-                let attractiveness = self.fits[i] * (-self.params.gamma * dist).exp();
+                let attractiveness = self.rmses[i] * (-self.params.gamma * dist).exp();
 
                 let r = self.params.alpha * (self.rng.generate::<f64>() * 2.0 - 1.0);
 
@@ -147,8 +147,8 @@ impl<const N: usize> FireflyOptimizer<N> {
     }
 
     #[inline(always)]
-    pub fn fits(&self) -> &Vec<f64> {
-        &self.fits
+    pub fn rmses(&self) -> &Vec<f64> {
+        &self.rmses
     }
 
     #[inline(always)]

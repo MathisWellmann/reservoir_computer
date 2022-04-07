@@ -205,7 +205,7 @@ pub(crate) fn start() {
                     &p.plot_targets(),
                     &p.train_predictions(),
                     &p.test_predictions(),
-                    opt.fits(),
+                    opt.rmses(),
                     i,
                     opt.candidates(),
                 );
@@ -272,7 +272,7 @@ pub(crate) fn start() {
                     &p.plot_targets(),
                     &p.train_predictions(),
                     &p.test_predictions(),
-                    opt.errors(),
+                    opt.rmses(),
                     i,
                     opt.candidates(),
                 );
@@ -339,7 +339,7 @@ pub(crate) fn start() {
                     &p.plot_targets(),
                     &p.train_predictions(),
                     &p.test_predictions(),
-                    opt.fits(),
+                    opt.rmses(),
                     i,
                     opt.candidates(),
                 );
@@ -401,7 +401,7 @@ pub(crate) fn start() {
                     &p.plot_targets(),
                     &p.train_predictions(),
                     &p.test_predictions(),
-                    opt.errors(),
+                    opt.rmses(),
                     i,
                     opt.candidates(),
                 );

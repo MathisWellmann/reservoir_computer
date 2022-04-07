@@ -210,7 +210,7 @@ fn run_sliding_opt_firefly<R, const N: usize>(
                 &plot_targets,
                 &train_preds,
                 &test_preds,
-                opt.fits(),
+                opt.rmses(),
                 i,
                 opt.candidates(),
             );

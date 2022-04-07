@@ -13,7 +13,7 @@ pub struct RandomSearch<const N: usize> {
     rng: WyRand,
     num_candidates: usize,
     candidates: Vec<[f64; N]>,
-    errors: Vec<f64>,
+    rmses: Vec<f64>,
 }
 
 impl<const N: usize> RandomSearch<N> {
@@ -31,7 +31,7 @@ impl<const N: usize> RandomSearch<N> {
             rng,
             num_candidates,
             candidates: vec![[0.0; N]; num_candidates],
-            errors: vec![f64::MAX; num_candidates],
+            rmses: vec![f64::MAX; num_candidates],
         }
     }
 
@@ -59,10 +59,10 @@ impl<const N: usize> RandomSearch<N> {
         }
         drop(ch_fit_s);
         while let Ok((i, error)) = ch_fit_r.recv() {
-            self.errors[i] = error;
+            self.rmses[i] = error;
         }
 
-        for (i, e) in self.errors.iter().enumerate() {
+        for (i, e) in self.rmses.iter().enumerate() {
             if *e < self.best_error {
                 self.best_error = *e;
                 self.best_params = self.candidates[i];
@@ -86,8 +86,8 @@ impl<const N: usize> RandomSearch<N> {
     }
 
     #[inline(always)]
-    pub fn errors(&self) -> &Vec<f64> {
-        &self.errors
+    pub fn rmses(&self) -> &Vec<f64> {
+        &self.rmses
     }
 
     /// Generate random candidates
