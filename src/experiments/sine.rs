@@ -7,7 +7,7 @@ use time_series_generator::generate_sine_wave;
 use crate::{
     activation::Activation,
     plot::plot,
-    reservoir_computers::{esn, eusn, RCParams, ReservoirComputer},
+    reservoir_computers::{esn, eusn, ngrc, RCParams, ReservoirComputer},
     Series,
 };
 
@@ -100,7 +100,18 @@ pub(crate) fn start() {
             run_rc(&mut rc, values, "img/sine_eusn.png");
         }
         2 => {
-            todo!()
+            let params = ngrc::Params {
+                num_time_delay_taps: 2,
+                num_samples_to_skip: 1,
+                regularization_coeff: 0.1,
+                output_activation: Activation::Tanh,
+            };
+            let mut rc = ngrc::NextGenerationRC::new(params);
+            let t0 = Instant::now();
+            rc.train(&train_inputs, &train_targets);
+            info!("NGRC trainingn took {}ms", t0.elapsed().as_millis());
+
+            run_rc::<ngrc::NextGenerationRC<1, 1>, 1, 1, 3>(&mut rc, values, "img/sine_ngrc.png");
         }
         _ => panic!("invalid reservoir computer selection"),
     }
