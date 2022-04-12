@@ -126,6 +126,7 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
             }
         }
 
+        /*
         let reg_m: DMatrix<f64> = Matrix::from_diagonal_element_generic(
             Dim::from_usize(self.d_total),
             Dim::from_usize(self.d_total),
@@ -135,6 +136,30 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
         let f_x_ft = &full_features * full_features.transpose();
         let r: DMatrix<f64> = f_x_ft * reg_m;
         self.readout_matrix = t_x_ft * r.try_inverse().unwrap();
+        */
+
+        // Ridge regression regularization, I think
+        let x: DMatrix<f64> = Matrix::from_fn_generic(
+            Dim::from_usize(nvals - col_start),
+            Dim::from_usize(self.d_total),
+            |i, j| {
+                if i == j {
+                    *full_features.row(j).column(i).get(0).unwrap()
+                        + self.params.regularization_coeff
+                } else {
+                    *full_features.row(j).column(i).get(0).unwrap()
+                }
+            },
+        );
+        let target_matrix = <Matrix<f64, Dynamic, Const<O>, VecStorage<f64, Dynamic, Const<O>>>>::from_column_slice_generic(
+                Dim::from_usize(nvals - col_start),
+                Dim::from_usize(O),
+                targets.columns(col_start, nvals - col_start).as_slice()
+            );
+        let qr = x.qr();
+        let a = qr.r().try_inverse().unwrap() * qr.q().transpose();
+        let b = a * target_matrix;
+        self.readout_matrix = b.transpose();
     }
 
     fn update_state<'a>(

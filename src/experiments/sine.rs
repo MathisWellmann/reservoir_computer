@@ -101,7 +101,7 @@ pub(crate) fn start() {
         }
         2 => {
             let params = ngrc::Params {
-                num_time_delay_taps: 2,
+                num_time_delay_taps: 10,
                 num_samples_to_skip: 1,
                 regularization_coeff: 0.1,
                 output_activation: Activation::Tanh,
