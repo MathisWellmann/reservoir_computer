@@ -12,7 +12,7 @@ use crate::{
         opt_random_search::RandomSearch,
     },
     plot::{plot, GifRenderOptimizer},
-    reservoir_computers::{esn, eusn, OptParamMapper, ReservoirComputer},
+    reservoir_computers::{esn, eusn, ngrc, OptParamMapper, ReservoirComputer},
     OptEnvironment,
 };
 
@@ -147,7 +147,33 @@ pub(crate) fn start() {
             );
         }
         2 => {
-            todo!("NG-RC not implemented for mackey-glass")
+            let params = ngrc::Params {
+                num_time_delay_taps: 20,
+                num_samples_to_skip: 3,
+                regularization_coeff: 0.001,
+                output_activation: Activation::Identity,
+            };
+            let mut rc = ngrc::NextGenerationRC::new(params);
+            let t0 = Instant::now();
+            rc.train(&train_inputs, &train_targets);
+            info!("NGRC training took {}ms", t0.elapsed().as_millis());
+
+            let env = EnvMackeyGlass::new(
+                Arc::new(train_inputs),
+                Arc::new(train_targets),
+                Arc::new(inputs),
+                Arc::new(targets),
+            );
+            let mut p = PlotGather::default();
+            env.evaluate(&mut rc, Some(&mut p));
+
+            plot(
+                &p.plot_targets(),
+                &p.train_predictions(),
+                &p.test_predictions(),
+                "img/mackey_glass_ngrc.png",
+                (3840, 1080),
+            );
         }
         3 => {
             let param_mapper = esn::ParamMapper {

@@ -13,7 +13,7 @@ use crate::{
         opt_random_search::RandomSearch,
     },
     plot::{plot, GifRenderOptimizer},
-    reservoir_computers::{esn, eusn, OptParamMapper, ReservoirComputer},
+    reservoir_computers::{esn, eusn, ngrc, OptParamMapper, ReservoirComputer},
     utils::scale,
     OptEnvironment, SingleDimIo,
 };
@@ -165,7 +165,33 @@ pub(crate) fn start() {
             );
         }
         2 => {
-            todo!()
+            let params = ngrc::Params {
+                num_time_delay_taps: 15,
+                num_samples_to_skip: 150,
+                regularization_coeff: 0.01,
+                output_activation: Activation::Identity,
+            };
+            let mut rc = ngrc::NextGenerationRC::new(params);
+            let t0 = Instant::now();
+            rc.train(&train_inputs, &train_targets);
+            info!("NGRC training took {}ms", t0.elapsed().as_millis());
+
+            let env = EnvTrades::new(
+                Arc::new(train_inputs),
+                Arc::new(train_targets),
+                Arc::new(inputs),
+                Arc::new(targets),
+            );
+            let mut p = PlotGather::default();
+            env.evaluate(&mut rc, Some(&mut p));
+
+            plot(
+                &p.plot_targets(),
+                &p.train_predictions(),
+                &p.test_predictions(),
+                "img/trades_ngrc.png",
+                (2160, 2160),
+            );
         }
         3 => {
             let param_mapper = esn::ParamMapper {
