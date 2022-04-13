@@ -102,9 +102,9 @@ pub(crate) fn start() {
         2 => {
             let params = ngrc::Params {
                 num_time_delay_taps: 10,
-                num_samples_to_skip: 1,
-                regularization_coeff: 0.1,
-                output_activation: Activation::Tanh,
+                num_samples_to_skip: 10,
+                regularization_coeff: 0.0001,
+                output_activation: Activation::Identity,
             };
             let mut rc = ngrc::NextGenerationRC::new(params);
             let t0 = Instant::now();

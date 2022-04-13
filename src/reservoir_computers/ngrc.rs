@@ -83,10 +83,15 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
         let nvals = inputs.ncols() - self.params.num_time_delay_taps;
         let mut lin_part: DMatrix<f64> =
             Matrix::from_element_generic(Dim::from_usize(self.d_lin), Dim::from_usize(nvals), 0.0);
-        for j in self.params.num_time_delay_taps..nvals {
+        for j in (self.params.num_time_delay_taps * self.params.num_samples_to_skip)..nvals {
             let mut col = vec![];
             for delay in 0..self.params.num_time_delay_taps {
-                col.append(&mut inputs.column(j - delay).as_slice().to_vec());
+                col.append(
+                    &mut inputs
+                        .column(j - (delay * self.params.num_samples_to_skip))
+                        .as_slice()
+                        .to_vec(),
+                );
             }
             let col: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
                 Matrix::from_vec_generic(Dim::from_usize(self.d_lin), Dim::from_usize(1), col);
@@ -126,40 +131,16 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
             }
         }
 
-        /*
+        // Tikhonov regularization aka ridge regression
         let reg_m: DMatrix<f64> = Matrix::from_diagonal_element_generic(
             Dim::from_usize(self.d_total),
             Dim::from_usize(self.d_total),
             self.params.regularization_coeff,
         );
-        let t_x_ft = targets.columns(col_start, nvals - col_start) * full_features.transpose();
-        let f_x_ft = &full_features * full_features.transpose();
-        let r: DMatrix<f64> = f_x_ft * reg_m;
-        self.readout_matrix = t_x_ft * r.try_inverse().unwrap();
-        */
-
-        // Ridge regression regularization, I think
-        let x: DMatrix<f64> = Matrix::from_fn_generic(
-            Dim::from_usize(nvals - col_start),
-            Dim::from_usize(self.d_total),
-            |i, j| {
-                if i == j {
-                    *full_features.row(j).column(i).get(0).unwrap()
-                        + self.params.regularization_coeff
-                } else {
-                    *full_features.row(j).column(i).get(0).unwrap()
-                }
-            },
-        );
-        let target_matrix = <Matrix<f64, Dynamic, Const<O>, VecStorage<f64, Dynamic, Const<O>>>>::from_column_slice_generic(
-                Dim::from_usize(nvals - col_start),
-                Dim::from_usize(O),
-                targets.columns(col_start, nvals - col_start).as_slice()
-            );
-        let qr = x.qr();
-        let a = qr.r().try_inverse().unwrap() * qr.q().transpose();
-        let b = a * target_matrix;
-        self.readout_matrix = b.transpose();
+        let p_0 = targets.columns(col_start, nvals - col_start) * full_features.transpose();
+        let p_1 = &full_features * full_features.transpose();
+        let r: DMatrix<f64> = p_1 + reg_m;
+        self.readout_matrix = p_0 * r.try_inverse().unwrap();
     }
 
     fn update_state<'a>(
@@ -184,10 +165,14 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
         let nvals = self.inputs.len();
         let mut lin_part: DMatrix<f64> =
             Matrix::from_element_generic(Dim::from_usize(self.d_lin), Dim::from_usize(nvals), 0.0);
-        for j in self.params.num_time_delay_taps..nvals {
+        for j in (self.params.num_time_delay_taps * self.params.num_samples_to_skip)..nvals {
             let mut col = vec![];
             for delay in 0..self.params.num_time_delay_taps {
-                col.append(&mut self.inputs[j - delay].as_slice().to_vec());
+                col.append(
+                    &mut self.inputs[j - (delay * self.params.num_samples_to_skip)]
+                        .as_slice()
+                        .to_vec(),
+                );
             }
             let col: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
                 Matrix::from_vec_generic(Dim::from_usize(self.d_lin), Dim::from_usize(1), col);
