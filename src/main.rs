@@ -4,7 +4,6 @@ use dialoguer::{theme::ColorfulTheme, Select};
 extern crate log;
 
 mod activation;
-mod ensemble;
 mod environments;
 mod errors;
 mod experiments;
@@ -12,6 +11,7 @@ mod load_sample_data;
 mod optimizers;
 pub(crate) mod plot;
 mod reservoir_computers;
+mod temporal_prediction_aggregator;
 mod utils;
 
 pub use environments::OptEnvironment;
