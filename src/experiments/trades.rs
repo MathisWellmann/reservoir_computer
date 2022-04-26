@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
 use nalgebra::{Dim, Matrix};
-use sliding_features::{Echo, View, ALMA};
+use sliding_features::{Echo, RoofingFilter, Tanh, View, ALMA, VSCT};
 
 use crate::{
     activation::Activation,
@@ -14,15 +14,15 @@ use crate::{
     },
     plot::{plot, GifRenderOptimizer},
     reservoir_computers::{esn, eusn, ngrc, OptParamMapper, ReservoirComputer},
-    utils::scale,
     OptEnvironment, SingleDimIo,
 };
 
 const INPUT_DIM: usize = 1;
 const OUTPUT_DIM: usize = 1;
-const TRAINING_WINDOW: usize = 10_000;
-const TEST_WINDOW: usize = 5000;
+const TRAINING_WINDOW: usize = 2000;
+const TEST_WINDOW: usize = 1000;
 const NUM_GENS: usize = 100;
+const MA_LEN: usize = 100;
 
 pub(crate) fn start() {
     info!("loading sample data");
@@ -32,24 +32,16 @@ pub(crate) fn start() {
         .take(TRAINING_WINDOW + TEST_WINDOW)
         .cloned()
         .collect();
-    let mut series_min = series[0];
-    let mut series_max = series[0];
-    for s in &series {
-        if *s < series_min {
-            series_min = *s;
-        }
-        if *s > series_max {
-            series_max = *s;
-        }
-    }
-    info!("series_min: {}, series_max: {}", series_min, series_max);
 
-    let mut alma = ALMA::new(Echo::new(), 100);
-    let mut values: Vec<f64> = Vec::with_capacity(series.len());
-    for s in &series {
-        let val = scale(series_min, series_max, -1.0, 1.0, *s);
-        alma.update(val);
-        values.push(alma.last());
+    //let mut feature = Tanh::new(ALMA::new(VSCT::new(Echo::new(), MA_LEN), MA_LEN
+    // / 4));
+    let mut feature = RoofingFilter::new(Echo::new(), MA_LEN / 4, MA_LEN);
+    let mut values: Vec<f64> = Vec::with_capacity(series.len() - MA_LEN * 2);
+    for (i, s) in series.iter().enumerate() {
+        feature.update(*s);
+        if i > MA_LEN * 2 {
+            values.push(feature.last());
+        }
     }
     info!("got {} datapoints", values.len());
 
@@ -167,9 +159,9 @@ pub(crate) fn start() {
         2 => {
             let params = ngrc::Params {
                 num_time_delay_taps: 15,
-                num_samples_to_skip: 150,
-                regularization_coeff: 0.01,
-                output_activation: Activation::Identity,
+                num_samples_to_skip: MA_LEN / 4,
+                regularization_coeff: 0.001,
+                output_activation: Activation::Tanh,
             };
             let mut rc = ngrc::NextGenerationRC::new(params);
             let t0 = Instant::now();
