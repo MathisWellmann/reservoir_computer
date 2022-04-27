@@ -31,7 +31,7 @@ fn main() {
     }
     pretty_env_logger::init();
 
-    let experiments = ["sine", "trades", "trades_sliding_window", "mackey_glass"];
+    let experiments = ["sine", "trades", "trades_sliding_window", "mackey_glass", "double_scroll"];
 
     let e = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select Experiment")
@@ -44,6 +44,7 @@ fn main() {
         1 => experiments::trades::start(),
         2 => experiments::trades_sliding_window::start(),
         3 => experiments::mackey_glass::start(),
+        4 => experiments::doublescroll::start(),
         _ => panic!("invalid experiment selected"),
     }
 }

@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
-use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
+use nalgebra::{Const, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 use sliding_features::{Constant, Echo, Multiply, View, ALMA, VSCT};
 
 use crate::{
@@ -66,11 +66,7 @@ pub(crate) fn start() {
 
             let mut rc = esn::ESN::new(params);
 
-            run_sliding::<esn::ESN<1, 1>, 1, 1, 7>(
-                &mut rc,
-                values,
-                "img/trades_sliding_window_esn.gif",
-            );
+            run_sliding::<esn::ESN<1, 1>, 7>(&mut rc, values, "img/trades_sliding_window_esn.gif");
         }
         1 => {
             let params = eusn::Params {
@@ -89,7 +85,7 @@ pub(crate) fn start() {
             };
             let mut rc = eusn::EulerStateNetwork::new(params);
 
-            run_sliding::<eusn::EulerStateNetwork<1, 1>, 1, 1, 7>(
+            run_sliding::<eusn::EulerStateNetwork<1, 1>, 7>(
                 &mut rc,
                 values,
                 "img/trades_sliding_window_eusn.gif",
@@ -137,6 +133,9 @@ fn run_sliding_opt_firefly<R, const N: usize>(
 {
     let t0 = Instant::now();
 
+    let values: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+        Matrix::from_vec_generic(Dim::from_usize(1), Dim::from_usize(values.len()), values);
+
     let num_candidates = 96;
     let params = FireflyParams {
         gamma: 10.0,
@@ -148,70 +147,40 @@ fn run_sliding_opt_firefly<R, const N: usize>(
 
     let mut gif_render = GifRenderOptimizer::new(filename, (1080, 1080), num_candidates);
     // TODO: iterate over all data
-    for i in (TRAIN_LEN + VALIDATION_LEN + 1)..100_000 {
-        if i % 100 == 0 {
-            info!("step @ {}", i);
+    for j in (TRAIN_LEN + VALIDATION_LEN + 1)..100_000 {
+        if j % 100 == 0 {
+            info!("step @ {}", j);
             let t1 = Instant::now();
 
-            let train_inputs: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(INPUT_DIM),
-                    Dim::from_usize(TRAIN_LEN),
-                    values[i - TRAIN_LEN - VALIDATION_LEN - 1..i - VALIDATION_LEN - 1].to_vec(),
-                );
-            let train_targets: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(INPUT_DIM),
-                    Dim::from_usize(TRAIN_LEN),
-                    values[i - TRAIN_LEN - VALIDATION_LEN..i - VALIDATION_LEN].to_vec(),
-                );
-
-            let inputs: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(INPUT_DIM),
-                    Dim::from_usize(TRAIN_LEN + VALIDATION_LEN),
-                    values[i - TRAIN_LEN - VALIDATION_LEN - 1..i - 1].to_vec(),
-                );
-            let targets: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(INPUT_DIM),
-                    Dim::from_usize(TRAIN_LEN + VALIDATION_LEN),
-                    values[i - TRAIN_LEN - VALIDATION_LEN..i].to_vec(),
-                );
             let env = EnvTrades::new(
-                Arc::new(train_inputs.clone()),
-                Arc::new(train_targets.clone()),
-                Arc::new(inputs),
-                Arc::new(targets),
+                Arc::new(values.columns(j - TRAIN_LEN - VALIDATION_LEN, j).into()),
+                TRAIN_LEN,
             );
             let env = Arc::new(env);
 
             opt.step::<R, 1, 1>(env.clone(), &param_mapper);
             let params = param_mapper.map(opt.elite_params());
             let mut rc = R::new(params);
-            rc.train(&train_inputs, &train_targets);
-
-            let vals_matrix: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(INPUT_DIM),
-                    Dim::from_usize(TRAIN_LEN + VALIDATION_LEN + 1),
-                    values[i - TRAIN_LEN - VALIDATION_LEN - 1..i].to_vec(),
-                );
+            rc.train(
+                &values.columns(j - TRAIN_LEN - VALIDATION_LEN - 1, j - VALIDATION_LEN - 1),
+                &values.columns(j - TRAIN_LEN - VALIDATION_LEN, j - VALIDATION_LEN),
+            );
 
             let state = Matrix::from_element_generic(
                 Dim::from_usize(rc.params().reservoir_size()),
                 Dim::from_usize(1),
-                values[i - TRAIN_LEN - VALIDATION_LEN - 1],
+                values[j - TRAIN_LEN - VALIDATION_LEN - 1],
             );
             rc.set_state(state);
 
-            let (plot_targets, train_preds, test_preds) = gather_plot_data(&vals_matrix, &mut rc);
+            let (plot_targets, train_preds, test_preds) =
+                gather_plot_data(&values.columns(j - TRAIN_LEN - VALIDATION_LEN, j), &mut rc);
             gif_render.update(
                 &plot_targets,
                 &train_preds,
                 &test_preds,
                 opt.rmses(),
-                i,
+                j,
                 opt.candidates(),
             );
 
@@ -222,52 +191,33 @@ fn run_sliding_opt_firefly<R, const N: usize>(
     info!("took {}s", t0.elapsed().as_secs());
 }
 
-fn run_sliding<R, const I: usize, const O: usize, const N: usize>(
-    rc: &mut R,
-    values: Vec<f64>,
-    filename: &str,
-) where
-    R: ReservoirComputer<I, O, N>,
-{
+fn run_sliding<R, const N: usize>(rc: &mut R, values: Vec<f64>, filename: &str)
+where R: ReservoirComputer<1, 1, N> {
     let t0 = Instant::now();
 
+    let values: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+        Matrix::from_vec_generic(Dim::from_usize(1), Dim::from_usize(values.len()), values);
+
     let mut gif_render = GifRender::new(filename, (1080, 1080));
-    // TODO: iterate over all data
-    for i in (TRAIN_LEN + VALIDATION_LEN + 1)..100_000 {
-        if i % 100 == 0 {
-            info!("step @ {}", i);
+    for j in (TRAIN_LEN + VALIDATION_LEN + 1)..100_000 {
+        if j % 100 == 0 {
+            info!("step @ {}", j);
             let t1 = Instant::now();
 
-            let train_inputs: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(INPUT_DIM),
-                    Dim::from_usize(TRAIN_LEN),
-                    values[i - TRAIN_LEN - VALIDATION_LEN - 1..i - VALIDATION_LEN - 1].to_vec(),
-                );
-            let train_targets: Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(INPUT_DIM),
-                    Dim::from_usize(TRAIN_LEN),
-                    values[i - TRAIN_LEN - VALIDATION_LEN..i - VALIDATION_LEN].to_vec(),
-                );
-
-            rc.train(&train_inputs, &train_targets);
-
-            let vals_matrix: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
-                Matrix::from_vec_generic(
-                    Dim::from_usize(INPUT_DIM),
-                    Dim::from_usize(TRAIN_LEN + VALIDATION_LEN + 1),
-                    values[i - TRAIN_LEN - VALIDATION_LEN - 1..i].to_vec(),
-                );
+            rc.train(
+                &values.columns(j - TRAIN_LEN - VALIDATION_LEN - 1, j - 1),
+                &values.columns(j - TRAIN_LEN - VALIDATION_LEN, j),
+            );
 
             let state = Matrix::from_element_generic(
                 Dim::from_usize(rc.params().reservoir_size()),
                 Dim::from_usize(1),
-                values[i - TRAIN_LEN - VALIDATION_LEN - 1],
+                values[j - TRAIN_LEN - VALIDATION_LEN - 1],
             );
             rc.set_state(state);
 
-            let (plot_targets, train_preds, test_preds) = gather_plot_data(&vals_matrix, rc);
+            let (plot_targets, train_preds, test_preds) =
+                gather_plot_data(&values.columns(j - TRAIN_LEN - VALIDATION_LEN, j), rc);
             gif_render.update(&plot_targets, &train_preds, &test_preds);
 
             info!("step took {}s", t1.elapsed().as_secs());
@@ -277,8 +227,8 @@ fn run_sliding<R, const I: usize, const O: usize, const N: usize>(
     info!("took {}s", t0.elapsed().as_secs());
 }
 
-fn gather_plot_data<R, const I: usize, const O: usize, const N: usize>(
-    values: &Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>,
+fn gather_plot_data<'a, R, const I: usize, const O: usize, const N: usize>(
+    values: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
     rc: &mut R,
 ) -> (Series, Series, Series)
 where
@@ -287,7 +237,7 @@ where
     let mut plot_targets = Vec::with_capacity(values.len());
     let mut train_preds = vec![];
     let mut test_preds = vec![];
-    for j in 0..values.ncols() {
+    for j in 1..values.ncols() {
         plot_targets.push((j as f64, *values.column(j).get(0).unwrap()));
 
         let predicted_out = rc.readout();
@@ -303,7 +253,7 @@ where
             m.column(0)
         } else {
             train_preds.push((j as f64, last_prediction));
-            values.column(j)
+            values.column(j - 1)
         };
 
         rc.update_state(&input, &predicted_out);

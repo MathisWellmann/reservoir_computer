@@ -1,7 +1,7 @@
 use std::{collections::VecDeque, sync::Arc, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
-use nalgebra::{Dim, Matrix};
+use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 use nanorand::{Rng, WyRand};
 
 use crate::{
@@ -25,26 +25,8 @@ pub(crate) fn start() {
     let total_len = TRAIN_LEN + TEST_LEN;
     let values = mackey_glass_series(total_len, 30, SEED);
 
-    let train_inputs = Matrix::from_vec_generic(
-        Dim::from_usize(1),
-        Dim::from_usize(TRAIN_LEN),
-        values.iter().take(TRAIN_LEN).cloned().collect::<Vec<f64>>(),
-    );
-    let train_targets = Matrix::from_vec_generic(
-        Dim::from_usize(1),
-        Dim::from_usize(TRAIN_LEN),
-        values.iter().skip(1).take(TRAIN_LEN).cloned().collect::<Vec<f64>>(),
-    );
-    let inputs = Matrix::from_vec_generic(
-        Dim::from_usize(1),
-        Dim::from_usize(values.len() - 1),
-        values.iter().take(values.len() - 1).cloned().collect::<Vec<f64>>(),
-    );
-    let targets = Matrix::from_vec_generic(
-        Dim::from_usize(1),
-        Dim::from_usize(values.len() - 1),
-        values.iter().skip(1).cloned().collect::<Vec<f64>>(),
-    );
+    let values: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+        Matrix::from_vec_generic(Dim::from_usize(1), Dim::from_usize(values.len()), values);
 
     let rcs = vec![
         "ESN",
@@ -88,15 +70,10 @@ pub(crate) fn start() {
             let mut rc = esn::ESN::new(params);
 
             let t0 = Instant::now();
-            rc.train(&train_inputs, &train_targets);
+            rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
             info!("ESN training done in {}ms", t0.elapsed().as_millis());
 
-            let env = EnvMackeyGlass::new(
-                Arc::new(train_inputs),
-                Arc::new(train_targets),
-                Arc::new(inputs),
-                Arc::new(targets),
-            );
+            let env = EnvMackeyGlass::new(Arc::new(values), TRAIN_LEN);
             let mut p = PlotGather::default();
             env.evaluate(&mut rc, Some(&mut p));
 
@@ -126,15 +103,10 @@ pub(crate) fn start() {
             let mut rc = eusn::EulerStateNetwork::new(params);
 
             let t0 = Instant::now();
-            rc.train(&train_inputs, &train_targets);
+            rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
             info!("ESN training done in {}ms", t0.elapsed().as_millis());
 
-            let env = EnvMackeyGlass::new(
-                Arc::new(train_inputs),
-                Arc::new(train_targets),
-                Arc::new(inputs),
-                Arc::new(targets),
-            );
+            let env = EnvMackeyGlass::new(Arc::new(values), TRAIN_LEN);
             let mut p = PlotGather::default();
             env.evaluate(&mut rc, Some(&mut p));
 
@@ -155,15 +127,10 @@ pub(crate) fn start() {
             };
             let mut rc = ngrc::NextGenerationRC::new(params);
             let t0 = Instant::now();
-            rc.train(&train_inputs, &train_targets);
+            rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN - 1));
             info!("NGRC training took {}ms", t0.elapsed().as_millis());
 
-            let env = EnvMackeyGlass::new(
-                Arc::new(train_inputs),
-                Arc::new(train_targets),
-                Arc::new(inputs),
-                Arc::new(targets),
-            );
+            let env = EnvMackeyGlass::new(Arc::new(values), TRAIN_LEN);
             let mut p = PlotGather::default();
             env.evaluate(&mut rc, Some(&mut p));
 
@@ -196,12 +163,7 @@ pub(crate) fn start() {
                 readout_from_input_as_well: false,
             };
 
-            let env = EnvMackeyGlass::new(
-                Arc::new(train_inputs.clone()),
-                Arc::new(train_targets.clone()),
-                Arc::new(inputs.clone()),
-                Arc::new(targets),
-            );
+            let env = EnvMackeyGlass::new(Arc::new(values), TRAIN_LEN);
             let env = Arc::new(env);
 
             let num_candidates = 96;
@@ -267,12 +229,7 @@ pub(crate) fn start() {
                 readout_from_input_as_well: false,
             };
 
-            let env = EnvMackeyGlass::new(
-                Arc::new(train_inputs.clone()),
-                Arc::new(train_targets.clone()),
-                Arc::new(inputs.clone()),
-                Arc::new(targets),
-            );
+            let env = EnvMackeyGlass::new(Arc::new(values), TRAIN_LEN);
             let env = Arc::new(env);
 
             let num_candidates = 23;
@@ -328,12 +285,7 @@ pub(crate) fn start() {
                 gamma_range: (0.0001, 0.01),
             };
 
-            let env = EnvMackeyGlass::new(
-                Arc::new(train_inputs.clone()),
-                Arc::new(train_targets.clone()),
-                Arc::new(inputs.clone()),
-                Arc::new(targets),
-            );
+            let env = EnvMackeyGlass::new(Arc::new(values), TRAIN_LEN);
             let env = Arc::new(env);
 
             let num_candidates = 96;
@@ -395,12 +347,7 @@ pub(crate) fn start() {
                 gamma_range: (0.0001, 0.01),
             };
 
-            let env = EnvMackeyGlass::new(
-                Arc::new(train_inputs.clone()),
-                Arc::new(train_targets.clone()),
-                Arc::new(inputs.clone()),
-                Arc::new(targets),
-            );
+            let env = EnvMackeyGlass::new(Arc::new(values), TRAIN_LEN);
             let env = Arc::new(env);
 
             let seed = Some(0);

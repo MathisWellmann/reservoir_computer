@@ -275,10 +275,10 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for ESN<
         }
     }
 
-    fn train(
+    fn train<'a>(
         &mut self,
-        inputs: &Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>,
-        targets: &Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>,
+        inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
+        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<I>>,
     ) {
         let washout_len = (inputs.ncols() as f64 * self.params.washout_pct) as usize;
         let harvest_len = inputs.ncols() - washout_len;

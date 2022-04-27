@@ -6,25 +6,16 @@ use super::{OptEnvironment, PlotGather};
 use crate::{reservoir_computers::StateMatrix, RCParams, ReservoirComputer, SingleDimIo};
 
 pub struct EnvTrades {
-    train_inputs: Arc<SingleDimIo>,
-    train_targets: Arc<SingleDimIo>,
-    inputs: Arc<SingleDimIo>,
-    targets: Arc<SingleDimIo>,
+    values: Arc<SingleDimIo>,
+    train_len: usize,
 }
 
 impl EnvTrades {
     #[inline(always)]
-    pub fn new(
-        train_inputs: Arc<SingleDimIo>,
-        train_targets: Arc<SingleDimIo>,
-        inputs: Arc<SingleDimIo>,
-        targets: Arc<SingleDimIo>,
-    ) -> Self {
+    pub fn new(values: Arc<SingleDimIo>, train_len: usize) -> Self {
         Self {
-            train_inputs,
-            train_targets,
-            inputs,
-            targets,
+            values,
+            train_len,
         }
     }
 }
@@ -33,12 +24,12 @@ impl<R, const N: usize> OptEnvironment<R, 1, 1, N> for EnvTrades
 where R: ReservoirComputer<1, 1, N>
 {
     fn evaluate(&self, rc: &mut R, mut plot: Option<&mut PlotGather>) -> f64 {
-        rc.train(&self.train_inputs, &self.train_targets);
+        rc.train(
+            &self.values.columns(0, self.train_len - 1),
+            &self.values.columns(1, self.train_len),
+        );
 
-        let training_len = self.train_inputs.ncols();
-
-        let n_vals = self.inputs.len();
-        let init_val = *self.inputs.column(0).get(0).unwrap();
+        let init_val = *self.values.column(0).get(0).unwrap();
         let state: StateMatrix = Matrix::from_element_generic(
             Dim::from_usize(rc.params().reservoir_size()),
             Dim::from_usize(1),
@@ -47,9 +38,9 @@ where R: ReservoirComputer<1, 1, N>
         rc.set_state(state);
 
         let mut rmse: f64 = 0.0;
-        for j in 0..n_vals {
+        for j in 1..self.values.ncols() {
             if let Some(plot) = plot.as_mut() {
-                plot.push_target(j as f64, *self.inputs.column(j).get(0).unwrap());
+                plot.push_target(j as f64, *self.values.column(j).get(0).unwrap());
             }
             let predicted_out = rc.readout();
             let last_prediction = *predicted_out.get(0).unwrap();
@@ -59,10 +50,10 @@ where R: ReservoirComputer<1, 1, N>
                 Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |i, _| {
                     *predicted_out.get(i).unwrap()
                 });
-            let target = *self.targets.column(j).get(0).unwrap();
+            let target = *self.values.column(j).get(0).unwrap();
             rmse += (last_prediction - target).powi(2);
 
-            let input = if j > training_len {
+            let input = if j > self.train_len {
                 if let Some(plot) = plot.as_mut() {
                     plot.push_test_pred(j as f64, last_prediction);
                 }
@@ -71,7 +62,7 @@ where R: ReservoirComputer<1, 1, N>
                 if let Some(plot) = plot.as_mut() {
                     plot.push_train_pred(j as f64, last_prediction);
                 }
-                self.inputs.column(j)
+                self.values.column(j - 1)
             };
 
             rc.update_state(&input, &predicted_out);

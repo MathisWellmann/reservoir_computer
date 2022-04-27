@@ -75,10 +75,10 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
         }
     }
 
-    fn train(
+    fn train<'a>(
         &mut self,
-        inputs: &Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>,
-        targets: &Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>,
+        inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
+        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<I>>,
     ) {
         let nvals = inputs.ncols() - self.params.num_time_delay_taps;
         let mut lin_part: DMatrix<f64> =

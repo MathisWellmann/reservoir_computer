@@ -16,10 +16,10 @@ pub trait ReservoirComputer<const I: usize, const O: usize, const N: usize> {
     ) -> Self;
 
     /// Train the readout layer using the given inputs and targets
-    fn train(
+    fn train<'a>(
         &mut self,
-        inputs: &Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>,
-        targets: &Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>,
+        inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
+        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<I>>,
     );
 
     fn update_state<'a>(
