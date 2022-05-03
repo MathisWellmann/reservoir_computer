@@ -14,7 +14,6 @@ use crate::{
     Series,
 };
 
-const INPUT_DIM: usize = 1;
 const SEED: Option<u64> = Some(0);
 pub(crate) const TRAIN_LEN: usize = 10_000;
 pub(crate) const VALIDATION_LEN: usize = 2_000;
@@ -192,7 +191,9 @@ fn run_sliding_opt_firefly<R, const N: usize>(
 }
 
 fn run_sliding<R, const N: usize>(rc: &mut R, values: Vec<f64>, filename: &str)
-where R: ReservoirComputer<1, 1, N> {
+where
+    R: ReservoirComputer<1, 1, N>,
+{
     let t0 = Instant::now();
 
     let values: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =

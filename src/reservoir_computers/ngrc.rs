@@ -51,6 +51,95 @@ impl OptParamMapper<PARAM_DIM> for ParamMapper {
     }
 }
 
+impl<const I: usize, const O: usize> NextGenerationRC<I, O> {
+    fn construct_lin_part<'a>(
+        &self,
+        inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
+    ) -> DMatrix<f64> {
+        assert_eq!(I, 1, "more than 1 input dimension not implemented yet");
+
+        let mut lin_part: DMatrix<f64> = Matrix::from_element_generic(
+            Dim::from_usize(self.d_lin),
+            Dim::from_usize(inputs.ncols()),
+            0.0,
+        );
+
+        /*
+        for j in (self.params.num_time_delay_taps * self.params.num_samples_to_skip)..nvals {
+            let mut col = vec![];
+            for delay in 0..self.params.num_time_delay_taps {
+                col.append(
+                    &mut inputs
+                        .column(j - (delay * self.params.num_samples_to_skip))
+                        .as_slice()
+                        .to_vec(),
+                );
+            }
+            let col: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+                Matrix::from_vec_generic(Dim::from_usize(self.d_lin), Dim::from_usize(1), col);
+            lin_part.set_column(j, &col);
+        }
+        */
+
+        for delay in 0..self.params.num_time_delay_taps {
+            let mut row = vec![0.0; inputs.ncols()];
+            for j in delay..inputs.ncols() {
+                // TODO: support for more than 1 input dimension
+                row[j] = *inputs.row(0).get(j - delay).unwrap();
+            }
+            let row_idx = I * delay;
+            let row: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+                Matrix::from_vec_generic(Dim::from_usize(1), Dim::from_usize(row.len()), row);
+            lin_part.set_row(row_idx, &row);
+        }
+
+        lin_part
+    }
+
+    /// Construct the nonlinear part of feature matrix from linear part
+    fn construct_full_features<'a>(
+        &self,
+        inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
+    ) -> DMatrix<f64> {
+        let warmup = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
+
+        let lin_part = self.construct_lin_part(inputs);
+
+        let full_features = lin_part.clone();
+        let mut full_features = full_features.resize_generic::<Dynamic, Dynamic>(
+            Dim::from_usize(self.d_total),
+            Dim::from_usize(lin_part.ncols() - warmup),
+            0.0,
+        );
+
+        let mut cnt: usize = 0;
+        for i in 0..self.d_lin {
+            for j in i..self.d_lin {
+                for span in j..self.d_lin {
+                    let row: Vec<f64> = lin_part
+                        .row(i)
+                        .iter()
+                        .skip(warmup)
+                        .zip(lin_part.row(j).iter().skip(warmup))
+                        .zip(lin_part.row(span).iter().skip(warmup))
+                        .map(|((v_i, v_j), v_s)| v_i * v_j * v_s)
+                        .collect();
+                    let row: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+                        Matrix::from_vec_generic(
+                            Dim::from_usize(1),
+                            Dim::from_usize(lin_part.ncols() - warmup),
+                            row,
+                        );
+                    full_features.set_row(self.d_lin + cnt, &row);
+                    cnt += 1;
+                }
+            }
+        }
+
+        full_features
+    }
+}
+
 impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for NextGenerationRC<I, O> {
     type ParamMapper = ParamMapper;
 
@@ -80,56 +169,9 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
         inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
         targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<I>>,
     ) {
-        let nvals = inputs.ncols() - self.params.num_time_delay_taps;
-        let mut lin_part: DMatrix<f64> =
-            Matrix::from_element_generic(Dim::from_usize(self.d_lin), Dim::from_usize(nvals), 0.0);
-        for j in (self.params.num_time_delay_taps * self.params.num_samples_to_skip)..nvals {
-            let mut col = vec![];
-            for delay in 0..self.params.num_time_delay_taps {
-                col.append(
-                    &mut inputs
-                        .column(j - (delay * self.params.num_samples_to_skip))
-                        .as_slice()
-                        .to_vec(),
-                );
-            }
-            let col: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
-                Matrix::from_vec_generic(Dim::from_usize(self.d_lin), Dim::from_usize(1), col);
-            lin_part.set_column(j, &col);
-        }
+        let col_start = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
 
-        let col_start = self.params.num_time_delay_taps;
-        let full_features = lin_part.clone();
-        let mut full_features = full_features.resize_generic::<Dynamic, Dynamic>(
-            Dim::from_usize(self.d_total),
-            Dim::from_usize(nvals - col_start),
-            0.0,
-        );
-
-        // Fill in the nonlinear part
-        let mut cnt: usize = 0;
-        for i in 0..self.d_lin {
-            for j in i..self.d_lin {
-                for span in j..self.d_lin {
-                    let row: Vec<f64> = lin_part
-                        .row(i)
-                        .iter()
-                        .skip(col_start)
-                        .zip(lin_part.row(j).iter().skip(col_start))
-                        .zip(lin_part.row(span).iter().skip(col_start))
-                        .map(|((v_i, v_j), v_s)| v_i * v_j * v_s)
-                        .collect();
-                    let row: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
-                        Matrix::from_vec_generic(
-                            Dim::from_usize(1),
-                            Dim::from_usize(nvals - col_start),
-                            row,
-                        );
-                    full_features.set_row(self.d_lin + cnt, &row);
-                    cnt += 1;
-                }
-            }
-        }
+        let full_features = self.construct_full_features(inputs);
 
         // Tikhonov regularization aka ridge regression
         let reg_m: DMatrix<f64> = Matrix::from_diagonal_element_generic(
@@ -137,7 +179,10 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
             Dim::from_usize(self.d_total),
             self.params.regularization_coeff,
         );
-        let p_0 = targets.columns(col_start, nvals - col_start) * full_features.transpose();
+        info!("col_start: {}, {}", col_start, targets.ncols());
+        info!("full_features dims: {}, {}", full_features.nrows(), full_features.ncols());
+        let p_0 =
+            targets.columns(col_start, targets.ncols() - col_start) * full_features.transpose();
         let p_1 = &full_features * full_features.transpose();
         let r: DMatrix<f64> = p_1 + reg_m;
         self.readout_matrix = p_0 * r.try_inverse().unwrap();
@@ -148,9 +193,6 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
         input: &'a MatrixSlice<'a, f64, Const<I>, Const<1>, Const<1>, Const<I>>,
         _prev_pred: &Matrix<f64, Const<O>, Const<1>, ArrayStorage<f64, O, 1>>,
     ) {
-        if self.inputs.len() > self.window_cap {
-            let _ = self.inputs.pop_front();
-        }
         let input = <Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>>::from_column_slice_generic(
                 Dim::from_usize(I),
                 Dim::from_usize(1),
@@ -158,65 +200,25 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
             );
         self.inputs.push_back(input);
 
-        if self.inputs.len() < self.window_cap {
+        if self.inputs.len() > self.window_cap {
+            let _ = self.inputs.pop_front();
+        } else {
+            debug!("not enough datapoints available yet to update state");
             return;
         }
 
-        let nvals = self.inputs.len();
-        let mut lin_part: DMatrix<f64> =
-            Matrix::from_element_generic(Dim::from_usize(self.d_lin), Dim::from_usize(nvals), 0.0);
-        for j in (self.params.num_time_delay_taps * self.params.num_samples_to_skip)..nvals {
-            let mut col = vec![];
-            for delay in 0..self.params.num_time_delay_taps {
-                col.append(
-                    &mut self.inputs[j - (delay * self.params.num_samples_to_skip)]
-                        .as_slice()
-                        .to_vec(),
-                );
-            }
-            let col: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
-                Matrix::from_vec_generic(Dim::from_usize(self.d_lin), Dim::from_usize(1), col);
-            lin_part.set_column(j, &col);
+        let mut inputs: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
+            Matrix::from_element_generic(Dim::from_usize(I), Dim::from_usize(self.window_cap), 0.0);
+        for (j, col) in self.inputs.iter().enumerate() {
+            inputs.set_column(j, col);
         }
-
-        let col_start = self.params.num_time_delay_taps;
-        let full_features = lin_part.clone();
-        let mut full_features = full_features.resize_generic::<Dynamic, Dynamic>(
-            Dim::from_usize(self.d_total),
-            Dim::from_usize(nvals - col_start),
-            0.0,
-        );
-
-        // Fill in the nonlinear part
-        let mut cnt: usize = 0;
-        for i in 0..self.d_lin {
-            for j in i..self.d_lin {
-                for span in j..self.d_lin {
-                    let row: Vec<f64> = lin_part
-                        .row(i)
-                        .iter()
-                        .skip(col_start)
-                        .zip(lin_part.row(j).iter().skip(col_start))
-                        .zip(lin_part.row(span).iter().skip(col_start))
-                        .map(|((v_i, v_j), v_s)| v_i * v_j * v_s)
-                        .collect();
-                    let row: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
-                        Matrix::from_vec_generic(
-                            Dim::from_usize(1),
-                            Dim::from_usize(nvals - col_start),
-                            row,
-                        );
-                    full_features.set_row(self.d_lin + cnt, &row);
-                    cnt += 1;
-                }
-            }
-        }
+        let full_features = self.construct_full_features(&inputs.columns(0, inputs.ncols()));
 
         // extract the state from the last full_feature column
         self.state = <Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>>::from_column_slice_generic(
             Dim::from_usize(self.d_total),
             Dim::from_usize(1),
-            full_features.column(nvals - col_start - 1).as_slice(),
+            full_features.column(full_features.ncols() - 1).as_slice(),
         );
     }
 
@@ -247,5 +249,108 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
         &self,
     ) -> &Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>> {
         &self.readout_matrix
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const NUM_VALS: usize = 9;
+
+    fn get_inputs() -> Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> {
+        Matrix::from_vec_generic(
+            Dim::from_usize(1),
+            Dim::from_usize(NUM_VALS),
+            vec![0.0, 0.55, 1.0, 0.45, 0.0, -0.55, -1.0, -0.45, 0.0],
+        )
+    }
+
+    #[test]
+    fn ngrc_lin_part_1d_skip1() {
+        if let Err(_) = pretty_env_logger::try_init() {}
+
+        let inputs = get_inputs();
+
+        const K: usize = 3;
+        let params = Params {
+            num_time_delay_taps: K,
+            num_samples_to_skip: 1,
+            regularization_coeff: 0.0001,
+            output_activation: Activation::Tanh,
+        };
+        let ngrc = NextGenerationRC::<1, 1>::new(params);
+
+        let lin_part = ngrc.construct_lin_part(&inputs.columns(0, NUM_VALS));
+        info!("inputs: {}", inputs);
+        info!("lin_part: {}", lin_part);
+
+        let goal_part: Matrix<f64, Const<K>, Dynamic, VecStorage<f64, Const<K>, Dynamic>> =
+            Matrix::from_vec_generic(
+                Dim::from_usize(K),
+                Dim::from_usize(NUM_VALS),
+                vec![
+                    0.0, 0.0, 0.0, 0.55, 0.0, 0.0, 1.0, 0.55, 0.0, 0.45, 1.0, 0.55, 0.0, 0.45, 1.0,
+                    -0.55, 0.0, 0.45, -1.0, -0.55, 0.0, -0.45, -1.0, -0.55, 0.0, -0.45, -1.0,
+                ],
+            );
+        info!("goal_part: {}", goal_part);
+
+        assert_eq!(lin_part, goal_part)
+    }
+
+    #[test]
+    fn ngrc_lin_part_1d_skip2() {
+        todo!()
+    }
+
+    #[test]
+    fn ngrc_lin_part_2d() {
+        todo!()
+    }
+
+    #[test]
+    fn ngrc_nonlin_part_1d() {
+        if let Err(_) = pretty_env_logger::try_init() {}
+
+        let inputs = get_inputs();
+
+        const I: usize = 1;
+        const K: usize = 2;
+        let params = Params {
+            num_time_delay_taps: K,
+            num_samples_to_skip: 1,
+            regularization_coeff: 0.0001,
+            output_activation: Activation::Tanh,
+        };
+        let ngrc = NextGenerationRC::<1, 1>::new(params);
+
+        let full_features = ngrc.construct_full_features(&inputs.columns(0, inputs.ncols()));
+        info!("inputs: {}", inputs);
+        info!("full_features: {}", full_features);
+
+        let d_lin = K * I;
+        let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
+        let d_total = d_lin + d_nonlin;
+        info!("d_total: {}", d_total);
+
+        let goal_features: DMatrix<f64> = Matrix::from_vec_generic(
+            Dim::from_usize(d_total),
+            Dim::from_usize(inputs.ncols()),
+            vec![
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                0.55, 0.0, 0.166375, 0.0, 0.0, 0.0,
+                1.0, 0.55, 1.0, 0.55, 0.3025, 0.166375,
+                0.45, 1.0, 0.091125, 0.2025, 0.45, 1.0,
+                0.0, 0.45, 0.0, 0.0, 0.0, 0.091125, 
+                -0.55, 0.0, -0.166375, 0.0, 0.0, 0.0, 
+                -1.0, -0.55, -1.0, -0.55, -0.3025, -0.166375,
+                -0.45, -1.0, -0.091125, -0.2025, -0.45, -1.0,
+                0.0, -0.45, 0.0, 0.0, 0.0, -0.091125 
+            ],
+        );
+        info!("goal_features: {}", goal_features);
+
+        assert_eq!(full_features, goal_features);
     }
 }

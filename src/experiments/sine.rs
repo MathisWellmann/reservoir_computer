@@ -11,15 +11,11 @@ use crate::{
     Series,
 };
 
-const INPUT_DIM: usize = 1;
-const OUTPUT_DIM: usize = 1;
 const TRAIN_LEN: usize = 600;
 const SEED: Option<u64> = Some(0);
 
 pub(crate) fn start() {
     info!("loading sample data");
-
-    const TRAINING_WINDOW: usize = 600;
 
     let mut values: Vec<f64> = generate_sine_wave(100);
     values.append(&mut values.clone());

@@ -5,7 +5,6 @@ extern crate log;
 
 mod activation;
 mod environments;
-mod errors;
 mod experiments;
 mod load_sample_data;
 mod optimizers;

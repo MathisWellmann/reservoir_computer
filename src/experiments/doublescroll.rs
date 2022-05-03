@@ -61,7 +61,6 @@ pub(crate) fn start() {
                 output_activation: Activation::Identity,
             };
             let mut rc = ngrc::NextGenerationRC::new(params);
-            let t0 = Instant::now();
 
             let mut p = PlotGather::default();
             gather_plot_data(&values, &mut rc, Some(&mut p));

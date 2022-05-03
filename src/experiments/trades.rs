@@ -2,8 +2,8 @@ use std::{sync::Arc, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
 use nalgebra::{Dim, Matrix};
-use sliding_features::{Constant, Echo, Multiply, RoofingFilter, Tanh, View, ALMA, VSCT};
-use trade_aggregation::{aggregate_all_trades, load_trades_from_csv, By, TimeAggregator};
+use sliding_features::{Echo, View};
+use trade_aggregation::{aggregate_all_trades, load_trades_from_csv, TimeAggregator};
 
 use crate::{
     activation::Activation,
@@ -18,11 +18,9 @@ use crate::{
 };
 
 const INPUT_DIM: usize = 1;
-const OUTPUT_DIM: usize = 1;
 const TRAIN_LEN: usize = 5000;
 const TEST_WINDOW: usize = 600;
 const NUM_GENS: usize = 100;
-const MA_LEN: usize = 80;
 
 pub(crate) fn start() {
     info!("loading sample data");
