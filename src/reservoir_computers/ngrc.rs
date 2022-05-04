@@ -37,7 +37,11 @@ impl RCParams for Params {
 
     #[inline(always)]
     fn reservoir_size(&self) -> usize {
-        0
+        // TODO: enable this to work in more dimensions
+        const INPUT_DIM: usize = 1;
+        let d_lin = self.num_time_delay_taps * INPUT_DIM;
+        let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
+        d_lin + d_nonlin
     }
 }
 
@@ -63,23 +67,6 @@ impl<const I: usize, const O: usize> NextGenerationRC<I, O> {
             Dim::from_usize(inputs.ncols()),
             0.0,
         );
-
-        /*
-        for j in (self.params.num_time_delay_taps * self.params.num_samples_to_skip)..nvals {
-            let mut col = vec![];
-            for delay in 0..self.params.num_time_delay_taps {
-                col.append(
-                    &mut inputs
-                        .column(j - (delay * self.params.num_samples_to_skip))
-                        .as_slice()
-                        .to_vec(),
-                );
-            }
-            let col: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
-                Matrix::from_vec_generic(Dim::from_usize(self.d_lin), Dim::from_usize(1), col);
-            lin_part.set_column(j, &col);
-        }
-        */
 
         for delay in 0..self.params.num_time_delay_taps {
             let mut row = vec![0.0; inputs.ncols()];
@@ -115,7 +102,6 @@ impl<const I: usize, const O: usize> NextGenerationRC<I, O> {
             full_features
                 .set_column(j - warmup, &lin_part.column(j).resize_vertically(self.d_total, 0.0));
         }
-        info!("resized lin_part: {}", full_features);
 
         let mut cnt: usize = 0;
         for i in 0..self.d_lin {
@@ -174,9 +160,9 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
         inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
         targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<I>>,
     ) {
-        let col_start = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
-
         let full_features = self.construct_full_features(inputs);
+
+        let warmup = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
 
         // Tikhonov regularization aka ridge regression
         let reg_m: DMatrix<f64> = Matrix::from_diagonal_element_generic(
@@ -184,10 +170,10 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
             Dim::from_usize(self.d_total),
             self.params.regularization_coeff,
         );
-        info!("col_start: {}, {}", col_start, targets.ncols());
-        info!("full_features dims: {}, {}", full_features.nrows(), full_features.ncols());
+        debug!("warmup: {}, targets.ncols(): {}", warmup, targets.ncols());
+        debug!("features.ncols(): {}", full_features.ncols());
         let p_0 =
-            targets.columns(col_start, targets.ncols() - col_start) * full_features.transpose();
+            targets.columns(warmup + 1, targets.ncols() - warmup - 1) * full_features.transpose();
         let p_1 = &full_features * full_features.transpose();
         let r: DMatrix<f64> = p_1 + reg_m;
         self.readout_matrix = p_0 * r.try_inverse().unwrap();

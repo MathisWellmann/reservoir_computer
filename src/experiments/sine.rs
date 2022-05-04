@@ -90,7 +90,7 @@ pub(crate) fn start() {
         2 => {
             let params = ngrc::Params {
                 num_time_delay_taps: 10,
-                num_samples_to_skip: 10,
+                num_samples_to_skip: 1,
                 regularization_coeff: 0.0001,
                 output_activation: Activation::Identity,
             };

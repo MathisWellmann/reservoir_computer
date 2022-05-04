@@ -127,7 +127,7 @@ pub(crate) fn start() {
             };
             let mut rc = ngrc::NextGenerationRC::new(params);
             let t0 = Instant::now();
-            rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN - 1));
+            rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
             info!("NGRC training took {}ms", t0.elapsed().as_millis());
 
             let env = EnvMackeyGlass::new(Arc::new(values), TRAIN_LEN);
