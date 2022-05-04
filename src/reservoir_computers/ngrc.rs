@@ -105,12 +105,17 @@ impl<const I: usize, const O: usize> NextGenerationRC<I, O> {
 
         let lin_part = self.construct_lin_part(inputs);
 
-        let full_features = lin_part.clone();
-        let mut full_features = full_features.resize_generic::<Dynamic, Dynamic>(
+        // manually copy over elements while skipping the warmup columns
+        let mut full_features: DMatrix<f64> = Matrix::from_element_generic(
             Dim::from_usize(self.d_total),
             Dim::from_usize(lin_part.ncols() - warmup),
             0.0,
         );
+        for j in warmup..lin_part.ncols() {
+            full_features
+                .set_column(j - warmup, &lin_part.column(j).resize_vertically(self.d_total, 0.0));
+        }
+        info!("resized lin_part: {}", full_features);
 
         let mut cnt: usize = 0;
         for i in 0..self.d_lin {
@@ -255,6 +260,7 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
 #[cfg(test)]
 mod tests {
     use super::*;
+    use round::round;
 
     const NUM_VALS: usize = 9;
 
@@ -325,31 +331,29 @@ mod tests {
         };
         let ngrc = NextGenerationRC::<1, 1>::new(params);
 
-        let full_features = ngrc.construct_full_features(&inputs.columns(0, inputs.ncols()));
+        let mut full_features = ngrc.construct_full_features(&inputs.columns(0, inputs.ncols()));
         info!("inputs: {}", inputs);
-        info!("full_features: {}", full_features);
 
         let d_lin = K * I;
         let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
         let d_total = d_lin + d_nonlin;
-        info!("d_total: {}", d_total);
+        let warmup = I * K;
 
         let goal_features: DMatrix<f64> = Matrix::from_vec_generic(
             Dim::from_usize(d_total),
-            Dim::from_usize(inputs.ncols()),
+            Dim::from_usize(inputs.ncols() - warmup),
             vec![
-                0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                0.55, 0.0, 0.166375, 0.0, 0.0, 0.0,
-                1.0, 0.55, 1.0, 0.55, 0.3025, 0.166375,
-                0.45, 1.0, 0.091125, 0.2025, 0.45, 1.0,
-                0.0, 0.45, 0.0, 0.0, 0.0, 0.091125, 
-                -0.55, 0.0, -0.166375, 0.0, 0.0, 0.0, 
-                -1.0, -0.55, -1.0, -0.55, -0.3025, -0.166375,
-                -0.45, -1.0, -0.091125, -0.2025, -0.45, -1.0,
-                0.0, -0.45, 0.0, 0.0, 0.0, -0.091125 
+                1.0, 0.55, 1.0, 0.55, 0.3025, 0.166375, 0.45, 1.0, 0.091125, 0.2025, 0.45, 1.0,
+                0.0, 0.45, 0.0, 0.0, 0.0, 0.091125, -0.55, 0.0, -0.166375, 0.0, 0.0, 0.0, -1.0,
+                -0.55, -1.0, -0.55, -0.3025, -0.166375, -0.45, -1.0, -0.091125, -0.2025, -0.45,
+                -1.0, 0.0, -0.45, 0.0, 0.0, 0.0, -0.091125,
             ],
         );
         info!("goal_features: {}", goal_features);
+
+        // round all values to 6 decimal places
+        full_features.iter_mut().for_each(|v| *v = round(*v, 6));
+        info!("full_features: {}", full_features);
 
         assert_eq!(full_features, goal_features);
     }
