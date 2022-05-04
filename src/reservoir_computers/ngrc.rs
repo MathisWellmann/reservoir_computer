@@ -70,9 +70,10 @@ impl<const I: usize, const O: usize> NextGenerationRC<I, O> {
 
         for delay in 0..self.params.num_time_delay_taps {
             let mut row = vec![0.0; inputs.ncols()];
-            for j in delay..inputs.ncols() {
+            for j in delay * self.params.num_samples_to_skip..inputs.ncols() {
                 // TODO: support for more than 1 input dimension
-                row[j] = *inputs.row(0).get(j - delay).unwrap();
+                row[j] =
+                    *inputs.row(0).get(j - delay * self.params.num_samples_to_skip).unwrap_or(&0.0);
             }
             let row_idx = I * delay;
             let row: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
@@ -293,7 +294,35 @@ mod tests {
 
     #[test]
     fn ngrc_lin_part_1d_skip2() {
-        todo!()
+        if let Err(_) = pretty_env_logger::try_init() {}
+
+        let inputs = get_inputs();
+
+        const K: usize = 2;
+        let params = Params {
+            num_time_delay_taps: K,
+            num_samples_to_skip: 2,
+            regularization_coeff: 0.0001,
+            output_activation: Activation::Tanh,
+        };
+        let ngrc = NextGenerationRC::<1, 1>::new(params);
+
+        let lin_part = ngrc.construct_lin_part(&inputs.columns(0, NUM_VALS));
+        info!("inputs: {}", inputs);
+        info!("lin_part: {}", lin_part);
+
+        let goal_part: Matrix<f64, Const<K>, Dynamic, VecStorage<f64, Const<K>, Dynamic>> =
+            Matrix::from_vec_generic(
+                Dim::from_usize(K),
+                Dim::from_usize(NUM_VALS),
+                vec![
+                    0.0, 0.0, 0.55, 0.0, 1.0, 0.0, 0.45, 0.55, 0.0, 1.0, -0.55, 0.45, -1.0, 0.0,
+                    -0.45, -0.55, 0.0, -1.0,
+                ],
+            );
+        info!("goal_part: {}", goal_part);
+
+        assert_eq!(lin_part, goal_part)
     }
 
     #[test]

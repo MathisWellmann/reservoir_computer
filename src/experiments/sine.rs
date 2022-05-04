@@ -90,14 +90,14 @@ pub(crate) fn start() {
         2 => {
             let params = ngrc::Params {
                 num_time_delay_taps: 10,
-                num_samples_to_skip: 1,
-                regularization_coeff: 0.0001,
+                num_samples_to_skip: 10,
+                regularization_coeff: 0.1,
                 output_activation: Activation::Identity,
             };
             let mut rc = ngrc::NextGenerationRC::new(params);
             let t0 = Instant::now();
             rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
-            info!("NGRC trainingn took {}ms", t0.elapsed().as_millis());
+            info!("NGRC training took {}ms", t0.elapsed().as_millis());
 
             run_rc::<ngrc::NextGenerationRC<1, 1>, 1, 1, 3>(&mut rc, &values, "img/sine_ngrc.png");
         }
