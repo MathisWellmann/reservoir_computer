@@ -3,7 +3,7 @@ use std::sync::Arc;
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 
 use super::PlotGather;
-use crate::{OptEnvironment, RCParams, ReservoirComputer, SingleDimIo};
+use crate::{LinReg, OptEnvironment, RCParams, ReservoirComputer, SingleDimIo};
 
 pub struct EnvMackeyGlass {
     values: Arc<SingleDimIo>,
@@ -22,10 +22,12 @@ impl EnvMackeyGlass {
     }
 }
 
-impl<R, const N: usize> OptEnvironment<R, 1, 1, N> for EnvMackeyGlass
-where R: ReservoirComputer<1, 1, N>
+impl<RC, const N: usize, R> OptEnvironment<RC, 1, 1, N, R> for EnvMackeyGlass
+where
+    RC: ReservoirComputer<1, 1, N, R>,
+    R: LinReg,
 {
-    fn evaluate(&self, rc: &mut R, mut plot: Option<&mut PlotGather>) -> f64 {
+    fn evaluate(&self, rc: &mut RC, mut plot: Option<&mut PlotGather>) -> f64 {
         rc.train(
             &self.values.columns(0, self.train_len - 1),
             &self.values.columns(1, self.train_len),

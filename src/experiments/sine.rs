@@ -6,9 +6,10 @@ use time_series_generator::generate_sine_wave;
 
 use crate::{
     activation::Activation,
+    lin_reg::TikhonovRegularization,
     plot::plot,
     reservoir_computers::{esn, eusn, ngrc, RCParams, ReservoirComputer},
-    Series,
+    LinReg, Series,
 };
 
 const TRAIN_LEN: usize = 600;
@@ -56,13 +57,21 @@ pub(crate) fn start() {
                 initial_state_value: 0.0,
                 readout_from_input_as_well: true,
             };
-            let mut rc = esn::ESN::new(params);
+            // TODO: choose lin reg
+            let regressor = TikhonovRegularization {
+                regularization_coeff: 0.001,
+            };
+            let mut rc = esn::ESN::new(params, regressor);
 
             let t0 = Instant::now();
             rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
             info!("training done in: {}ms", t0.elapsed().as_millis());
 
-            run_rc::<esn::ESN<1, 1>, 1, 1, 7>(&mut rc, &values, "img/sine_esn.png");
+            run_rc::<esn::ESN<1, 1, TikhonovRegularization>, 1, 1, 7, TikhonovRegularization>(
+                &mut rc,
+                &values,
+                "img/sine_esn.png",
+            );
         }
         1 => {
             let params = eusn::Params {
@@ -79,7 +88,11 @@ pub(crate) fn start() {
                 epsilon: 0.01,
                 gamma: 0.001,
             };
-            let mut rc = eusn::EulerStateNetwork::new(params);
+            // TODO: choose lin reg
+            let regressor = TikhonovRegularization {
+                regularization_coeff: 0.001,
+            };
+            let mut rc = eusn::EulerStateNetwork::new(params, regressor);
 
             let t0 = Instant::now();
             rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
@@ -91,25 +104,37 @@ pub(crate) fn start() {
             let params = ngrc::Params {
                 num_time_delay_taps: 10,
                 num_samples_to_skip: 10,
-                regularization_coeff: 0.1,
                 output_activation: Activation::Identity,
             };
-            let mut rc = ngrc::NextGenerationRC::new(params);
+            // TODO: choose lin reg
+            let regressor = TikhonovRegularization {
+                regularization_coeff: 0.001,
+            };
+            let mut rc = ngrc::NextGenerationRC::new(params, regressor);
             let t0 = Instant::now();
             rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
             info!("NGRC training took {}ms", t0.elapsed().as_millis());
 
-            run_rc::<ngrc::NextGenerationRC<1, 1>, 1, 1, 3>(&mut rc, &values, "img/sine_ngrc.png");
+            run_rc::<
+                ngrc::NextGenerationRC<1, 1, TikhonovRegularization>,
+                1,
+                1,
+                3,
+                TikhonovRegularization,
+            >(&mut rc, &values, "img/sine_ngrc.png");
         }
         _ => panic!("invalid reservoir computer selection"),
     }
 }
 
-fn run_rc<R: ReservoirComputer<I, O, N>, const I: usize, const O: usize, const N: usize>(
-    rc: &mut R,
+fn run_rc<RC, const I: usize, const O: usize, const N: usize, R>(
+    rc: &mut RC,
     values: &Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>>,
     filename: &str,
-) {
+) where
+    RC: ReservoirComputer<I, O, N, R>,
+    R: LinReg,
+{
     let mut plot_targets: Series = Vec::with_capacity(1_000_000);
     let mut train_predictions: Series = Vec::with_capacity(TRAIN_LEN);
     let mut test_predictions: Series = Vec::with_capacity(1_000_000);

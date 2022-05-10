@@ -1,4 +1,4 @@
-use crate::{ReservoirComputer, Series};
+use crate::{LinReg, ReservoirComputer, Series};
 
 pub mod env_mackey_glass;
 pub mod env_trades;
@@ -48,12 +48,13 @@ impl PlotGather {
 /// O: Output dimension
 /// N: Dimensionality of parameter search space
 pub trait OptEnvironment<
-    R: ReservoirComputer<I, O, N>,
+    RC: ReservoirComputer<I, O, N, R>,
     const I: usize,
     const O: usize,
     const N: usize,
+    R: LinReg,
 >
 {
     /// Evaluate the reservoir computer and return the rmse values
-    fn evaluate(&self, rc: &mut R, plot: Option<&mut PlotGather>) -> f64;
+    fn evaluate(&self, rc: &mut RC, plot: Option<&mut PlotGather>) -> f64;
 }

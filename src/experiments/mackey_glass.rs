@@ -7,6 +7,7 @@ use nanorand::{Rng, WyRand};
 use crate::{
     activation::Activation,
     environments::{env_mackey_glass::EnvMackeyGlass, PlotGather},
+    lin_reg::TikhonovRegularization,
     optimizers::{
         opt_firefly::{FireflyOptimizer, FireflyParams},
         opt_random_search::RandomSearch,
@@ -67,7 +68,11 @@ pub(crate) fn start() {
                 readout_from_input_as_well: false,
             };
 
-            let mut rc = esn::ESN::new(params);
+            // TODO: choose lin reg
+            let regressor = TikhonovRegularization {
+                regularization_coeff: 0.1,
+            };
+            let mut rc = esn::ESN::new(params, regressor);
 
             let t0 = Instant::now();
             rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
@@ -100,7 +105,11 @@ pub(crate) fn start() {
                 epsilon: 0.008,
                 gamma: 0.05,
             };
-            let mut rc = eusn::EulerStateNetwork::new(params);
+            // TODO: choose lin reg
+            let regressor = TikhonovRegularization {
+                regularization_coeff: 0.1,
+            };
+            let mut rc = eusn::EulerStateNetwork::new(params, regressor);
 
             let t0 = Instant::now();
             rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
@@ -120,12 +129,15 @@ pub(crate) fn start() {
         }
         2 => {
             let params = ngrc::Params {
-                num_time_delay_taps: 20,
-                num_samples_to_skip: 3,
-                regularization_coeff: 0.001,
+                num_time_delay_taps: 3,
+                num_samples_to_skip: 1,
                 output_activation: Activation::Identity,
             };
-            let mut rc = ngrc::NextGenerationRC::new(params);
+            // TODO: choose lin reg
+            let regressor = TikhonovRegularization {
+                regularization_coeff: 0.001,
+            };
+            let mut rc = ngrc::NextGenerationRC::new(params, regressor);
             let t0 = Instant::now();
             rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
             info!("NGRC training took {}ms", t0.elapsed().as_millis());
@@ -183,9 +195,21 @@ pub(crate) fn start() {
             for i in 0..NUM_GENS {
                 let t0 = Instant::now();
 
-                opt.step::<esn::ESN<1, 1>, 1, 1>(env.clone(), &param_mapper);
+                // TODO: choose lin reg
+                let regressor = TikhonovRegularization {
+                    regularization_coeff: 0.001,
+                };
+                opt.step::<esn::ESN<1, 1, TikhonovRegularization>, 1, 1, TikhonovRegularization>(
+                    env.clone(),
+                    &param_mapper,
+                    regressor,
+                );
                 let params = param_mapper.map(opt.elite_params());
-                let mut rc = esn::ESN::new(params);
+                // TODO: choose lin reg
+                let regressor = TikhonovRegularization {
+                    regularization_coeff: 0.001,
+                };
+                let mut rc = esn::ESN::new(params, regressor);
 
                 let mut p = PlotGather::default();
                 env.evaluate(&mut rc, Some(&mut p));
@@ -244,10 +268,19 @@ pub(crate) fn start() {
             for i in 0..NUM_GENS {
                 let t0 = Instant::now();
 
-                opt.step::<esn::ESN<1, 1>, 1, 1>(env.clone(), &param_mapper);
+                // TODO: choose lin reg
+                let regressor = TikhonovRegularization {
+                    regularization_coeff: 0.001,
+                };
+                opt.step::<esn::ESN<1, 1, TikhonovRegularization>, 1, 1, TikhonovRegularization>(
+                    env.clone(),
+                    &param_mapper,
+                    regressor.clone(),
+                );
 
                 let params = param_mapper.map(opt.elite_params());
-                let mut rc = esn::ESN::<1, 1>::new(params);
+
+                let mut rc = esn::ESN::<1, 1, TikhonovRegularization>::new(params, regressor);
 
                 let mut p = PlotGather::default();
                 env.evaluate(&mut rc, Some(&mut p));
@@ -306,10 +339,19 @@ pub(crate) fn start() {
             for i in 0..NUM_GENS {
                 let t0 = Instant::now();
 
-                opt.step::<eusn::EulerStateNetwork<1, 1>, 1, 1>(env.clone(), &param_mapper);
+                // TODO: choose lin reg
+                let regressor = TikhonovRegularization {
+                    regularization_coeff: 0.001,
+                };
+                opt.step::<eusn::EulerStateNetwork<1, 1, TikhonovRegularization>, 1, 1, TikhonovRegularization>(
+                    env.clone(), 
+                    &param_mapper, 
+                    regressor.clone()
+                );
 
                 let params = param_mapper.map(opt.elite_params());
-                let mut rc = eusn::EulerStateNetwork::<1, 1>::new(params);
+                let mut rc =
+                    eusn::EulerStateNetwork::<1, 1, TikhonovRegularization>::new(params, regressor);
 
                 let mut p = PlotGather::default();
                 env.evaluate(&mut rc, Some(&mut p));
@@ -363,10 +405,19 @@ pub(crate) fn start() {
             for i in 0..NUM_GENS {
                 let t0 = Instant::now();
 
-                opt.step::<eusn::EulerStateNetwork<1, 1>, 1, 1>(env.clone(), &param_mapper);
+                // TODO: choose lin reg
+                let regressor = TikhonovRegularization {
+                    regularization_coeff: 0.001,
+                };
+                opt.step::<eusn::EulerStateNetwork<1, 1, TikhonovRegularization>, 1, 1, TikhonovRegularization>(
+                    env.clone(),
+                    &param_mapper,
+                    regressor.clone(),
+                );
 
                 let params = param_mapper.map(opt.elite_params());
-                let mut rc = eusn::EulerStateNetwork::<1, 1>::new(params);
+                let mut rc =
+                    eusn::EulerStateNetwork::<1, 1, TikhonovRegularization>::new(params, regressor);
 
                 let mut p = PlotGather::default();
                 env.evaluate(&mut rc, Some(&mut p));

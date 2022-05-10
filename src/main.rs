@@ -6,6 +6,7 @@ extern crate log;
 mod activation;
 mod environments;
 mod experiments;
+mod lin_reg;
 mod load_sample_data;
 mod optimizers;
 pub(crate) mod plot;
@@ -14,6 +15,7 @@ mod temporal_prediction_aggregator;
 mod utils;
 
 pub use environments::OptEnvironment;
+pub use lin_reg::LinReg;
 use nalgebra::{Const, Dynamic, Matrix, VecStorage};
 pub use reservoir_computers::{RCParams, ReservoirComputer};
 

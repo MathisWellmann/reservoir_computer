@@ -1,25 +1,28 @@
 use nalgebra::{ArrayStorage, Const, Dynamic, Matrix, MatrixSlice, VecStorage};
 
+use crate::LinReg;
+
 pub(crate) type StateMatrix = Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;
 
 /// The ReservoirComputer trait
 /// I: input dimension
 /// O: output dimension
 /// N: Number of values to map into Parameters
-pub trait ReservoirComputer<const I: usize, const O: usize, const N: usize> {
+pub trait ReservoirComputer<const I: usize, const O: usize, const N: usize, R: LinReg> {
     type ParamMapper: OptParamMapper<N>;
 
     /// Create a new ReservoirComputer instance with the given parameters
     /// and randomly initialized matrices
     fn new(
-        params: <<Self as ReservoirComputer<I, O, N>>::ParamMapper as OptParamMapper<N>>::Params,
+        params: <<Self as ReservoirComputer<I, O, N, R>>::ParamMapper as OptParamMapper<N>>::Params,
+        regressor: R,
     ) -> Self;
 
     /// Train the readout layer using the given inputs and targets
     fn train<'a>(
         &mut self,
         inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
-        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<I>>,
+        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<O>>,
     );
 
     fn update_state<'a>(
@@ -36,7 +39,7 @@ pub trait ReservoirComputer<const I: usize, const O: usize, const N: usize> {
 
     fn params(
         &self,
-    ) -> &<<Self as ReservoirComputer<I, O, N>>::ParamMapper as OptParamMapper<N>>::Params;
+    ) -> &<<Self as ReservoirComputer<I, O, N, R>>::ParamMapper as OptParamMapper<N>>::Params;
 
     fn readout_matrix(&self)
         -> &Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>;

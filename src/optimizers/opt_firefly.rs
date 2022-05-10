@@ -4,7 +4,7 @@ use crossbeam::channel::unbounded;
 use nanorand::{Rng, WyRand};
 use threadpool::ThreadPool;
 
-use crate::{reservoir_computers::OptParamMapper, OptEnvironment, ReservoirComputer};
+use crate::{reservoir_computers::OptParamMapper, LinReg, OptEnvironment, ReservoirComputer};
 
 // TODO: rename to Params
 #[derive(Debug, Clone)]
@@ -52,12 +52,14 @@ impl<const N: usize> FireflyOptimizer<N> {
         }
     }
 
-    pub fn step<R, const I: usize, const O: usize>(
+    pub fn step<RC, const I: usize, const O: usize, R>(
         &mut self,
-        env: Arc<dyn OptEnvironment<R, I, O, N> + Send + Sync>,
-        param_mapper: &R::ParamMapper,
+        env: Arc<dyn OptEnvironment<RC, I, O, N, R> + Send + Sync>,
+        param_mapper: &RC::ParamMapper,
+        regressor: R,
     ) where
-        R: ReservoirComputer<I, O, N> + Send + Sync + 'static,
+        RC: ReservoirComputer<I, O, N, R> + Send + Sync + 'static,
+        R: LinReg + Send + Sync + 'static,
     {
         self.update_candidates();
 
@@ -69,7 +71,7 @@ impl<const N: usize> FireflyOptimizer<N> {
             let c = c.clone();
             let e = env.clone();
             let params = param_mapper.map(&c);
-            let mut rc = R::new(params);
+            let mut rc = RC::new(params, regressor.clone());
             pool.execute(move || {
                 let f = e.evaluate(&mut rc, None);
                 ch_fit_s.send((i, f)).unwrap();

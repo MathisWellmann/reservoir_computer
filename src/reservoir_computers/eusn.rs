@@ -2,7 +2,7 @@ use nalgebra::{ArrayStorage, Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, 
 use nanorand::{Rng, WyRand};
 
 use super::{OptParamMapper, RCParams, Range, ReservoirComputer, StateMatrix};
-use crate::{activation::Activation, utils::scale};
+use crate::{activation::Activation, lin_reg::LinReg, utils::scale};
 
 // TODO: value validation
 #[derive(Debug, Clone)]
@@ -110,22 +110,24 @@ impl OptParamMapper<PARAM_DIM> for ParamMapper {
 
 /// Euler State Network (EuSN)
 /// from: https://arxiv.org/pdf/2203.09382.pdf
-pub struct EulerStateNetwork<const I: usize, const O: usize> {
+pub struct EulerStateNetwork<const I: usize, const O: usize, R> {
     params: Params,
     state: StateMatrix,
     input_weight_matrix: Matrix<f64, Dynamic, Const<I>, VecStorage<f64, Dynamic, Const<I>>>,
     reservoir_weight_matrix: DMatrix<f64>,
     reservoir_biases: StateMatrix,
     readout_matrix: Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>,
+    regressor: R,
 }
 
-impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM>
-    for EulerStateNetwork<I, O>
+impl<const I: usize, const O: usize, R> ReservoirComputer<I, O, PARAM_DIM, R>
+    for EulerStateNetwork<I, O, R>
+where R: LinReg
 {
     type ParamMapper = ParamMapper;
 
     /// Create a new untrained EuSN with the given parameters
-    fn new(params: Params) -> Self {
+    fn new(params: Params, regressor: R) -> Self {
         let state = Matrix::from_element_generic(
             Dim::from_usize(params.reservoir_size),
             Dim::from_usize(1),
@@ -189,6 +191,7 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM>
             reservoir_weight_matrix: reservoir_matrix,
             reservoir_biases,
             readout_matrix,
+            regressor,
         }
     }
 
@@ -196,7 +199,7 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM>
     fn train<'a>(
         &mut self,
         inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
-        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<I>>,
+        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<O>>,
     ) {
         let washout_len = (inputs.ncols() as f64 * self.params.washout_frac) as usize;
         let harvest_len = inputs.ncols() - washout_len;

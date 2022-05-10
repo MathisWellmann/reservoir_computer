@@ -4,8 +4,8 @@ use dialoguer::{theme::ColorfulTheme, Select};
 use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
 
 use crate::{
-    activation::Activation, environments::PlotGather, plot::plot, reservoir_computers::ngrc,
-    ReservoirComputer,
+    activation::Activation, environments::PlotGather, lin_reg::TikhonovRegularization, plot::plot,
+    reservoir_computers::ngrc, LinReg, ReservoirComputer,
 };
 
 const TRAIN_LEN: usize = 100;
@@ -57,10 +57,12 @@ pub(crate) fn start() {
             let params = ngrc::Params {
                 num_time_delay_taps: 5,
                 num_samples_to_skip: 2,
-                regularization_coeff: 0.0001,
                 output_activation: Activation::Identity,
             };
-            let mut rc = ngrc::NextGenerationRC::new(params);
+            let regressor = TikhonovRegularization {
+                regularization_coeff: 0.0001,
+            };
+            let mut rc = ngrc::NextGenerationRC::new(params, regressor);
 
             let mut p = PlotGather::default();
             gather_plot_data(&values, &mut rc, Some(&mut p));
@@ -77,12 +79,13 @@ pub(crate) fn start() {
     }
 }
 
-pub(crate) fn gather_plot_data<R, const N: usize>(
+pub(crate) fn gather_plot_data<RC, const N: usize, R>(
     values: &Matrix<f64, Const<3>, Dynamic, VecStorage<f64, Const<3>, Dynamic>>,
-    rc: &mut R,
+    rc: &mut RC,
     mut plot: Option<&mut PlotGather>,
 ) where
-    R: ReservoirComputer<3, 3, N>,
+    RC: ReservoirComputer<3, 3, N, R>,
+    R: LinReg,
 {
     let t0 = Instant::now();
     rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));

@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use nalgebra::{ArrayStorage, Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 
 use super::{OptParamMapper, StateMatrix};
-use crate::{activation::Activation, RCParams, ReservoirComputer};
+use crate::{activation::Activation, lin_reg::LinReg, RCParams, ReservoirComputer};
 
 const PARAM_DIM: usize = 3;
 
@@ -11,12 +11,11 @@ const PARAM_DIM: usize = 3;
 pub struct Params {
     pub num_time_delay_taps: usize,
     pub num_samples_to_skip: usize,
-    pub regularization_coeff: f64,
     pub output_activation: Activation,
 }
 
 #[derive(Debug, Clone)]
-pub struct NextGenerationRC<const I: usize, const O: usize> {
+pub struct NextGenerationRC<const I: usize, const O: usize, R> {
     params: Params,
     inputs: VecDeque<StateMatrix>,
     readout_matrix: Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>,
@@ -27,6 +26,7 @@ pub struct NextGenerationRC<const I: usize, const O: usize> {
     d_total: usize,
     // capacity of sliding window of inputs
     window_cap: usize,
+    regressor: R,
 }
 
 impl RCParams for Params {
@@ -55,7 +55,10 @@ impl OptParamMapper<PARAM_DIM> for ParamMapper {
     }
 }
 
-impl<const I: usize, const O: usize> NextGenerationRC<I, O> {
+impl<const I: usize, const O: usize, R> NextGenerationRC<I, O, R>
+where
+    R: LinReg,
+{
     fn construct_lin_part<'a>(
         &self,
         inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
@@ -132,10 +135,14 @@ impl<const I: usize, const O: usize> NextGenerationRC<I, O> {
     }
 }
 
-impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for NextGenerationRC<I, O> {
+impl<const I: usize, const O: usize, R> ReservoirComputer<I, O, PARAM_DIM, R>
+    for NextGenerationRC<I, O, R>
+where
+    R: LinReg,
+{
     type ParamMapper = ParamMapper;
 
-    fn new(params: Params) -> Self {
+    fn new(params: Params, regressor: R) -> Self {
         let d_lin = params.num_time_delay_taps * I;
         let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
         let d_total = d_lin + d_nonlin;
@@ -153,31 +160,23 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
             d_total,
             state,
             window_cap,
+            regressor,
         }
     }
 
     fn train<'a>(
         &mut self,
         inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
-        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<I>>,
+        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<O>>,
     ) {
         let full_features = self.construct_full_features(inputs);
 
         let warmup = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
 
-        // Tikhonov regularization aka ridge regression
-        let reg_m: DMatrix<f64> = Matrix::from_diagonal_element_generic(
-            Dim::from_usize(self.d_total),
-            Dim::from_usize(self.d_total),
-            self.params.regularization_coeff,
+        self.readout_matrix = self.regressor.fit_readout(
+            &full_features.columns(0, full_features.ncols()),
+            &targets.columns(warmup + 1, targets.ncols() - warmup - 1),
         );
-        debug!("warmup: {}, targets.ncols(): {}", warmup, targets.ncols());
-        debug!("features.ncols(): {}", full_features.ncols());
-        let p_0 =
-            targets.columns(warmup + 1, targets.ncols() - warmup - 1) * full_features.transpose();
-        let p_1 = &full_features * full_features.transpose();
-        let r: DMatrix<f64> = p_1 + reg_m;
-        self.readout_matrix = p_0 * r.try_inverse().unwrap();
     }
 
     fn update_state<'a>(
@@ -246,8 +245,9 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for Next
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use round::round;
+
+    use super::*;
 
     const NUM_VALS: usize = 9;
 

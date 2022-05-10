@@ -4,7 +4,7 @@ use nalgebra::{
 use nanorand::{Rng, WyRand};
 
 use super::{OptParamMapper, RCParams, Range, ReservoirComputer, StateMatrix};
-use crate::{activation::Activation, utils::scale};
+use crate::{activation::Activation, lin_reg::LinReg, utils::scale};
 
 /// The parameters of the Echo State Network
 #[derive(Debug, Clone)]
@@ -165,7 +165,7 @@ impl OptParamMapper<PARAM_DIM> for ParamMapper {
 
 /// The Reseoir Computer, Leaky Echo State Network
 #[derive(Debug)]
-pub struct ESN<const I: usize, const O: usize> {
+pub struct ESN<const I: usize, const O: usize, R> {
     params: Params,
     input_weight_matrix: Matrix<f64, Dynamic, Const<I>, VecStorage<f64, Dynamic, Const<I>>>,
     reservoir_matrix: DMatrix<f64>,
@@ -175,14 +175,18 @@ pub struct ESN<const I: usize, const O: usize> {
     state: StateMatrix,
     extended_state: StateMatrix,
     rng: WyRand,
+    regressor: R,
 }
 
-impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for ESN<I, O> {
+impl<const I: usize, const O: usize, R> ReservoirComputer<I, O, PARAM_DIM, R> for ESN<I, O, R>
+where
+    R: LinReg,
+{
     type ParamMapper = ParamMapper;
 
     /// Create a new reservoir, with random initiallization
     /// # Arguments
-    fn new(params: Params) -> Self {
+    fn new(params: Params, regressor: R) -> Self {
         let mut rng = match params.seed {
             Some(seed) => WyRand::new_seed(seed),
             None => WyRand::new(),
@@ -272,13 +276,14 @@ impl<const I: usize, const O: usize> ReservoirComputer<I, O, PARAM_DIM> for ESN<
             reservoir_biases,
             rng,
             extended_state,
+            regressor,
         }
     }
 
     fn train<'a>(
         &mut self,
         inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
-        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<I>>,
+        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<O>>,
     ) {
         let washout_len = (inputs.ncols() as f64 * self.params.washout_pct) as usize;
         let harvest_len = inputs.ncols() - washout_len;

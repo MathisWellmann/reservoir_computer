@@ -7,11 +7,12 @@ use sliding_features::{Constant, Echo, Multiply, View, ALMA, VSCT};
 use crate::{
     activation::Activation,
     environments::env_trades::EnvTrades,
+    lin_reg::TikhonovRegularization,
     load_sample_data,
     optimizers::opt_firefly::{FireflyOptimizer, FireflyParams},
     plot::{GifRender, GifRenderOptimizer},
     reservoir_computers::{esn, eusn, OptParamMapper, RCParams, ReservoirComputer},
-    Series,
+    LinReg, Series,
 };
 
 const SEED: Option<u64> = Some(0);
@@ -63,9 +64,17 @@ pub(crate) fn start() {
                 readout_from_input_as_well: false,
             };
 
-            let mut rc = esn::ESN::new(params);
+            // TODO: choose lin reg
+            let regressor = TikhonovRegularization {
+                regularization_coeff: 0.001,
+            };
+            let mut rc = esn::ESN::new(params, regressor);
 
-            run_sliding::<esn::ESN<1, 1>, 7>(&mut rc, values, "img/trades_sliding_window_esn.gif");
+            run_sliding::<esn::ESN<1, 1, TikhonovRegularization>, 7, TikhonovRegularization>(
+                &mut rc,
+                values,
+                "img/trades_sliding_window_esn.gif",
+            );
         }
         1 => {
             let params = eusn::Params {
@@ -82,13 +91,17 @@ pub(crate) fn start() {
                 epsilon: 0.008,
                 gamma: 0.05,
             };
-            let mut rc = eusn::EulerStateNetwork::new(params);
+            // TODO: choose lin reg
+            let regressor = TikhonovRegularization {
+                regularization_coeff: 0.001,
+            };
+            let mut rc = eusn::EulerStateNetwork::new(params, regressor);
 
-            run_sliding::<eusn::EulerStateNetwork<1, 1>, 7>(
-                &mut rc,
-                values,
-                "img/trades_sliding_window_eusn.gif",
-            );
+            run_sliding::<
+                eusn::EulerStateNetwork<1, 1, TikhonovRegularization>,
+                7,
+                TikhonovRegularization,
+            >(&mut rc, values, "img/trades_sliding_window_eusn.gif");
         }
         2 => {
             todo!()
@@ -113,22 +126,30 @@ pub(crate) fn start() {
                 initial_state_value: values[0],
                 readout_from_input_as_well: false,
             };
-            run_sliding_opt_firefly::<esn::ESN<1, 1>, 7>(
-                values,
-                "img/trades_sliding_window_esn_firefly.gif",
-                &param_mapper,
+            // TODO: choose lin reg
+            let regressor = TikhonovRegularization {
+                regularization_coeff: 0.001,
+            };
+            run_sliding_opt_firefly::<
+                esn::ESN<1, 1, TikhonovRegularization>,
+                7,
+                TikhonovRegularization,
+            >(
+                values, "img/trades_sliding_window_esn_firefly.gif", &param_mapper, regressor
             );
         }
         _ => panic!("invalid reservoir computer selection"),
     }
 }
 
-fn run_sliding_opt_firefly<R, const N: usize>(
+fn run_sliding_opt_firefly<RC, const N: usize, R>(
     values: Vec<f64>,
     filename: &str,
-    param_mapper: &R::ParamMapper,
+    param_mapper: &RC::ParamMapper,
+    regressor: R,
 ) where
-    R: ReservoirComputer<1, 1, N> + Send + Sync + 'static,
+    RC: ReservoirComputer<1, 1, N, R> + Send + Sync + 'static,
+    R: LinReg + Send + Sync + 'static,
 {
     let t0 = Instant::now();
 
@@ -157,9 +178,9 @@ fn run_sliding_opt_firefly<R, const N: usize>(
             );
             let env = Arc::new(env);
 
-            opt.step::<R, 1, 1>(env.clone(), &param_mapper);
+            opt.step::<RC, 1, 1, R>(env.clone(), &param_mapper, regressor.clone());
             let params = param_mapper.map(opt.elite_params());
-            let mut rc = R::new(params);
+            let mut rc = RC::new(params, regressor.clone());
             rc.train(
                 &values.columns(j - TRAIN_LEN - VALIDATION_LEN - 1, j - VALIDATION_LEN - 1),
                 &values.columns(j - TRAIN_LEN - VALIDATION_LEN, j - VALIDATION_LEN),
@@ -190,9 +211,10 @@ fn run_sliding_opt_firefly<R, const N: usize>(
     info!("took {}s", t0.elapsed().as_secs());
 }
 
-fn run_sliding<R, const N: usize>(rc: &mut R, values: Vec<f64>, filename: &str)
+fn run_sliding<RC, const N: usize, R>(rc: &mut RC, values: Vec<f64>, filename: &str)
 where
-    R: ReservoirComputer<1, 1, N>,
+    RC: ReservoirComputer<1, 1, N, R>,
+    R: LinReg,
 {
     let t0 = Instant::now();
 
@@ -228,12 +250,13 @@ where
     info!("took {}s", t0.elapsed().as_secs());
 }
 
-fn gather_plot_data<'a, R, const I: usize, const O: usize, const N: usize>(
+fn gather_plot_data<'a, RC, const I: usize, const O: usize, const N: usize, R>(
     values: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
-    rc: &mut R,
+    rc: &mut RC,
 ) -> (Series, Series, Series)
 where
-    R: ReservoirComputer<I, O, N>,
+    RC: ReservoirComputer<I, O, N, R>,
+    R: LinReg,
 {
     let mut plot_targets = Vec::with_capacity(values.len());
     let mut train_preds = vec![];
