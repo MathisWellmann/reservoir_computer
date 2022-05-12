@@ -282,8 +282,8 @@ where
 
     fn train<'a>(
         &mut self,
-        inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
-        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<O>>,
+        inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
+        targets: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
     ) {
         let washout_len = (inputs.ncols() as f64 * self.params.washout_pct) as usize;
         let harvest_len = inputs.ncols() - washout_len;
@@ -332,6 +332,7 @@ where
             }
         }
 
+        // TODO: put into its own lin_reg file with tests
         // Ridge regression regularization, I think
         let x: DMatrix<f64> = Matrix::from_fn_generic(
             Dim::from_usize(harvest_len),
@@ -353,8 +354,8 @@ where
 
     fn update_state<'a>(
         &mut self,
-        input: &'a MatrixSlice<'a, f64, Const<I>, Const<1>, Const<1>, Const<I>>,
-        prev_pred: &Matrix<f64, Const<O>, Const<1>, ArrayStorage<f64, O, 1>>,
+        input: &'a MatrixSlice<'a, f64, Dynamic, Const<1>, Const<1>, Dynamic>,
+        prev_pred: &Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
     ) {
         // perform node-to-node update
         let noise: StateMatrix = Matrix::from_fn_generic(

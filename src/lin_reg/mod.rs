@@ -1,4 +1,4 @@
-use nalgebra::{Const, Dynamic, Matrix, MatrixSlice, VecStorage};
+use nalgebra::{Const, DMatrix, Dynamic, MatrixSlice};
 
 mod tikhonov_regularization;
 
@@ -9,11 +9,11 @@ pub trait LinReg: Clone {
     /// Fit a readout matrix, mapping inputs to targets
     ///
     /// # Parameters
-    /// design: Input data having I rows as the input dimensionality
+    /// design: Input data having, where the first column should be just 1s
     /// targets: Target data having O rows as the output dimensionality
-    fn fit_readout<'a, const O: usize>(
+    fn fit_readout<'a>(
         &self,
         design: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
-        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<O>>,
-    ) -> Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>;
+        targets: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
+    ) -> DMatrix<f64>;
 }

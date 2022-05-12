@@ -122,7 +122,8 @@ pub struct EulerStateNetwork<const I: usize, const O: usize, R> {
 
 impl<const I: usize, const O: usize, R> ReservoirComputer<I, O, PARAM_DIM, R>
     for EulerStateNetwork<I, O, R>
-where R: LinReg
+where
+    R: LinReg,
 {
     type ParamMapper = ParamMapper;
 
@@ -198,8 +199,8 @@ where R: LinReg
     /// Train the EuSN with the given inputs and targets
     fn train<'a>(
         &mut self,
-        inputs: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
-        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<O>>,
+        inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
+        targets: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
     ) {
         let washout_len = (inputs.ncols() as f64 * self.params.washout_frac) as usize;
         let harvest_len = inputs.ncols() - washout_len;

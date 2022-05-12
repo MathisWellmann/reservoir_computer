@@ -1,4 +1,4 @@
-use nalgebra::{ArrayStorage, Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice};
 
 use super::LinReg;
 
@@ -12,31 +12,61 @@ pub struct TikhonovRegularization {
 }
 
 impl LinReg for TikhonovRegularization {
-    fn fit_readout<'a, const O: usize>(
+    fn fit_readout<'a>(
         &self,
         design: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
-        targets: &'a MatrixSlice<'a, f64, Const<O>, Dynamic, Const<1>, Const<O>>,
-    ) -> Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>> {
+        targets: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
+    ) -> DMatrix<f64> {
         let reg_m: DMatrix<f64> = Matrix::from_diagonal_element_generic(
-            Dim::from_usize(design.nrows()),
-            Dim::from_usize(design.nrows()),
+            Dim::from_usize(design.ncols()),
+            Dim::from_usize(design.ncols()),
             self.regularization_coeff,
         );
 
-        let p0 = targets * design.transpose();
-        let p1 = design * design.transpose();
-        let p2 = p1 + reg_m;
+        let p0 = design.transpose() * design;
+        let p1 = (p0 + reg_m).try_inverse().unwrap();
+        let p2 = design.transpose() * targets;
 
-        p0 * p2.try_inverse().unwrap()
+        p1 * p2
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nalgebra::VecStorage;
+    use round::round;
 
     #[test]
     fn tikhonov_regularization() {
-        todo!()
+        if let Err(_) = pretty_env_logger::try_init() {}
+
+        // Note the first column being just ones
+        let design: DMatrix<f64> = Matrix::from_vec_generic(
+            Dim::from_usize(4),
+            Dim::from_usize(3),
+            vec![1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 2.0, 3.0, 0.0, 0.0, 1.0, 2.0],
+        );
+        let targets: DMatrix<f64> = Matrix::from_vec_generic(
+            Dim::from_usize(4),
+            Dim::from_usize(1),
+            vec![1.0, 2.0, 3.0, 4.0],
+        );
+        info!("design: {}, targets: {}", design, targets);
+
+        let regressor = TikhonovRegularization {
+            regularization_coeff: 0.0,
+        };
+        let mut readout_matrix = regressor
+            .fit_readout(&design.columns(0, design.ncols()), &targets.columns(0, targets.ncols()));
+        info!("readout_matrix: {}", readout_matrix);
+
+        let goal_matrix: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+            Matrix::from_vec_generic(Dim::from_usize(3), Dim::from_usize(1), vec![1.0, 1.0, 0.0]);
+
+        // round readout
+        readout_matrix.iter_mut().for_each(|v| *v = round(*v, 1));
+
+        assert_eq!(readout_matrix, goal_matrix,)
     }
 }
