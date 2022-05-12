@@ -170,7 +170,7 @@ pub struct ESN<const I: usize, const O: usize, R> {
     input_weight_matrix: Matrix<f64, Dynamic, Const<I>, VecStorage<f64, Dynamic, Const<I>>>,
     reservoir_matrix: DMatrix<f64>,
     reservoir_biases: StateMatrix,
-    readout_matrix: Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>>,
+    readout_matrix: DMatrix<f64>,
     feedback_matrix: Matrix<f64, Dynamic, Const<O>, VecStorage<f64, Dynamic, Const<O>>>,
     state: StateMatrix,
     extended_state: StateMatrix,
@@ -178,7 +178,7 @@ pub struct ESN<const I: usize, const O: usize, R> {
     regressor: R,
 }
 
-impl<const I: usize, const O: usize, R> ReservoirComputer<I, O, PARAM_DIM, R> for ESN<I, O, R>
+impl<const I: usize, const O: usize, R> ReservoirComputer<PARAM_DIM, R> for ESN<I, O, R>
 where
     R: LinReg,
 {
@@ -332,6 +332,13 @@ where
             }
         }
 
+        self.readout_matrix = self.regressor.fit_readout(
+            &design_matrix.columns(0, design_matrix.ncols()),
+            &target_matrix.columns(0, target_matrix.ncols()),
+        );
+
+        // TODO: move this qr based fit into its own file
+        /*
         // TODO: put into its own lin_reg file with tests
         // Ridge regression regularization, I think
         let x: DMatrix<f64> = Matrix::from_fn_generic(
@@ -350,6 +357,7 @@ where
         let a = qr.r().try_inverse().unwrap() * qr.q().transpose();
         let b = a * &target_matrix;
         self.readout_matrix = b.transpose();
+        */
     }
 
     fn update_state<'a>(
@@ -387,7 +395,7 @@ where
     /// Perform a readout operation
     #[inline]
     #[must_use]
-    fn readout(&self) -> Matrix<f64, Const<O>, Const<1>, ArrayStorage<f64, O, 1>> {
+    fn readout(&self) -> Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> {
         let mut pred = if self.params.readout_from_input_as_well {
             &self.readout_matrix * &self.extended_state
         } else {
@@ -418,9 +426,7 @@ where
     }
 
     #[inline(always)]
-    fn readout_matrix(
-        &self,
-    ) -> &Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>> {
+    fn readout_matrix(&self) -> &DMatrix<f64> {
         &self.readout_matrix
     }
 }

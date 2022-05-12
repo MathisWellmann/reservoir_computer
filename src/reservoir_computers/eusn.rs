@@ -120,7 +120,7 @@ pub struct EulerStateNetwork<const I: usize, const O: usize, R> {
     regressor: R,
 }
 
-impl<const I: usize, const O: usize, R> ReservoirComputer<I, O, PARAM_DIM, R>
+impl<const I: usize, const O: usize, R> ReservoirComputer<PARAM_DIM, R>
     for EulerStateNetwork<I, O, R>
 where
     R: LinReg,
@@ -256,8 +256,8 @@ where
     /// Propagate an input through the network and update its state
     fn update_state<'a>(
         &mut self,
-        input: &'a MatrixSlice<'a, f64, Const<I>, Const<1>, Const<1>, Const<I>>,
-        _prev_pred: &Matrix<f64, Const<O>, Const<1>, ArrayStorage<f64, O, 1>>,
+        input: &'a MatrixSlice<'a, f64, Dynamic, Const<1>, Const<1>, Dynamic>,
+        _prev_pred: &Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
     ) {
         let mut nonlinear = (&self.reservoir_weight_matrix * &self.state)
             + (&self.input_weight_matrix * input)
@@ -267,7 +267,7 @@ where
     }
 
     #[inline(always)]
-    fn readout(&self) -> Matrix<f64, Const<O>, Const<1>, ArrayStorage<f64, O, 1>> {
+    fn readout(&self) -> Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> {
         &self.readout_matrix * &self.state
     }
 
@@ -290,9 +290,7 @@ where
     }
 
     #[inline(always)]
-    fn readout_matrix(
-        &self,
-    ) -> &Matrix<f64, Const<O>, Dynamic, VecStorage<f64, Const<O>, Dynamic>> {
+    fn readout_matrix(&self) -> &DMatrix<f64> {
         &self.readout_matrix
     }
 }
