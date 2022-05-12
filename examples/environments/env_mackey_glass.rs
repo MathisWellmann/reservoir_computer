@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
-use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
+use nalgebra::{DMatrix, Dim, Matrix};
 
 use super::PlotGather;
-use crate::{LinReg, OptEnvironment, RCParams, ReservoirComputer, SingleDimIo};
+use reservoir_computer::{LinReg, RCParams, ReservoirComputer};
 
 pub struct EnvMackeyGlass {
-    values: Arc<SingleDimIo>,
+    values: Arc<DMatrix<f64>>,
     train_len: usize,
 }
 
 impl EnvMackeyGlass {
     #[inline]
-    pub fn new(values: Arc<SingleDimIo>, train_len: usize) -> Self {
+    pub fn new(values: Arc<DMatrix<f64>>, train_len: usize) -> Self {
         assert!(values.ncols() > train_len, "make sure train_len < number of datapoints");
 
         Self {
@@ -22,12 +22,16 @@ impl EnvMackeyGlass {
     }
 }
 
-impl<RC, const N: usize, R> OptEnvironment<RC, 1, 1, N, R> for EnvMackeyGlass
-where
-    RC: ReservoirComputer<1, 1, N, R>,
-    R: LinReg,
-{
-    fn evaluate(&self, rc: &mut RC, mut plot: Option<&mut PlotGather>) -> f64 {
+impl EnvMackeyGlass {
+    pub fn evaluate<RC, const N: usize, R>(
+        &self,
+        rc: &mut RC,
+        mut plot: Option<&mut PlotGather>,
+    ) -> f64
+    where
+        RC: ReservoirComputer<N, R>,
+        R: LinReg,
+    {
         rc.train(
             &self.values.columns(0, self.train_len - 1),
             &self.values.columns(1, self.train_len),
@@ -53,7 +57,7 @@ where
             }
 
             // To begin forecasting, replace target input with it's own prediction
-            let m: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+            let m: DMatrix<f64> =
                 Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |i, _| {
                     *predicted_out.get(i).unwrap()
                 });

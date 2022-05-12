@@ -9,10 +9,11 @@ use crate::{
     environments::env_trades::EnvTrades,
     lin_reg::TikhonovRegularization,
     load_sample_data,
-    optimizers::opt_firefly::{FireflyOptimizer, FireflyParams},
+    // optimizers::opt_firefly::{FireflyOptimizer, FireflyParams},
     plot::{GifRender, GifRenderOptimizer},
     reservoir_computers::{esn, eusn, OptParamMapper, RCParams, ReservoirComputer},
-    LinReg, Series,
+    LinReg,
+    Series,
 };
 
 const SEED: Option<u64> = Some(0);
@@ -107,6 +108,8 @@ pub(crate) fn start() {
             todo!()
         }
         3 => {
+            // TODO:
+            /*
             let param_mapper = esn::ParamMapper {
                 input_sparsity_range: (0.15, 0.25),
                 input_activation: Activation::Identity,
@@ -137,6 +140,7 @@ pub(crate) fn start() {
             >(
                 values, "img/trades_sliding_window_esn_firefly.gif", &param_mapper, regressor
             );
+            */
         }
         _ => panic!("invalid reservoir computer selection"),
     }

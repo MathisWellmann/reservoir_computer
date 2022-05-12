@@ -1,32 +1,39 @@
+#[macro_use]
+extern crate log;
+
+mod environments;
+mod plot;
+
 use std::{collections::VecDeque, sync::Arc, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
-use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
+use nalgebra::{DMatrix, Dim, Matrix};
 use nanorand::{Rng, WyRand};
 
-use crate::{
-    activation::Activation,
-    environments::{env_mackey_glass::EnvMackeyGlass, PlotGather},
-    lin_reg::TikhonovRegularization,
+use plot::{plot, Series};
+
+use reservoir_computer::{
+    /*
     optimizers::{
         opt_firefly::{FireflyOptimizer, FireflyParams},
         opt_random_search::RandomSearch,
     },
-    plot::{plot, GifRenderOptimizer},
-    reservoir_computers::{esn, eusn, ngrc, OptParamMapper, ReservoirComputer},
-    OptEnvironment,
+    */
+    esn, ngrc, Activation, ReservoirComputer, TikhonovRegularization,
 };
+
+use crate::{environments::env_mackey_glass::EnvMackeyGlass, plot::PlotGather};
 
 const TRAIN_LEN: usize = 5000;
 const TEST_LEN: usize = 1000;
 const SEED: Option<u64> = Some(0);
 const NUM_GENS: usize = 100;
 
-pub(crate) fn start() {
+pub(crate) fn main() {
     let total_len = TRAIN_LEN + TEST_LEN;
     let values = mackey_glass_series(total_len, 30, SEED);
 
-    let values: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+    let values: DMatrix<f64> =
         Matrix::from_vec_generic(Dim::from_usize(1), Dim::from_usize(values.len()), values);
 
     let rcs = vec![
@@ -72,7 +79,7 @@ pub(crate) fn start() {
             let regressor = TikhonovRegularization {
                 regularization_coeff: 0.1,
             };
-            let mut rc = esn::ESN::new(params, regressor);
+            let mut rc = esn::ESN::<1, 1, TikhonovRegularization>::new(params, regressor);
 
             let t0 = Instant::now();
             rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
@@ -91,6 +98,8 @@ pub(crate) fn start() {
             );
         }
         1 => {
+            // TODO:
+            /*
             let params = eusn::Params {
                 input_sparsity: 0.1,
                 input_weight_scaling: 1.0,
@@ -126,9 +135,12 @@ pub(crate) fn start() {
                 "img/mackey_glass_esn.png",
                 (3840, 1080),
             );
+            */
         }
         2 => {
             let params = ngrc::Params {
+                input_dim: 1,
+                output_dim: 1,
                 num_time_delay_taps: 3,
                 num_samples_to_skip: 1,
                 output_activation: Activation::Identity,
@@ -155,6 +167,8 @@ pub(crate) fn start() {
             );
         }
         3 => {
+            // TODO:
+            /*
             let param_mapper = esn::ParamMapper {
                 input_sparsity_range: (0.05, 0.2),
                 input_activation: Activation::Identity,
@@ -229,8 +243,11 @@ pub(crate) fn start() {
                     opt.best_rmse()
                 );
             }
+            */
         }
         4 => {
+            // TODO:
+            /*
             let seed = Some(0);
 
             let param_mapper = esn::ParamMapper {
@@ -301,8 +318,11 @@ pub(crate) fn start() {
                     opt.best_rmse()
                 );
             }
+            */
         }
         5 => {
+            // TODO:
+            /*
             let param_mapper = eusn::ParamMapper {
                 input_sparsity_range: (0.05, 0.2),
                 input_weight_scaling_range: (0.1, 1.0),
@@ -344,8 +364,8 @@ pub(crate) fn start() {
                     regularization_coeff: 0.001,
                 };
                 opt.step::<eusn::EulerStateNetwork<1, 1, TikhonovRegularization>, 1, 1, TikhonovRegularization>(
-                    env.clone(), 
-                    &param_mapper, 
+                    env.clone(),
+                    &param_mapper,
                     regressor.clone()
                 );
 
@@ -372,8 +392,11 @@ pub(crate) fn start() {
                     opt.best_rmse()
                 );
             }
+            */
         }
         6 => {
+            // TODO:
+            /*
             let param_mapper = eusn::ParamMapper {
                 input_sparsity_range: (0.05, 0.2),
                 input_weight_scaling_range: (0.1, 1.0),
@@ -438,6 +461,7 @@ pub(crate) fn start() {
                     opt.best_rmse()
                 );
             }
+            */
         }
 
         _ => panic!("invalid reservoir computer selection"),

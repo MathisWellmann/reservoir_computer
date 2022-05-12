@@ -9,10 +9,12 @@ use crate::{
     activation::Activation,
     environments::{env_trades::EnvTrades, PlotGather},
     lin_reg::TikhonovRegularization,
+    /*
     optimizers::{
         opt_firefly::{FireflyOptimizer, FireflyParams},
         opt_random_search::RandomSearch,
     },
+    */
     plot::{plot, GifRenderOptimizer},
     reservoir_computers::{esn, eusn, ngrc, OptParamMapper, ReservoirComputer},
     OptEnvironment, SingleDimIo,
@@ -160,6 +162,8 @@ pub(crate) fn start() {
             );
         }
         3 => {
+            // TODO:
+            /*
             let param_mapper = esn::ParamMapper {
                 input_sparsity_range: (0.05, 0.25),
                 input_activation: Activation::Identity,
@@ -227,8 +231,11 @@ pub(crate) fn start() {
                     opt.best_rmse()
                 );
             }
+            */
         }
         4 => {
+            // TODO:
+            /*
             let seed = Some(0);
 
             let param_mapper = esn::ParamMapper {
@@ -298,8 +305,11 @@ pub(crate) fn start() {
                     opt.best_rmse()
                 );
             }
+            */
         }
         5 => {
+            // TODO:
+            /*
             let param_mapper = eusn::ParamMapper {
                 input_sparsity_range: (0.05, 0.25),
                 input_weight_scaling_range: (0.1, 1.0),
@@ -341,8 +351,8 @@ pub(crate) fn start() {
                     regularization_coeff: 0.001,
                 };
                 opt.step::<eusn::EulerStateNetwork<1, 1, TikhonovRegularization>, 1, 1, TikhonovRegularization>(
-                    env.clone(), 
-                    &param_mapper, 
+                    env.clone(),
+                    &param_mapper,
                     regressor.clone()
                 );
 
@@ -369,8 +379,11 @@ pub(crate) fn start() {
                     opt.best_rmse()
                 );
             }
+            */
         }
         6 => {
+            // TODO:
+            /*
             let param_mapper = eusn::ParamMapper {
                 input_sparsity_range: (0.05, 0.25),
                 input_weight_scaling_range: (0.1, 1.0),
@@ -408,7 +421,7 @@ pub(crate) fn start() {
                 };
                 opt.step::<eusn::EulerStateNetwork<1, 1, TikhonovRegularization>, 1, 1, TikhonovRegularization>(
                     env.clone(),
-                    &param_mapper, 
+                    &param_mapper,
                     regressor.clone()
                 );
 
@@ -435,6 +448,7 @@ pub(crate) fn start() {
                     opt.best_rmse()
                 );
             }
+            */
         }
         _ => panic!("invalid reservoir computer selection"),
     }

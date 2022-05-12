@@ -1,18 +1,20 @@
 use std::sync::Arc;
 
-use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, VecStorage};
 
-use super::{OptEnvironment, PlotGather};
-use crate::{reservoir_computers::StateMatrix, LinReg, RCParams, ReservoirComputer, SingleDimIo};
+use super::PlotGather;
+use reservoir_computer::{LinReg, RCParams, ReservoirComputer};
+
+type StateMatrix = Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;
 
 pub struct EnvTrades {
-    values: Arc<SingleDimIo>,
+    values: Arc<DMatrix<f64>>,
     train_len: usize,
 }
 
 impl EnvTrades {
     #[inline(always)]
-    pub fn new(values: Arc<SingleDimIo>, train_len: usize) -> Self {
+    pub fn new(values: Arc<DMatrix<f64>>, train_len: usize) -> Self {
         Self {
             values,
             train_len,
@@ -20,12 +22,12 @@ impl EnvTrades {
     }
 }
 
-impl<RC, const N: usize, R> OptEnvironment<RC, 1, 1, N, R> for EnvTrades
-where
-    RC: ReservoirComputer<1, 1, N, R>,
-    R: LinReg,
-{
-    fn evaluate(&self, rc: &mut RC, mut plot: Option<&mut PlotGather>) -> f64 {
+impl EnvTrades {
+    fn evaluate<RC, const N: usize, R>(&self, rc: &mut RC, mut plot: Option<&mut PlotGather>) -> f64
+    where
+        RC: ReservoirComputer<N, R>,
+        R: LinReg,
+    {
         rc.train(
             &self.values.columns(0, self.train_len - 1),
             &self.values.columns(1, self.train_len),
@@ -48,7 +50,7 @@ where
             let last_prediction = *predicted_out.get(0).unwrap();
 
             // To begin forecasting, replace target input with it's own prediction
-            let m: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+            let m: DMatrix<f64> =
                 Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |i, _| {
                     *predicted_out.get(i).unwrap()
                 });
