@@ -58,8 +58,14 @@ impl OptParamMapper<PARAM_DIM> for ParamMapper {
 }
 
 impl<R> NextGenerationRC<R>
-where R: LinReg
+where
+    R: LinReg,
 {
+    /// Construct the linear part of feature vector
+    ///
+    /// # Arguments
+    /// inputs: Number of rows are the observed datapoints and number of columns represent the features at each timestep
+    ///
     fn construct_lin_part<'a>(
         &self,
         inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
@@ -67,28 +73,34 @@ where R: LinReg
         assert_eq!(inputs.ncols(), 1, "more than 1 input dimension not implemented yet");
 
         let mut lin_part: DMatrix<f64> = Matrix::from_element_generic(
+            Dim::from_usize(inputs.nrows()),
             Dim::from_usize(self.d_lin),
-            Dim::from_usize(inputs.ncols()),
             0.0,
         );
 
         for delay in 0..self.params.num_time_delay_taps {
-            let mut row = vec![0.0; inputs.ncols()];
-            for j in delay * self.params.num_samples_to_skip..inputs.ncols() {
+            let mut column = vec![0.0; inputs.nrows()];
+            for j in delay * self.params.num_samples_to_skip..inputs.nrows() {
                 // TODO: support for more than 1 input dimension
-                row[j] =
-                    *inputs.row(0).get(j - delay * self.params.num_samples_to_skip).unwrap_or(&0.0);
+                column[j] = *inputs
+                    .column(0)
+                    .get(j - delay * self.params.num_samples_to_skip)
+                    .unwrap_or(&0.0);
             }
-            let row_idx = inputs.ncols() * delay;
-            let row: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
-                Matrix::from_vec_generic(Dim::from_usize(1), Dim::from_usize(row.len()), row);
-            lin_part.set_row(row_idx, &row);
+            let col_idx = inputs.ncols() * delay;
+            let column: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+                Matrix::from_vec_generic(Dim::from_usize(column.len()), Dim::from_usize(1), column);
+            lin_part.set_column(col_idx, &column);
         }
 
         lin_part
     }
 
     /// Construct the nonlinear part of feature matrix from linear part
+    ///
+    /// # Arguments
+    /// inputs: Number of rows are the observed datapoints and number of columns represent the features at each timestep
+    ///
     fn construct_full_features<'a>(
         &self,
         inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
@@ -99,34 +111,34 @@ where R: LinReg
 
         // manually copy over elements while skipping the warmup columns
         let mut full_features: DMatrix<f64> = Matrix::from_element_generic(
+            Dim::from_usize(lin_part.nrows() - warmup),
             Dim::from_usize(self.d_total),
-            Dim::from_usize(lin_part.ncols() - warmup),
             0.0,
         );
-        for j in warmup..lin_part.ncols() {
+        for i in warmup..lin_part.nrows() {
             full_features
-                .set_column(j - warmup, &lin_part.column(j).resize_vertically(self.d_total, 0.0));
+                .set_row(i - warmup, &lin_part.row(i).resize_horizontally(self.d_total, 0.0));
         }
 
         let mut cnt: usize = 0;
         for i in 0..self.d_lin {
             for j in i..self.d_lin {
                 for span in j..self.d_lin {
-                    let row: Vec<f64> = lin_part
-                        .row(i)
+                    let column: Vec<f64> = lin_part
+                        .column(i)
                         .iter()
                         .skip(warmup)
-                        .zip(lin_part.row(j).iter().skip(warmup))
-                        .zip(lin_part.row(span).iter().skip(warmup))
+                        .zip(lin_part.column(j).iter().skip(warmup))
+                        .zip(lin_part.column(span).iter().skip(warmup))
                         .map(|((v_i, v_j), v_s)| v_i * v_j * v_s)
                         .collect();
-                    let row: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+                    let column: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
                         Matrix::from_vec_generic(
+                            Dim::from_usize(lin_part.nrows() - warmup),
                             Dim::from_usize(1),
-                            Dim::from_usize(lin_part.ncols() - warmup),
-                            row,
+                            column,
                         );
-                    full_features.set_row(self.d_lin + cnt, &row);
+                    full_features.set_column(self.d_lin + cnt, &column);
                     cnt += 1;
                 }
             }
@@ -137,7 +149,8 @@ where R: LinReg
 }
 
 impl<R> ReservoirComputer<PARAM_DIM, R> for NextGenerationRC<R>
-where R: LinReg
+where
+    R: LinReg,
 {
     type ParamMapper = ParamMapper;
 
@@ -175,6 +188,7 @@ where R: LinReg
 
         let warmup = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
 
+        // TODO: add column of 1s here
         self.readout_matrix = self.regressor.fit_readout(
             &full_features.columns(0, full_features.ncols()),
             &targets.columns(warmup + 1, targets.ncols() - warmup - 1),
@@ -261,8 +275,8 @@ mod tests {
 
     fn get_inputs() -> DMatrix<f64> {
         Matrix::from_vec_generic(
-            Dim::from_usize(1),
             Dim::from_usize(NUM_VALS),
+            Dim::from_usize(1),
             vec![0.0, 0.55, 1.0, 0.45, 0.0, -0.55, -1.0, -0.45, 0.0],
         )
     }
@@ -286,19 +300,18 @@ mod tests {
         };
         let ngrc = NextGenerationRC::<TikhonovRegularization>::new(params, regressor);
 
-        let lin_part = ngrc.construct_lin_part(&inputs.columns(0, NUM_VALS));
+        let lin_part = ngrc.construct_lin_part(&inputs.rows(0, NUM_VALS));
         info!("inputs: {}", inputs);
         info!("lin_part: {}", lin_part);
 
-        let goal_part: Matrix<f64, Const<K>, Dynamic, VecStorage<f64, Const<K>, Dynamic>> =
-            Matrix::from_vec_generic(
-                Dim::from_usize(K),
-                Dim::from_usize(NUM_VALS),
-                vec![
-                    0.0, 0.0, 0.0, 0.55, 0.0, 0.0, 1.0, 0.55, 0.0, 0.45, 1.0, 0.55, 0.0, 0.45, 1.0,
-                    -0.55, 0.0, 0.45, -1.0, -0.55, 0.0, -0.45, -1.0, -0.55, 0.0, -0.45, -1.0,
-                ],
-            );
+        let goal_part: DMatrix<f64> = Matrix::from_vec_generic(
+            Dim::from_usize(NUM_VALS),
+            Dim::from_usize(K),
+            vec![
+                0.0, 0.55, 1.0, 0.45, 0.0, -0.55, -1.0, -0.45, 0.0, 0.0, 0.0, 0.55, 1.0, 0.45, 0.0,
+                -0.55, -1.0, -0.45, 0.0, 0.0, 0.0, 0.55, 1.0, 0.45, 0.0, -0.55, -1.0,
+            ],
+        );
         info!("goal_part: {}", goal_part);
 
         assert_eq!(lin_part, goal_part)
@@ -323,19 +336,18 @@ mod tests {
         };
         let ngrc = NextGenerationRC::<TikhonovRegularization>::new(params, regressor);
 
-        let lin_part = ngrc.construct_lin_part(&inputs.columns(0, NUM_VALS));
+        let lin_part = ngrc.construct_lin_part(&inputs.rows(0, NUM_VALS));
         info!("inputs: {}", inputs);
         info!("lin_part: {}", lin_part);
 
-        let goal_part: Matrix<f64, Const<K>, Dynamic, VecStorage<f64, Const<K>, Dynamic>> =
-            Matrix::from_vec_generic(
-                Dim::from_usize(K),
-                Dim::from_usize(NUM_VALS),
-                vec![
-                    0.0, 0.0, 0.55, 0.0, 1.0, 0.0, 0.45, 0.55, 0.0, 1.0, -0.55, 0.45, -1.0, 0.0,
-                    -0.45, -0.55, 0.0, -1.0,
-                ],
-            );
+        let goal_part: DMatrix<f64> = Matrix::from_vec_generic(
+            Dim::from_usize(NUM_VALS),
+            Dim::from_usize(K),
+            vec![
+                0.0, 0.55, 1.0, 0.45, 0.0, -0.55, -1.0, -0.45, 0.0, 0.0, 0.0, 0.0, 0.55, 1.0, 0.45,
+                0.0, -0.55, -1.0,
+            ],
+        );
         info!("goal_part: {}", goal_part);
 
         assert_eq!(lin_part, goal_part)
@@ -366,7 +378,7 @@ mod tests {
         };
         let ngrc = NextGenerationRC::<TikhonovRegularization>::new(params, regressor);
 
-        let mut full_features = ngrc.construct_full_features(&inputs.columns(0, inputs.ncols()));
+        let mut full_features = ngrc.construct_full_features(&inputs.rows(0, inputs.nrows()));
         info!("inputs: {}", inputs);
 
         let d_lin = K * I;
@@ -375,13 +387,13 @@ mod tests {
         let warmup = I * K;
 
         let goal_features: DMatrix<f64> = Matrix::from_vec_generic(
+            Dim::from_usize(inputs.nrows() - warmup),
             Dim::from_usize(d_total),
-            Dim::from_usize(inputs.ncols() - warmup),
             vec![
-                1.0, 0.55, 1.0, 0.55, 0.3025, 0.166375, 0.45, 1.0, 0.091125, 0.2025, 0.45, 1.0,
-                0.0, 0.45, 0.0, 0.0, 0.0, 0.091125, -0.55, 0.0, -0.166375, 0.0, 0.0, 0.0, -1.0,
-                -0.55, -1.0, -0.55, -0.3025, -0.166375, -0.45, -1.0, -0.091125, -0.2025, -0.45,
-                -1.0, 0.0, -0.45, 0.0, 0.0, 0.0, -0.091125,
+                1.0, 0.45, 0.0, -0.55, -1.0, -0.45, 0.0, 0.55, 1.0, 0.45, 0.0, -0.55, -1.0, -0.45,
+                1.0, 0.091125, 0.0, -0.166375, -1.0, -0.091125, 0.0, 0.55, 0.2025, 0.0, 0.0, -0.55,
+                -0.2025, 0.0, 0.3025, 0.45, 0.0, 0.0, -0.3025, -0.45, 0.0, 0.166375, 1.0, 0.091125,
+                0.0, -0.166375, -1.0, -0.091125,
             ],
         );
         info!("goal_features: {}", goal_features);

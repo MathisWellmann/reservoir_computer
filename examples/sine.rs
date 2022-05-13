@@ -118,7 +118,7 @@ pub(crate) fn main() {
             };
             let mut rc = ngrc::NextGenerationRC::new(params, regressor);
             let t0 = Instant::now();
-            rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
+            rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));
             info!("NGRC training took {}ms", t0.elapsed().as_millis());
 
             run_rc::<ngrc::NextGenerationRC<TikhonovRegularization>, 3, TikhonovRegularization>(
