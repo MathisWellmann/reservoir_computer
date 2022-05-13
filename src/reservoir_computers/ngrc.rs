@@ -19,7 +19,7 @@ pub struct Params {
 #[derive(Debug, Clone)]
 pub struct NextGenerationRC<R> {
     params: Params,
-    inputs: VecDeque<StateMatrix>,
+    inputs: VecDeque<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
     readout_matrix: DMatrix<f64>,
     state: StateMatrix,
     // size of the linear part of feature vector
@@ -189,9 +189,25 @@ where
         let warmup = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
 
         // TODO: add column of 1s here
+        let mut design: DMatrix<f64> = Matrix::from_element_generic(
+            Dim::from_usize(full_features.nrows()),
+            Dim::from_usize(full_features.ncols() + 1),
+            0.0,
+        );
+        let col: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+            Matrix::from_element_generic(
+                Dim::from_usize(full_features.nrows()),
+                Dim::from_usize(1),
+                1.0,
+            );
+        design.set_column(0, &col);
+        for j in 1..full_features.ncols() + 1 {
+            design.set_column(j, &full_features.column(j - 1));
+        }
+
         self.readout_matrix = self.regressor.fit_readout(
-            &full_features.columns(0, full_features.ncols()),
-            &targets.columns(warmup + 1, targets.ncols() - warmup - 1),
+            &design.rows(0, design.nrows()),
+            &targets.rows(warmup + 1, targets.nrows() - warmup - 1),
         );
     }
 
@@ -200,9 +216,9 @@ where
         input: &'a MatrixSlice<'a, f64, Dynamic, Const<1>, Const<1>, Dynamic>,
         _prev_pred: &Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
     ) {
-        let input = <Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>>::from_column_slice_generic(
-                Dim::from_usize(self.params.input_dim),
+        let input = <Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>::from_column_slice_generic(
                 Dim::from_usize(1),
+                Dim::from_usize(self.params.input_dim),
                 input.as_slice()
             );
         self.inputs.push_back(input);
@@ -215,12 +231,12 @@ where
         }
 
         let mut inputs: DMatrix<f64> = Matrix::from_element_generic(
-            Dim::from_usize(self.params.input_dim),
             Dim::from_usize(self.window_cap),
+            Dim::from_usize(self.params.input_dim),
             0.0,
         );
-        for (j, col) in self.inputs.iter().enumerate() {
-            inputs.set_column(j, col);
+        for (i, col) in self.inputs.iter().enumerate() {
+            inputs.set_row(i, col);
         }
         let full_features = self.construct_full_features(&inputs.columns(0, inputs.ncols()));
 

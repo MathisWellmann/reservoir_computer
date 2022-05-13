@@ -6,7 +6,7 @@ mod plot;
 use std::time::Instant;
 
 use dialoguer::{theme::ColorfulTheme, Select};
-use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, VecStorage};
+use nalgebra::{DMatrix, Dim, Dynamic, Matrix};
 use plot::{plot, Series};
 use reservoir_computer::{
     esn, ngrc, Activation, LinReg, RCParams, ReservoirComputer, TikhonovRegularization,
@@ -17,7 +17,7 @@ const TRAIN_LEN: usize = 600;
 const SEED: Option<u64> = Some(0);
 
 pub(crate) fn main() {
-    info!("loading sample data");
+    pretty_env_logger::init();
 
     let mut values: Vec<f64> = generate_sine_wave(100);
     values.append(&mut values.clone());
@@ -27,6 +27,7 @@ pub(crate) fn main() {
 
     let values: DMatrix<f64> =
         Matrix::from_vec_generic(Dim::from_usize(values.len()), Dim::from_usize(1), values);
+    info!("values.nrows(): {}, values.ncols(): {}", values.nrows(), values.ncols());
 
     let rcs = vec!["ESN", "EuSN", "NG-RC"];
     let e = Select::with_theme(&ColorfulTheme::default())
@@ -147,8 +148,8 @@ where
         rc.params().initial_state_value(),
     );
     rc.set_state(state);
-    for j in 1..n_vals {
-        plot_targets.push((j as f64, *values.column(j).get(0).unwrap()));
+    for i in 1..n_vals {
+        plot_targets.push((i as f64, *values.row(i).get(0).unwrap()));
 
         let predicted_out = rc.readout();
         let mut last_prediction = *predicted_out.get(0).unwrap();
@@ -156,20 +157,20 @@ where
             last_prediction = 0.0;
         }
 
-        if j == TRAIN_LEN {
-            test_predictions.push((j as f64, last_prediction));
+        if i == TRAIN_LEN {
+            test_predictions.push((i as f64, last_prediction));
         }
         // To begin forecasting, replace target input with it's own prediction
         let m: DMatrix<f64> =
             Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |i, _| {
                 *predicted_out.get(i).unwrap()
             });
-        let input = if j > TRAIN_LEN {
-            test_predictions.push((j as f64, last_prediction));
+        let input = if i > TRAIN_LEN {
+            test_predictions.push((i as f64, last_prediction));
             m.column(0)
         } else {
-            train_predictions.push((j as f64, last_prediction));
-            values.column(j - 1)
+            train_predictions.push((i as f64, last_prediction));
+            values.column(i - 1)
         };
 
         rc.update_state(&input, &predicted_out);
