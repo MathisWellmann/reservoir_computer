@@ -23,7 +23,11 @@ impl EnvTrades {
 }
 
 impl EnvTrades {
-    fn evaluate<RC, const N: usize, R>(&self, rc: &mut RC, mut plot: Option<&mut PlotGather>) -> f64
+    pub(crate) fn evaluate<RC, const N: usize, R>(
+        &self,
+        rc: &mut RC,
+        mut plot: Option<&mut PlotGather>,
+    ) -> f64
     where
         RC: ReservoirComputer<N, R>,
         R: LinReg,

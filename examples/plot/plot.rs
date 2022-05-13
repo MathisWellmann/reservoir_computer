@@ -1,6 +1,6 @@
 use plotters::prelude::*;
 
-use crate::Series;
+use super::Series;
 
 pub fn plot(
     targets: &Series,

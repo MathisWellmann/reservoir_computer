@@ -1,23 +1,26 @@
-use std::{sync::Arc, time::Instant};
+#[macro_use]
+extern crate log;
+
+mod environments;
+mod plot;
+
+use environments::env_trades::EnvTrades;
+use plot::{plot, GifRenderOptimizer, PlotGather};
 
 use dialoguer::{theme::ColorfulTheme, Select};
-use nalgebra::{Dim, Matrix};
+use nalgebra::{DMatrix, Dim, Matrix};
 use sliding_features::{Echo, RoofingFilter, View};
+use std::{sync::Arc, time::Instant};
 use trade_aggregation::{aggregate_all_trades, load_trades_from_csv, TimeAggregator};
 
-use crate::{
-    activation::Activation,
-    environments::{env_trades::EnvTrades, PlotGather},
-    lin_reg::TikhonovRegularization,
+use reservoir_computer::{
     /*
     optimizers::{
         opt_firefly::{FireflyOptimizer, FireflyParams},
         opt_random_search::RandomSearch,
     },
     */
-    plot::{plot, GifRenderOptimizer},
-    reservoir_computers::{esn, eusn, ngrc, OptParamMapper, ReservoirComputer},
-    OptEnvironment, SingleDimIo,
+    esn, ngrc, Activation, OptParamMapper, ReservoirComputer, TikhonovRegularization,
 };
 
 const INPUT_DIM: usize = 1;
@@ -25,7 +28,7 @@ const TRAIN_LEN: usize = 5000;
 const TEST_WINDOW: usize = 600;
 const NUM_GENS: usize = 100;
 
-pub(crate) fn start() {
+pub(crate) fn main() {
     info!("loading sample data");
 
     let trades = load_trades_from_csv("data/Bitmex_XBTUSD_1M.csv");
@@ -43,7 +46,7 @@ pub(crate) fn start() {
     }
     info!("got {} datapoints", values.len());
 
-    let values: SingleDimIo =
+    let values: DMatrix<f64> =
         Matrix::from_vec_generic(Dim::from_usize(INPUT_DIM), Dim::from_usize(values.len()), values);
 
     let rcs = vec![
@@ -87,7 +90,7 @@ pub(crate) fn start() {
             let regressor = TikhonovRegularization {
                 regularization_coeff: 0.001,
             };
-            let mut rc = esn::ESN::new(params, regressor);
+            let mut rc = esn::ESN::<1, 1, TikhonovRegularization>::new(params, regressor);
 
             let env = EnvTrades::new(Arc::new(values), TRAIN_LEN);
             let mut p = PlotGather::default();
@@ -102,6 +105,8 @@ pub(crate) fn start() {
             );
         }
         1 => {
+            // TODO:
+            /*
             let params = eusn::Params {
                 input_sparsity: 0.1,
                 input_weight_scaling: 0.1,
@@ -133,9 +138,12 @@ pub(crate) fn start() {
                 "img/trades_eusn.png",
                 (2160, 2160),
             );
+            */
         }
         2 => {
             let params = ngrc::Params {
+                input_dim: 1,
+                output_dim: 1,
                 num_time_delay_taps: 20,
                 num_samples_to_skip: 2,
                 output_activation: Activation::Tanh,
