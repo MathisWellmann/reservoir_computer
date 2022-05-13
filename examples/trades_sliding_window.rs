@@ -1,26 +1,35 @@
+#[macro_use]
+extern crate log;
+
+mod environments;
+mod load_sample_data;
+mod plot;
+
 use std::{sync::Arc, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
-use nalgebra::{Const, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 use sliding_features::{Constant, Echo, Multiply, View, ALMA, VSCT};
 
-use crate::{
-    activation::Activation,
-    environments::env_trades::EnvTrades,
-    lin_reg::TikhonovRegularization,
-    load_sample_data,
+use environments::env_trades::EnvTrades;
+use load_sample_data::load_sample_data;
+use plot::{GifRender, GifRenderOptimizer, Series};
+use reservoir_computer::{
     // optimizers::opt_firefly::{FireflyOptimizer, FireflyParams},
-    plot::{GifRender, GifRenderOptimizer},
-    reservoir_computers::{esn, eusn, OptParamMapper, RCParams, ReservoirComputer},
+    esn,
+    Activation,
     LinReg,
-    Series,
+    OptParamMapper,
+    RCParams,
+    ReservoirComputer,
+    TikhonovRegularization,
 };
 
 const SEED: Option<u64> = Some(0);
 pub(crate) const TRAIN_LEN: usize = 10_000;
 pub(crate) const VALIDATION_LEN: usize = 2_000;
 
-pub(crate) fn start() {
+pub(crate) fn main() {
     info!("loading sample data");
 
     let series: Vec<f64> = load_sample_data::load_sample_data();
@@ -78,6 +87,8 @@ pub(crate) fn start() {
             );
         }
         1 => {
+            // TODO:
+            /*
             let params = eusn::Params {
                 input_sparsity: 0.1,
                 input_weight_scaling: 0.5,
@@ -103,6 +114,7 @@ pub(crate) fn start() {
                 7,
                 TikhonovRegularization,
             >(&mut rc, values, "img/trades_sliding_window_eusn.gif");
+            */
         }
         2 => {
             todo!()
@@ -146,6 +158,7 @@ pub(crate) fn start() {
     }
 }
 
+/*
 fn run_sliding_opt_firefly<RC, const N: usize, R>(
     values: Vec<f64>,
     filename: &str,
@@ -214,15 +227,16 @@ fn run_sliding_opt_firefly<RC, const N: usize, R>(
 
     info!("took {}s", t0.elapsed().as_secs());
 }
+*/
 
 fn run_sliding<RC, const N: usize, R>(rc: &mut RC, values: Vec<f64>, filename: &str)
 where
-    RC: ReservoirComputer<1, 1, N, R>,
+    RC: ReservoirComputer<N, R>,
     R: LinReg,
 {
     let t0 = Instant::now();
 
-    let values: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+    let values: DMatrix<f64> =
         Matrix::from_vec_generic(Dim::from_usize(1), Dim::from_usize(values.len()), values);
 
     let mut gif_render = GifRender::new(filename, (1080, 1080));
@@ -254,12 +268,12 @@ where
     info!("took {}s", t0.elapsed().as_secs());
 }
 
-fn gather_plot_data<'a, RC, const I: usize, const O: usize, const N: usize, R>(
-    values: &'a MatrixSlice<'a, f64, Const<I>, Dynamic, Const<1>, Const<I>>,
+fn gather_plot_data<'a, RC, const N: usize, R>(
+    values: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
     rc: &mut RC,
 ) -> (Series, Series, Series)
 where
-    RC: ReservoirComputer<I, O, N, R>,
+    RC: ReservoirComputer<N, R>,
     R: LinReg,
 {
     let mut plot_targets = Vec::with_capacity(values.len());
@@ -272,8 +286,8 @@ where
         let last_prediction = *predicted_out.get(0).unwrap();
 
         // To begin forecasting, replace target input with it's own prediction
-        let m: Matrix<f64, Const<I>, Dynamic, VecStorage<f64, Const<I>, Dynamic>> =
-            Matrix::from_fn_generic(Dim::from_usize(I), Dim::from_usize(1), |_, j| {
+        let m: DMatrix<f64> =
+            Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |_, j| {
                 *predicted_out.get(j).unwrap()
             });
         let input = if j > TRAIN_LEN {
