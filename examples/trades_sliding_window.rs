@@ -5,27 +5,17 @@ mod environments;
 mod load_sample_data;
 mod plot;
 
-use std::{sync::Arc, time::Instant};
+use std::time::Instant;
 
 use dialoguer::{theme::ColorfulTheme, Select};
-use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice};
+use plot::{GifRender, Series};
+use reservoir_computer::{
+    esn, Activation, LinReg, RCParams, ReservoirComputer, TikhonovRegularization,
+};
 use sliding_features::{Constant, Echo, Multiply, View, ALMA, VSCT};
 
-use environments::env_trades::EnvTrades;
-use load_sample_data::load_sample_data;
-use plot::{GifRender, GifRenderOptimizer, Series};
-use reservoir_computer::{
-    // optimizers::opt_firefly::{FireflyOptimizer, FireflyParams},
-    esn,
-    Activation,
-    LinReg,
-    OptParamMapper,
-    RCParams,
-    ReservoirComputer,
-    TikhonovRegularization,
-};
-
-const SEED: Option<u64> = Some(0);
+// const SEED: Option<u64> = Some(0);
 pub(crate) const TRAIN_LEN: usize = 10_000;
 pub(crate) const VALIDATION_LEN: usize = 2_000;
 

@@ -179,8 +179,7 @@ pub struct ESN<const I: usize, const O: usize, R> {
 }
 
 impl<const I: usize, const O: usize, R> ReservoirComputer<PARAM_DIM, R> for ESN<I, O, R>
-where
-    R: LinReg,
+where R: LinReg
 {
     type ParamMapper = ParamMapper;
 

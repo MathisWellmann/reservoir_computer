@@ -33,9 +33,10 @@ impl LinReg for TikhonovRegularization {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use nalgebra::VecStorage;
     use round::round;
+
+    use super::*;
 
     #[test]
     fn tikhonov_regularization() {

@@ -4,24 +4,17 @@ extern crate log;
 mod environments;
 mod plot;
 
-use environments::env_trades::EnvTrades;
-use plot::{plot, GifRenderOptimizer, PlotGather};
+use std::{sync::Arc, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
+use environments::env_trades::EnvTrades;
 use nalgebra::{DMatrix, Dim, Matrix};
-use sliding_features::{Echo, RoofingFilter, View};
-use std::{sync::Arc, time::Instant};
-use trade_aggregation::{aggregate_all_trades, load_trades_from_csv, TimeAggregator};
-
+use plot::{plot, GifRenderOptimizer, PlotGather};
 use reservoir_computer::{
-    /*
-    optimizers::{
-        opt_firefly::{FireflyOptimizer, FireflyParams},
-        opt_random_search::RandomSearch,
-    },
-    */
     esn, ngrc, Activation, OptParamMapper, ReservoirComputer, TikhonovRegularization,
 };
+use sliding_features::{Echo, RoofingFilter, View};
+use trade_aggregation::{aggregate_all_trades, load_trades_from_csv, TimeAggregator};
 
 const INPUT_DIM: usize = 1;
 const TRAIN_LEN: usize = 5000;

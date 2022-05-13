@@ -9,18 +9,8 @@ use std::{collections::VecDeque, sync::Arc, time::Instant};
 use dialoguer::{theme::ColorfulTheme, Select};
 use nalgebra::{DMatrix, Dim, Matrix};
 use nanorand::{Rng, WyRand};
-
 use plot::{plot, Series};
-
-use reservoir_computer::{
-    /*
-    optimizers::{
-        opt_firefly::{FireflyOptimizer, FireflyParams},
-        opt_random_search::RandomSearch,
-    },
-    */
-    esn, ngrc, Activation, ReservoirComputer, TikhonovRegularization,
-};
+use reservoir_computer::{esn, ngrc, Activation, ReservoirComputer, TikhonovRegularization};
 
 use crate::{environments::env_mackey_glass::EnvMackeyGlass, plot::PlotGather};
 

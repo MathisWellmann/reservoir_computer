@@ -58,8 +58,7 @@ impl OptParamMapper<PARAM_DIM> for ParamMapper {
 }
 
 impl<R> NextGenerationRC<R>
-where
-    R: LinReg,
+where R: LinReg
 {
     fn construct_lin_part<'a>(
         &self,
@@ -138,8 +137,7 @@ where
 }
 
 impl<R> ReservoirComputer<PARAM_DIM, R> for NextGenerationRC<R>
-where
-    R: LinReg,
+where R: LinReg
 {
     type ParamMapper = ParamMapper;
 
@@ -256,9 +254,8 @@ where
 mod tests {
     use round::round;
 
-    use crate::lin_reg::TikhonovRegularization;
-
     use super::*;
+    use crate::lin_reg::TikhonovRegularization;
 
     const NUM_VALS: usize = 9;
 

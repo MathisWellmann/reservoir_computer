@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use nalgebra::{DMatrix, Dim, Matrix};
+use reservoir_computer::{LinReg, RCParams, ReservoirComputer};
 
 use super::PlotGather;
-use reservoir_computer::{LinReg, RCParams, ReservoirComputer};
 
 pub struct EnvMackeyGlass {
     values: Arc<DMatrix<f64>>,

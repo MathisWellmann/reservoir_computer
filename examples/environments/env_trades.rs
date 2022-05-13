@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, VecStorage};
+use reservoir_computer::{LinReg, RCParams, ReservoirComputer};
 
 use super::PlotGather;
-use reservoir_computer::{LinReg, RCParams, ReservoirComputer};
 
 type StateMatrix = Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;
 

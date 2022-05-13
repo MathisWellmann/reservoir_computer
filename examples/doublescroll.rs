@@ -3,12 +3,11 @@ extern crate log;
 
 mod plot;
 
-use plot::{plot, PlotGather, Series};
 use std::{fs::File, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
 use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, VecStorage};
-
+use plot::{plot, PlotGather, Series};
 use reservoir_computer::{ngrc, Activation, LinReg, ReservoirComputer, TikhonovRegularization};
 
 const TRAIN_LEN: usize = 100;

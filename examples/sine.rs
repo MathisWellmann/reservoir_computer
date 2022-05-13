@@ -7,12 +7,11 @@ use std::time::Instant;
 
 use dialoguer::{theme::ColorfulTheme, Select};
 use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, VecStorage};
-use time_series_generator::generate_sine_wave;
-
 use plot::{plot, Series};
 use reservoir_computer::{
     esn, ngrc, Activation, LinReg, RCParams, ReservoirComputer, TikhonovRegularization,
 };
+use time_series_generator::generate_sine_wave;
 
 const TRAIN_LEN: usize = 600;
 const SEED: Option<u64> = Some(0);
