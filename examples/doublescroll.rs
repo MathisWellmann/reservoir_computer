@@ -1,25 +1,27 @@
+#[macro_use]
+extern crate log;
+
+mod plot;
+
+use plot::{plot, PlotGather, Series};
 use std::{fs::File, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
-use nalgebra::{Const, Dim, Dynamic, Matrix, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, VecStorage};
 
-use crate::{
-    activation::Activation, environments::PlotGather, lin_reg::TikhonovRegularization, plot::plot,
-    reservoir_computers::ngrc, LinReg, ReservoirComputer,
-};
+use reservoir_computer::{ngrc, Activation, LinReg, ReservoirComputer, TikhonovRegularization};
 
 const TRAIN_LEN: usize = 100;
 const TEST_LEN: usize = 800;
 
-pub(crate) fn start() {
+pub(crate) fn main() {
     let file = File::open("doublescroll_soln.csv").unwrap();
     let mut rdr = csv::Reader::from_reader(file);
-    let mut values: Matrix<f64, Const<3>, Dynamic, VecStorage<f64, Const<3>, Dynamic>> =
-        Matrix::from_element_generic(
-            Dim::from_usize(3),
-            Dim::from_usize(TRAIN_LEN + TEST_LEN - 1),
-            0.0,
-        );
+    let mut values: DMatrix<f64> = Matrix::from_element_generic(
+        Dim::from_usize(3),
+        Dim::from_usize(TRAIN_LEN + TEST_LEN - 1),
+        0.0,
+    );
     for (i, result) in rdr.records().enumerate() {
         let record = result.unwrap();
 
@@ -55,6 +57,8 @@ pub(crate) fn start() {
         }
         2 => {
             let params = ngrc::Params {
+                input_dim: 3,
+                output_dim: 3,
                 num_time_delay_taps: 5,
                 num_samples_to_skip: 2,
                 output_activation: Activation::Identity,
@@ -80,11 +84,11 @@ pub(crate) fn start() {
 }
 
 pub(crate) fn gather_plot_data<RC, const N: usize, R>(
-    values: &Matrix<f64, Const<3>, Dynamic, VecStorage<f64, Const<3>, Dynamic>>,
+    values: &DMatrix<f64>,
     rc: &mut RC,
     mut plot: Option<&mut PlotGather>,
 ) where
-    RC: ReservoirComputer<3, 3, N, R>,
+    RC: ReservoirComputer<N, R>,
     R: LinReg,
 {
     let t0 = Instant::now();
@@ -100,11 +104,10 @@ pub(crate) fn gather_plot_data<RC, const N: usize, R>(
         let last_pred = *predicted_out.get(0).unwrap();
 
         // To begin forecasting, replace target input with it's own prediction
-        let m: Matrix<f64, Const<3>, Dynamic, VecStorage<f64, Const<3>, Dynamic>> =
+        let m: DMatrix<f64> =
             Matrix::from_fn_generic(Dim::from_usize(3), Dim::from_usize(1), |i, _| {
                 *predicted_out.get(i).unwrap()
             });
-        let target = *values.column(j).get(0).unwrap();
 
         let input = if j > TRAIN_LEN {
             if let Some(plot) = plot.as_mut() {

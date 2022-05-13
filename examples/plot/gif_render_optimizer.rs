@@ -1,6 +1,6 @@
 use plotters::{coord::Shift, prelude::*};
 
-use crate::Series;
+use super::Series;
 
 pub struct GifRenderOptimizer<'a> {
     root: DrawingArea<BitMapBackend<'a>, Shift>,
