@@ -179,7 +179,8 @@ pub struct ESN<const I: usize, const O: usize, R> {
 }
 
 impl<const I: usize, const O: usize, R> ReservoirComputer<PARAM_DIM, R> for ESN<I, O, R>
-where R: LinReg
+where
+    R: LinReg,
 {
     type ParamMapper = ParamMapper;
 
@@ -361,7 +362,7 @@ where R: LinReg
 
     fn update_state<'a>(
         &mut self,
-        input: &'a MatrixSlice<'a, f64, Dynamic, Const<1>, Const<1>, Dynamic>,
+        input: &'a MatrixSlice<'a, f64, Const<1>, Dynamic, Const<1>, Const<1>>,
         prev_pred: &Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
     ) {
         // perform node-to-node update

@@ -70,4 +70,9 @@ mod tests {
 
         assert_eq!(readout_matrix, goal_matrix,)
     }
+
+    #[test]
+    fn readout_random_test() {
+        todo!()
+    }
 }

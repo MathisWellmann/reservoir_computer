@@ -26,15 +26,18 @@ pub trait ReservoirComputer<const N: usize, R: LinReg> {
 
     fn update_state<'a>(
         &mut self,
-        input: &'a MatrixSlice<'a, f64, Dynamic, Const<1>, Const<1>, Dynamic>,
-        prev_pred: &Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
+        input: &'a MatrixSlice<'a, f64, Const<1>, Dynamic, Const<1>, Dynamic>,
+        prev_pred: &DMatrix<f64>,
     );
 
     /// Performs a readout of the current reservoir state
-    fn readout(&self) -> Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;
+    fn readout(&self) -> DMatrix<f64>;
 
     /// Sets the internal state matrix
-    fn set_state(&mut self, state: StateMatrix);
+    fn set_state(
+        &mut self,
+        state: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>,
+    );
 
     fn params(
         &self,

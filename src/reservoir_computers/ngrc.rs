@@ -21,7 +21,7 @@ pub struct NextGenerationRC<R> {
     params: Params,
     inputs: VecDeque<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
     readout_matrix: DMatrix<f64>,
-    state: StateMatrix,
+    state: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>,
     // size of the linear part of feature vector
     d_lin: usize,
     // Total size of the feature vector
@@ -164,9 +164,10 @@ where
             Dim::from_usize(d_total),
             0.0,
         );
-        let state = Matrix::from_element_generic(Dim::from_usize(d_total), Dim::from_usize(1), 0.0);
+        let state = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(d_total), 0.0);
 
         let window_cap = params.num_samples_to_skip * params.num_time_delay_taps + 1;
+
         Self {
             params,
             inputs: VecDeque::with_capacity(window_cap),
@@ -213,13 +214,14 @@ where
 
     fn update_state<'a>(
         &mut self,
-        input: &'a MatrixSlice<'a, f64, Dynamic, Const<1>, Const<1>, Dynamic>,
-        _prev_pred: &Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
+        input: &'a MatrixSlice<'a, f64, Const<1>, Dynamic, Const<1>, Dynamic>,
+        _prev_pred: &DMatrix<f64>,
     ) {
-        let input = <Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>::from_column_slice_generic(
+        let input =
+            <Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>::from_row_slice_generic(
                 Dim::from_usize(1),
                 Dim::from_usize(self.params.input_dim),
-                input.as_slice()
+                input.iter().cloned().collect::<Vec<f64>>().as_slice(),
             );
         self.inputs.push_back(input);
 
@@ -241,15 +243,15 @@ where
         let full_features = self.construct_full_features(&inputs.columns(0, inputs.ncols()));
 
         // extract the state from the last full_feature column
-        self.state = <Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>>::from_column_slice_generic(
-            Dim::from_usize(self.d_total),
+        self.state = <Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>::from_column_slice_generic(
             Dim::from_usize(1),
-            full_features.column(full_features.ncols() - 1).as_slice(),
+            Dim::from_usize(self.d_total),
+            full_features.row(full_features.nrows() - 1).iter().cloned().collect::<Vec<f64>>().as_slice(),
         );
     }
 
     #[inline(always)]
-    fn readout(&self) -> Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> {
+    fn readout(&self) -> DMatrix<f64> {
         if self.inputs.len() < self.window_cap {
             return Matrix::from_element_generic(
                 Dim::from_usize(self.params.output_dim),
@@ -258,6 +260,13 @@ where
             );
         }
 
+        info!(
+            "readout_matrix: ({}, {}), state: ({}, {})",
+            self.readout_matrix.nrows(),
+            self.readout_matrix.ncols(),
+            self.state.nrows(),
+            self.state.ncols()
+        );
         let mut pred = &self.readout_matrix * &self.state;
         self.params.output_activation.activate(pred.as_mut_slice());
 
@@ -265,7 +274,10 @@ where
     }
 
     #[inline(always)]
-    fn set_state(&mut self, state: StateMatrix) {
+    fn set_state(
+        &mut self,
+        state: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>,
+    ) {
         self.state = state;
     }
 

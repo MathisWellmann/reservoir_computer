@@ -6,10 +6,10 @@ mod plot;
 use std::time::Instant;
 
 use dialoguer::{theme::ColorfulTheme, Select};
-use nalgebra::{DMatrix, Dim, Dynamic, Matrix};
+use nalgebra::{DMatrix, Dim, Matrix};
 use plot::{plot, Series};
 use reservoir_computer::{
-    esn, ngrc, Activation, LinReg, RCParams, ReservoirComputer, TikhonovRegularization,
+    ngrc, Activation, LinReg, RCParams, ReservoirComputer, TikhonovRegularization,
 };
 use time_series_generator::generate_sine_wave;
 
@@ -38,6 +38,8 @@ pub(crate) fn main() {
         .unwrap();
     match e {
         0 => {
+            // TODO:
+            /*
             let params = esn::Params {
                 input_sparsity: 0.1,
                 input_activation: Activation::Identity,
@@ -74,6 +76,7 @@ pub(crate) fn main() {
                 &values,
                 "img/sine_esn.png",
             );
+            */
         }
         1 => {
             todo!()
@@ -167,10 +170,10 @@ where
             });
         let input = if i > TRAIN_LEN {
             test_predictions.push((i as f64, last_prediction));
-            m.column(0)
+            m.row(0)
         } else {
             train_predictions.push((i as f64, last_prediction));
-            values.column(i - 1)
+            values.row(i - 1)
         };
 
         rc.update_state(&input, &predicted_out);
