@@ -243,11 +243,16 @@ where
         let full_features = self.construct_full_features(&inputs.columns(0, inputs.ncols()));
 
         // extract the state from the last full_feature column
-        self.state = <Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>::from_column_slice_generic(
-            Dim::from_usize(1),
-            Dim::from_usize(self.d_total),
-            full_features.row(full_features.nrows() - 1).iter().cloned().collect::<Vec<f64>>().as_slice(),
-        );
+        let mut state: Vec<f64> = vec![0.0; self.d_total + 1];
+        for (i, f) in full_features.row(full_features.nrows() - 1).iter().enumerate() {
+            state[i + 1] = *f;
+        }
+        self.state =
+            <Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>::from_vec_generic(
+                Dim::from_usize(1),
+                Dim::from_usize(self.d_total + 1), // +1 as the first column is always a 1
+                state,
+            );
     }
 
     #[inline(always)]
@@ -260,13 +265,6 @@ where
             );
         }
 
-        info!(
-            "readout_matrix: ({}, {}), state: ({}, {})",
-            self.readout_matrix.nrows(),
-            self.readout_matrix.ncols(),
-            self.state.nrows(),
-            self.state.ncols()
-        );
         let mut pred = &self.state * &self.readout_matrix;
         self.params.output_activation.activate(pred.as_mut_slice());
 

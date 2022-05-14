@@ -9,6 +9,13 @@ pub fn plot(
     filename: &str,
     dims: (u32, u32),
 ) {
+    info!(
+        "n_targets: {}, n_train_preds: {}, n_test_preds: {}",
+        targets.len(),
+        train_preds.len(),
+        test_preds.len()
+    );
+
     let ts_min = targets[0].0;
     let ts_max = targets[targets.len() - 1].0;
     let mut target_min: f64 = targets[0].1;

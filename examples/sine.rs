@@ -144,11 +144,14 @@ where
     let mut train_predictions: Series = Vec::with_capacity(TRAIN_LEN);
     let mut test_predictions: Series = Vec::with_capacity(1_000_000);
 
-    let n_vals = values.len();
-    let state = Matrix::from_element_generic(
-        Dim::from_usize(rc.params().reservoir_size()),
+    let n_vals = values.nrows();
+    let mut vals: Vec<f64> =
+        vec![rc.params().initial_state_value(); rc.params().reservoir_size() + 1];
+    vals[0] = 1.0;
+    let state = Matrix::from_vec_generic(
         Dim::from_usize(1),
-        rc.params().initial_state_value(),
+        Dim::from_usize(rc.params().reservoir_size() + 1),
+        vals,
     );
     rc.set_state(state);
     for i in 1..n_vals {
