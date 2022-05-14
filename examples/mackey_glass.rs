@@ -9,8 +9,8 @@ use std::{collections::VecDeque, sync::Arc, time::Instant};
 use dialoguer::{theme::ColorfulTheme, Select};
 use nalgebra::{DMatrix, Dim, Matrix};
 use nanorand::{Rng, WyRand};
-use plot::{plot, Series};
-use reservoir_computer::{esn, ngrc, Activation, ReservoirComputer, TikhonovRegularization};
+use plot::plot;
+use reservoir_computer::{ngrc, Activation, ReservoirComputer, TikhonovRegularization};
 
 use crate::{environments::env_mackey_glass::EnvMackeyGlass, plot::PlotGather};
 
@@ -43,6 +43,8 @@ pub(crate) fn main() {
         .unwrap();
     match e {
         0 => {
+            // TODO:
+            /*
             let params = esn::Params {
                 input_sparsity: 0.1,
                 input_activation: Activation::Identity,
@@ -86,6 +88,7 @@ pub(crate) fn main() {
                 "img/mackey_glass_esn.png",
                 (3840, 1080),
             );
+            */
         }
         1 => {
             // TODO:

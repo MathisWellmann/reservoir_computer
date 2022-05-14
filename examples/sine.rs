@@ -112,8 +112,8 @@ pub(crate) fn main() {
             let params = ngrc::Params {
                 input_dim: 1,
                 output_dim: 1,
-                num_time_delay_taps: 10,
-                num_samples_to_skip: 10,
+                num_time_delay_taps: 20,
+                num_samples_to_skip: 5,
                 output_activation: Activation::Identity,
             };
             // TODO: choose lin reg

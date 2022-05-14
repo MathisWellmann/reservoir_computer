@@ -65,14 +65,14 @@ impl EnvMackeyGlass {
                 if let Some(plot) = plot.as_mut() {
                     plot.push_test_pred(j as f64, last_prediction);
                 }
-                m.column(0)
+                m.row(0)
             } else {
                 if let Some(plot) = plot.as_mut() {
                     plot.push_train_pred(j as f64, last_prediction);
                 }
-                self.values.column(j - 1)
+                self.values.row(j - 1)
             };
-            rmse += (*self.values.column(j).get(0).unwrap() - last_prediction).powi(2);
+            rmse += (*self.values.row(j).get(0).unwrap() - last_prediction).powi(2);
 
             rc.update_state(&input, &predicted_out);
         }

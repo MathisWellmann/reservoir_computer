@@ -11,7 +11,7 @@ use environments::env_trades::EnvTrades;
 use nalgebra::{DMatrix, Dim, Matrix};
 use plot::{plot, GifRenderOptimizer, PlotGather};
 use reservoir_computer::{
-    esn, ngrc, Activation, OptParamMapper, ReservoirComputer, TikhonovRegularization,
+    ngrc, Activation, OptParamMapper, ReservoirComputer, TikhonovRegularization,
 };
 use sliding_features::{Echo, RoofingFilter, View};
 use trade_aggregation::{aggregate_all_trades, load_trades_from_csv, TimeAggregator};
@@ -40,7 +40,7 @@ pub(crate) fn main() {
     info!("got {} datapoints", values.len());
 
     let values: DMatrix<f64> =
-        Matrix::from_vec_generic(Dim::from_usize(INPUT_DIM), Dim::from_usize(values.len()), values);
+        Matrix::from_vec_generic(Dim::from_usize(values.len()), Dim::from_usize(INPUT_DIM), values);
 
     let rcs = vec![
         "ESN",
@@ -59,6 +59,8 @@ pub(crate) fn main() {
         .unwrap();
     match e {
         0 => {
+            // TODO:
+            /*
             let washout_pct = 0.0;
             let params = esn::Params {
                 input_sparsity: 0.2,
@@ -96,6 +98,7 @@ pub(crate) fn main() {
                 "img/trades_esn.png",
                 (2160, 2160),
             );
+            */
         }
         1 => {
             // TODO:
@@ -147,7 +150,7 @@ pub(crate) fn main() {
             };
             let mut rc = ngrc::NextGenerationRC::new(params, regressor);
             let t0 = Instant::now();
-            rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
+            rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));
             info!("NGRC training took {}ms", t0.elapsed().as_millis());
 
             let env = EnvTrades::new(Arc::new(values), TRAIN_LEN);

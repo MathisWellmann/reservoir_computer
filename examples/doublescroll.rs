@@ -7,7 +7,7 @@ use std::{fs::File, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
 use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, VecStorage};
-use plot::{plot, PlotGather, Series};
+use plot::{plot, PlotGather};
 use reservoir_computer::{ngrc, Activation, LinReg, ReservoirComputer, TikhonovRegularization};
 
 const TRAIN_LEN: usize = 100;
@@ -94,9 +94,9 @@ pub(crate) fn gather_plot_data<RC, const N: usize, R>(
     rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
     info!("NGRC training took {}ms", t0.elapsed().as_millis());
 
-    for j in 1..values.ncols() {
+    for i in 1..values.nrows() {
         if let Some(plot) = plot.as_mut() {
-            plot.push_target(j as f64, *values.column(j).get(0).unwrap());
+            plot.push_target(i as f64, *values.column(i).get(0).unwrap());
         }
 
         let predicted_out = rc.readout();
@@ -108,16 +108,16 @@ pub(crate) fn gather_plot_data<RC, const N: usize, R>(
                 *predicted_out.get(i).unwrap()
             });
 
-        let input = if j > TRAIN_LEN {
+        let input = if i > TRAIN_LEN {
             if let Some(plot) = plot.as_mut() {
-                plot.push_test_pred(j as f64, last_pred);
+                plot.push_test_pred(i as f64, last_pred);
             }
-            m.column(0)
+            m.row(0)
         } else {
             if let Some(plot) = plot.as_mut() {
-                plot.push_train_pred(j as f64, last_pred);
+                plot.push_train_pred(i as f64, last_pred);
             }
-            values.column(j - 1)
+            values.row(i - 1)
         };
 
         rc.update_state(&input, &predicted_out);

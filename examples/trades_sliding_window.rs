@@ -10,9 +10,7 @@ use std::time::Instant;
 use dialoguer::{theme::ColorfulTheme, Select};
 use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice};
 use plot::{GifRender, Series};
-use reservoir_computer::{
-    esn, Activation, LinReg, RCParams, ReservoirComputer, TikhonovRegularization,
-};
+use reservoir_computer::{Activation, LinReg, RCParams, ReservoirComputer, TikhonovRegularization};
 use sliding_features::{Constant, Echo, Multiply, View, ALMA, VSCT};
 
 // const SEED: Option<u64> = Some(0);
@@ -42,6 +40,8 @@ pub(crate) fn main() {
         .unwrap();
     match e {
         0 => {
+            // TODO:
+            /*
             let params = esn::Params {
                 input_sparsity: 0.2,
                 input_activation: Activation::Identity,
@@ -75,6 +75,7 @@ pub(crate) fn main() {
                 values,
                 "img/trades_sliding_window_esn.gif",
             );
+            */
         }
         1 => {
             // TODO:
@@ -282,10 +283,10 @@ where
             });
         let input = if j > TRAIN_LEN {
             test_preds.push((j as f64, last_prediction));
-            m.column(0)
+            m.row(0)
         } else {
             train_preds.push((j as f64, last_prediction));
-            values.column(j - 1)
+            values.row(j - 1)
         };
 
         rc.update_state(&input, &predicted_out);

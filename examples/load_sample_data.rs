@@ -16,3 +16,5 @@ pub(crate) fn load_sample_data() -> Vec<f64> {
 
     out
 }
+
+fn main() {}

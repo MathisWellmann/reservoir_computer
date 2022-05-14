@@ -38,11 +38,12 @@ impl EnvTrades {
         );
 
         let init_val = *self.values.column(0).get(0).unwrap();
-        let state: StateMatrix = Matrix::from_element_generic(
-            Dim::from_usize(rc.params().reservoir_size()),
-            Dim::from_usize(1),
-            init_val,
-        );
+        let state: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+            Matrix::from_element_generic(
+                Dim::from_usize(rc.params().reservoir_size()),
+                Dim::from_usize(1),
+                init_val,
+            );
         rc.set_state(state);
 
         let mut rmse: f64 = 0.0;
@@ -65,12 +66,12 @@ impl EnvTrades {
                 if let Some(plot) = plot.as_mut() {
                     plot.push_test_pred(j as f64, last_prediction);
                 }
-                m.column(0)
+                m.row(0)
             } else {
                 if let Some(plot) = plot.as_mut() {
                     plot.push_train_pred(j as f64, last_prediction);
                 }
-                self.values.column(j - 1)
+                self.values.row(j - 1)
             };
 
             rc.update_state(&input, &predicted_out);
