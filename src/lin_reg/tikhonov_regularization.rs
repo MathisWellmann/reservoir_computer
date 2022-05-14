@@ -71,8 +71,37 @@ mod tests {
         assert_eq!(readout_matrix, goal_matrix,)
     }
 
+    /// Tests how to extract the last observed state and perform a readout from it
     #[test]
-    fn readout_random_test() {
-        todo!()
+    fn readout_from_state() {
+        if let Err(_) = pretty_env_logger::try_init() {}
+
+        // Note the first column being just ones
+        let design: DMatrix<f64> = Matrix::from_vec_generic(
+            Dim::from_usize(4),
+            Dim::from_usize(3),
+            vec![1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 2.0, 3.0, 0.0, 0.0, 1.0, 2.0],
+        );
+        let targets: DMatrix<f64> = Matrix::from_vec_generic(
+            Dim::from_usize(4),
+            Dim::from_usize(1),
+            vec![1.0, 2.0, 3.0, 4.0],
+        );
+        info!("design: {}, targets: {}", design, targets);
+
+        // Try to use the last row to predict the last target
+        let state: DMatrix<f64> =
+            Matrix::from_vec_generic(Dim::from_usize(1), Dim::from_usize(3), vec![1.0, 3.0, 2.0]);
+        let target: DMatrix<f64> =
+            Matrix::from_vec_generic(Dim::from_usize(1), Dim::from_usize(1), vec![4.0]);
+        info!("state: {}, target: {}", state, target);
+
+        let readout: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+            Matrix::from_vec_generic(Dim::from_usize(3), Dim::from_usize(1), vec![1.0, 1.0, 0.0]);
+
+        let o = state * readout;
+        info!("o: {}", o);
+
+        assert_eq!(o, target);
     }
 }

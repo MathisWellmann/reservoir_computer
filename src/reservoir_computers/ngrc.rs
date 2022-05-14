@@ -215,7 +215,7 @@ where
     fn update_state<'a>(
         &mut self,
         input: &'a MatrixSlice<'a, f64, Const<1>, Dynamic, Const<1>, Dynamic>,
-        _prev_pred: &DMatrix<f64>,
+        _prev_pred: &Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>,
     ) {
         let input =
             <Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>::from_row_slice_generic(
@@ -251,7 +251,7 @@ where
     }
 
     #[inline(always)]
-    fn readout(&self) -> DMatrix<f64> {
+    fn readout(&self) -> Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> {
         if self.inputs.len() < self.window_cap {
             return Matrix::from_element_generic(
                 Dim::from_usize(self.params.output_dim),
@@ -267,7 +267,7 @@ where
             self.state.nrows(),
             self.state.ncols()
         );
-        let mut pred = &self.readout_matrix * &self.state;
+        let mut pred = &self.state * &self.readout_matrix;
         self.params.output_activation.activate(pred.as_mut_slice());
 
         pred
