@@ -24,7 +24,7 @@ pub(crate) fn main() {
     let values = mackey_glass_series(total_len, 30, SEED);
 
     let values: DMatrix<f64> =
-        Matrix::from_vec_generic(Dim::from_usize(1), Dim::from_usize(values.len()), values);
+        Matrix::from_vec_generic(Dim::from_usize(values.len()), Dim::from_usize(1), values);
 
     let rcs = vec![
         "ESN",
@@ -134,7 +134,7 @@ pub(crate) fn main() {
             let params = ngrc::Params {
                 input_dim: 1,
                 output_dim: 1,
-                num_time_delay_taps: 3,
+                num_time_delay_taps: 10,
                 num_samples_to_skip: 1,
                 output_activation: Activation::Identity,
             };
@@ -144,7 +144,7 @@ pub(crate) fn main() {
             };
             let mut rc = ngrc::NextGenerationRC::new(params, regressor);
             let t0 = Instant::now();
-            rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
+            rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));
             info!("NGRC training took {}ms", t0.elapsed().as_millis());
 
             let env = EnvMackeyGlass::new(Arc::new(values), TRAIN_LEN);

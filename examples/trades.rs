@@ -22,6 +22,8 @@ const TEST_WINDOW: usize = 600;
 const NUM_GENS: usize = 100;
 
 pub(crate) fn main() {
+    pretty_env_logger::init();
+
     info!("loading sample data");
 
     let trades = load_trades_from_csv("data/Bitmex_XBTUSD_1M.csv");
@@ -140,7 +142,7 @@ pub(crate) fn main() {
             let params = ngrc::Params {
                 input_dim: 1,
                 output_dim: 1,
-                num_time_delay_taps: 20,
+                num_time_delay_taps: 10,
                 num_samples_to_skip: 2,
                 output_activation: Activation::Tanh,
             };

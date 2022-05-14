@@ -13,7 +13,7 @@ pub struct EnvMackeyGlass {
 impl EnvMackeyGlass {
     #[inline]
     pub fn new(values: Arc<DMatrix<f64>>, train_len: usize) -> Self {
-        assert!(values.ncols() > train_len, "make sure train_len < number of datapoints");
+        assert!(values.nrows() > train_len, "make sure train_len < number of datapoints");
 
         Self {
             values,
@@ -32,22 +32,22 @@ impl EnvMackeyGlass {
         RC: ReservoirComputer<N, R>,
         R: LinReg,
     {
-        rc.train(
-            &self.values.columns(0, self.train_len - 1),
-            &self.values.columns(1, self.train_len),
-        );
+        rc.train(&self.values.rows(0, self.train_len - 1), &self.values.rows(1, self.train_len));
 
-        let state = Matrix::from_element_generic(
-            Dim::from_usize(rc.params().reservoir_size()),
+        let mut vals: Vec<f64> =
+            vec![rc.params().initial_state_value(); rc.params().reservoir_size() + 1];
+        vals[0] = 1.0;
+        let state = Matrix::from_vec_generic(
             Dim::from_usize(1),
-            rc.params().initial_state_value(),
+            Dim::from_usize(rc.params().reservoir_size() + 1),
+            vals,
         );
         rc.set_state(state);
 
         let mut rmse = 0.0;
-        for j in 1..self.values.ncols() {
+        for i in 1..self.values.nrows() {
             if let Some(plot) = plot.as_mut() {
-                plot.push_target(j as f64, *self.values.column(j).get(0).unwrap());
+                plot.push_target(i as f64, *self.values.row(i).get(0).unwrap());
             }
 
             let predicted_out = rc.readout();
@@ -61,18 +61,18 @@ impl EnvMackeyGlass {
                 Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |i, _| {
                     *predicted_out.get(i).unwrap()
                 });
-            let input = if j > self.train_len {
+            let input = if i > self.train_len {
                 if let Some(plot) = plot.as_mut() {
-                    plot.push_test_pred(j as f64, last_prediction);
+                    plot.push_test_pred(i as f64, last_prediction);
                 }
                 m.row(0)
             } else {
                 if let Some(plot) = plot.as_mut() {
-                    plot.push_train_pred(j as f64, last_prediction);
+                    plot.push_train_pred(i as f64, last_prediction);
                 }
-                self.values.row(j - 1)
+                self.values.row(i - 1)
             };
-            rmse += (*self.values.row(j).get(0).unwrap() - last_prediction).powi(2);
+            rmse += (*self.values.row(i).get(0).unwrap() - last_prediction).powi(2);
 
             rc.update_state(&input, &predicted_out);
         }
