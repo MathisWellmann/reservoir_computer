@@ -118,7 +118,7 @@ pub(crate) fn main() {
             };
             // TODO: choose lin reg
             let regressor = TikhonovRegularization {
-                regularization_coeff: 0.001,
+                regularization_coeff: 990.0,
             };
             let mut rc = ngrc::NextGenerationRC::new(params, regressor);
             let t0 = Instant::now();

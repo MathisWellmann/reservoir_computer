@@ -244,6 +244,7 @@ where
 
         // extract the state from the last full_feature column
         let mut state: Vec<f64> = vec![0.0; self.d_total + 1];
+        state[0] = 1.0;
         for (i, f) in full_features.row(full_features.nrows() - 1).iter().enumerate() {
             state[i + 1] = *f;
         }

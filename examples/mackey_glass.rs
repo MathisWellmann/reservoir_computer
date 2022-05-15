@@ -134,13 +134,13 @@ pub(crate) fn main() {
             let params = ngrc::Params {
                 input_dim: 1,
                 output_dim: 1,
-                num_time_delay_taps: 10,
-                num_samples_to_skip: 1,
+                num_time_delay_taps: 11,
+                num_samples_to_skip: 2,
                 output_activation: Activation::Identity,
             };
             // TODO: choose lin reg
             let regressor = TikhonovRegularization {
-                regularization_coeff: 0.001,
+                regularization_coeff: 95.0,
             };
             let mut rc = ngrc::NextGenerationRC::new(params, regressor);
             let t0 = Instant::now();
