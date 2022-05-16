@@ -1,0 +1,16 @@
+[package]
+name = "rc-example-sine"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+next-generation-rcs = { version = "^0.1.0", path = "../../next-generation-rcs" }
+classic-rcs = { version = "^0.11.0", path = "../../classic-rcs" }
+lin-reg = { version = "^0.1.0", path = "../../lin-reg" }
+
+[[bin]]
+name = "sine"
+path = "examples/sine/src/main.rs"
+

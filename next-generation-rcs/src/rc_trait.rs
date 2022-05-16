@@ -1,6 +1,6 @@
 use nalgebra::{Const, DMatrix, Dynamic, Matrix, MatrixSlice, VecStorage};
 
-use crate::LinReg;
+use lin_reg::LinReg;
 
 pub(crate) type StateMatrix = Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;
 

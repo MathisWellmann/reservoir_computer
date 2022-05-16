@@ -3,8 +3,8 @@ use nalgebra::{
 };
 use nanorand::{Rng, WyRand};
 
-use super::{OptParamMapper, RCParams, Range, ReservoirComputer, StateMatrix};
-use crate::{activation::Activation, lin_reg::LinReg, utils::scale};
+use crate::{activation::Activation, StateMatrix};
+use lin_reg::LinReg;
 
 /// The parameters of the Echo State Network
 #[derive(Debug, Clone)]
@@ -24,9 +24,6 @@ pub struct Params {
     pub reservoir_sparsity: f64,
     /// Activation function of reservoir state transition
     pub reservoir_activation: Activation,
-
-    /// Influence of feedback computation
-    pub feedback_gain: f64,
 
     /// Controls the retention of information from previous time steps.
     /// The spectral radius determines how fast the influence of an input
@@ -59,6 +56,7 @@ pub struct Params {
     pub readout_from_input_as_well: bool,
 }
 
+/*
 impl RCParams for Params {
     #[inline(always)]
     fn initial_state_value(&self) -> f64 {
@@ -70,7 +68,9 @@ impl RCParams for Params {
         self.reservoir_size
     }
 }
+*/
 
+/*
 pub struct ParamMapper {
     /// Parameter ranges
     pub input_sparsity_range: Range,
@@ -80,7 +80,6 @@ pub struct ParamMapper {
     pub reservoir_bias_scaling_range: Range,
     pub reservoir_sparsity_range: Range,
     pub reservoir_activation: Activation,
-    pub feedback_gain: f64,
     pub spectral_radius: f64,
     pub leaking_rate_range: Range,
     pub regularization_coeff_range: Range,
@@ -91,10 +90,12 @@ pub struct ParamMapper {
     pub initial_state_value: f64,
     pub readout_from_input_as_well: bool,
 }
+*/
 
 /// Dimensionality of the parameter space
 pub const PARAM_DIM: usize = 7;
 
+/*
 impl OptParamMapper<PARAM_DIM> for ParamMapper {
     type Params = Params;
 
@@ -137,7 +138,6 @@ impl OptParamMapper<PARAM_DIM> for ParamMapper {
                 params[4],
             ),
             reservoir_activation: self.reservoir_activation,
-            feedback_gain: self.feedback_gain,
             spectral_radius: self.spectral_radius,
             leaking_rate: scale(
                 0.0,
@@ -162,6 +162,7 @@ impl OptParamMapper<PARAM_DIM> for ParamMapper {
         }
     }
 }
+*/
 
 /// The Reseoir Computer, Leaky Echo State Network
 #[derive(Debug)]
@@ -171,18 +172,17 @@ pub struct ESN<const I: usize, const O: usize, R> {
     reservoir_matrix: DMatrix<f64>,
     reservoir_biases: StateMatrix,
     readout_matrix: DMatrix<f64>,
-    feedback_matrix: Matrix<f64, Dynamic, Const<O>, VecStorage<f64, Dynamic, Const<O>>>,
     state: StateMatrix,
     extended_state: StateMatrix,
     rng: WyRand,
     regressor: R,
 }
 
-impl<const I: usize, const O: usize, R> ReservoirComputer<PARAM_DIM, R> for ESN<I, O, R>
+impl<const I: usize, const O: usize, R> ESN<I, O, R>
 where
     R: LinReg,
 {
-    type ParamMapper = ParamMapper;
+    // type ParamMapper = ParamMapper;
 
     /// Create a new reservoir, with random initiallization
     /// # Arguments
@@ -236,19 +236,6 @@ where
             Matrix::from_fn_generic(Dim::from_usize(O), Dim::from_usize(cols), |_, _| {
                 rng.generate::<f64>() * 2.0 - 1.0
             });
-        let feedback_matrix: Matrix<f64, Dynamic, Const<O>, VecStorage<f64, Dynamic, Const<O>>> =
-            Matrix::from_fn_generic(
-                Dim::from_usize(params.reservoir_size),
-                Dim::from_usize(O),
-                |_, _| {
-                    // TODO: input_sparsity should maybe be feedback_sparsity
-                    if rng.generate::<f64>() < params.input_sparsity {
-                        rng.generate::<f64>() * params.feedback_gain
-                    } else {
-                        0.0
-                    }
-                },
-            );
         let state = Matrix::from_element_generic(
             Dim::from_usize(params.reservoir_size),
             Dim::from_usize(1),
@@ -272,7 +259,6 @@ where
             input_weight_matrix,
             readout_matrix,
             state,
-            feedback_matrix,
             reservoir_biases,
             rng,
             extended_state,
@@ -298,17 +284,17 @@ where
             Dim::from_usize(design_cols),
             0.0,
         );
-        let mut target_matrix: Matrix<f64, Dynamic, Const<O>, VecStorage<f64, Dynamic, Const<O>>> =
+        let mut target_matrix: DMatrix<f64> =
             Matrix::from_element_generic(Dim::from_usize(harvest_len), Dim::from_usize(O), 0.0);
         let mut curr_pred = self.readout();
 
-        for j in 0..inputs.ncols() {
-            self.update_state(&inputs.column(j), &curr_pred);
+        for i in 0..inputs.nrows() {
+            self.update_state(&inputs.row(i));
 
             curr_pred = self.readout();
 
             // discard earlier values, as the state has to stabilize first
-            if j >= washout_len {
+            if i >= washout_len {
                 let design: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
                     Matrix::from_fn_generic(
                         Dim::from_usize(1),
@@ -321,24 +307,24 @@ where
                             }
                         },
                     );
-                design_matrix.set_row(j - washout_len, &design);
+                design_matrix.set_row(i - washout_len, &design);
 
-                let target_col = targets.column(j);
+                let target_col = targets.column(i);
                 let target: Matrix<f64, Const<1>, Const<O>, ArrayStorage<f64, 1, O>> =
                     Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(O), |_, j| {
                         *target_col.get(j).unwrap()
                     });
-                target_matrix.set_row(j - washout_len, &target);
+                target_matrix.set_row(i - washout_len, &target);
             }
         }
 
         self.readout_matrix = self.regressor.fit_readout(
-            &design_matrix.columns(0, design_matrix.ncols()),
-            &target_matrix.columns(0, target_matrix.ncols()),
+            &design_matrix.rows(0, design_matrix.nrows()),
+            &target_matrix.rows(0, target_matrix.nrows()),
         );
 
-        // TODO: move this qr based fit into its own file
         /*
+        // TODO: move this qr based fit into its own file
         // TODO: put into its own lin_reg file with tests
         // Ridge regression regularization, I think
         let x: DMatrix<f64> = Matrix::from_fn_generic(
@@ -362,8 +348,7 @@ where
 
     fn update_state<'a>(
         &mut self,
-        input: &'a MatrixSlice<'a, f64, Const<1>, Dynamic, Const<1>, Const<1>>,
-        prev_pred: &Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
+        input: &'a MatrixSlice<'a, f64, Const<1>, Dynamic, Const<1>, Dynamic>,
     ) {
         // perform node-to-node update
         let noise: StateMatrix = Matrix::from_fn_generic(
@@ -374,7 +359,6 @@ where
         let mut state_delta: StateMatrix = &self.input_weight_matrix * input
             + self.params.leaking_rate * (&self.reservoir_matrix * &self.state)
             + &self.reservoir_biases
-            + (&self.feedback_matrix * prev_pred)
             + noise;
         self.params.reservoir_activation.activate(state_delta.as_mut_slice());
 
@@ -397,9 +381,9 @@ where
     #[must_use]
     fn readout(&self) -> Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> {
         let mut pred = if self.params.readout_from_input_as_well {
-            &self.readout_matrix * &self.extended_state
+            &self.extended_state * &self.readout_matrix
         } else {
-            &self.readout_matrix * &self.state
+            &self.state * &self.readout_matrix
         };
         self.params.output_activation.activate(pred.as_mut_slice());
 
@@ -408,10 +392,7 @@ where
 
     /// Resets the state to it's initial values
     #[inline(always)]
-    fn set_state(
-        &mut self,
-        state: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
-    ) {
+    fn set_state(&mut self, state: StateMatrix) {
         self.state = state;
         self.extended_state = Matrix::from_element_generic(
             Dim::from_usize(1 + self.params.reservoir_size),

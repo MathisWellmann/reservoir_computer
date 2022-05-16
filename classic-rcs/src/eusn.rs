@@ -1,8 +1,8 @@
 use nalgebra::{ArrayStorage, Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 use nanorand::{Rng, WyRand};
 
-use super::{OptParamMapper, RCParams, Range, ReservoirComputer, StateMatrix};
-use crate::{activation::Activation, lin_reg::LinReg, utils::scale};
+use crate::{activation::Activation, StateMatrix};
+use lin_reg::LinReg;
 
 // TODO: value validation
 #[derive(Debug, Clone)]
@@ -28,6 +28,7 @@ pub struct Params {
     pub gamma: f64,
 }
 
+/*
 impl RCParams for Params {
     #[inline(always)]
     fn initial_state_value(&self) -> f64 {
@@ -39,7 +40,9 @@ impl RCParams for Params {
         self.reservoir_size
     }
 }
+*/
 
+/*
 pub struct ParamMapper {
     pub input_sparsity_range: Range,
     pub input_weight_scaling_range: Range,
@@ -54,9 +57,11 @@ pub struct ParamMapper {
     pub epsilon_range: Range,
     pub gamma_range: Range,
 }
+*/
 
 const PARAM_DIM: usize = 7;
 
+/*
 impl OptParamMapper<PARAM_DIM> for ParamMapper {
     type Params = Params;
 
@@ -107,6 +112,7 @@ impl OptParamMapper<PARAM_DIM> for ParamMapper {
         }
     }
 }
+*/
 
 /// Euler State Network (EuSN)
 /// from: https://arxiv.org/pdf/2203.09382.pdf
@@ -120,12 +126,11 @@ pub struct EulerStateNetwork<const I: usize, const O: usize, R> {
     regressor: R,
 }
 
-impl<const I: usize, const O: usize, R> ReservoirComputer<PARAM_DIM, R>
-    for EulerStateNetwork<I, O, R>
+impl<const I: usize, const O: usize, R> EulerStateNetwork<I, O, R>
 where
     R: LinReg,
 {
-    type ParamMapper = ParamMapper;
+    // type ParamMapper = ParamMapper;
 
     /// Create a new untrained EuSN with the given parameters
     fn new(params: Params, regressor: R) -> Self {

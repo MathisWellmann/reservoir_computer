@@ -2,22 +2,12 @@ use std::collections::VecDeque;
 
 use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 
-use super::{OptParamMapper, StateMatrix};
-use crate::{activation::Activation, lin_reg::LinReg, RCParams, ReservoirComputer};
-
-const PARAM_DIM: usize = 3;
-
-#[derive(Debug, Clone)]
-pub struct Params {
-    pub input_dim: usize,
-    pub output_dim: usize,
-    pub num_time_delay_taps: usize,
-    pub num_samples_to_skip: usize,
-    pub output_activation: Activation,
-}
+use super::params::{ParamMapper, Params, PARAM_DIM};
+use super::FullFeatureConstructor;
+use crate::{lin_reg::LinReg, ReservoirComputer};
 
 #[derive(Debug, Clone)]
-pub struct NextGenerationRC<R> {
+pub struct NextGenerationRC<R, C> {
     params: Params,
     inputs: VecDeque<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
     readout_matrix: DMatrix<f64>,
@@ -29,37 +19,13 @@ pub struct NextGenerationRC<R> {
     // capacity of sliding window of inputs
     window_cap: usize,
     regressor: R,
+    full_feature_constructor: C,
 }
 
-impl RCParams for Params {
-    #[inline(always)]
-    fn initial_state_value(&self) -> f64 {
-        0.0
-    }
-
-    #[inline(always)]
-    fn reservoir_size(&self) -> usize {
-        // TODO: enable this to work in more dimensions
-        const INPUT_DIM: usize = 1;
-        let d_lin = self.num_time_delay_taps * INPUT_DIM;
-        let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
-        d_lin + d_nonlin
-    }
-}
-
-pub struct ParamMapper {}
-
-impl OptParamMapper<PARAM_DIM> for ParamMapper {
-    type Params = Params;
-
-    fn map(&self, params: &[f64; PARAM_DIM]) -> Self::Params {
-        todo!()
-    }
-}
-
-impl<R> NextGenerationRC<R>
+impl<R, C> NextGenerationRC<R, C>
 where
     R: LinReg,
+    C: FullFeatureConstructor,
 {
     /// Construct the linear part of feature vector
     ///
@@ -95,66 +61,16 @@ where
 
         lin_part
     }
-
-    /// Construct the nonlinear part of feature matrix from linear part
-    ///
-    /// # Arguments
-    /// inputs: Number of rows are the observed datapoints and number of columns represent the features at each timestep
-    ///
-    fn construct_full_features<'a>(
-        &self,
-        inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
-    ) -> DMatrix<f64> {
-        let warmup = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
-
-        let lin_part = self.construct_lin_part(inputs);
-
-        // manually copy over elements while skipping the warmup columns
-        let mut full_features: DMatrix<f64> = Matrix::from_element_generic(
-            Dim::from_usize(lin_part.nrows() - warmup),
-            Dim::from_usize(self.d_total),
-            0.0,
-        );
-        for i in warmup..lin_part.nrows() {
-            full_features
-                .set_row(i - warmup, &lin_part.row(i).resize_horizontally(self.d_total, 0.0));
-        }
-
-        let mut cnt: usize = 0;
-        for i in 0..self.d_lin {
-            for j in i..self.d_lin {
-                for span in j..self.d_lin {
-                    let column: Vec<f64> = lin_part
-                        .column(i)
-                        .iter()
-                        .skip(warmup)
-                        .zip(lin_part.column(j).iter().skip(warmup))
-                        .zip(lin_part.column(span).iter().skip(warmup))
-                        .map(|((v_i, v_j), v_s)| v_i * v_j * v_s)
-                        .collect();
-                    let column: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
-                        Matrix::from_vec_generic(
-                            Dim::from_usize(lin_part.nrows() - warmup),
-                            Dim::from_usize(1),
-                            column,
-                        );
-                    full_features.set_column(self.d_lin + cnt, &column);
-                    cnt += 1;
-                }
-            }
-        }
-
-        full_features
-    }
 }
 
-impl<R> ReservoirComputer<PARAM_DIM, R> for NextGenerationRC<R>
+impl<R, C> ReservoirComputer<PARAM_DIM, R> for NextGenerationRC<R, C>
 where
     R: LinReg,
+    C: FullFeatureConstructor,
 {
     type ParamMapper = ParamMapper;
 
-    fn new(params: Params, regressor: R) -> Self {
+    fn new(params: Params, regressor: R, full_feature_constructor: C) -> Self {
         let d_lin = params.num_time_delay_taps * params.input_dim;
         let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
         let d_total = d_lin + d_nonlin;
@@ -177,6 +93,7 @@ where
             state,
             window_cap,
             regressor,
+            full_feature_constructor,
         }
     }
 

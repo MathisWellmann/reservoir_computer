@@ -1,30 +1,17 @@
-[package]
-name = "reservoir_computer"
-version = "0.9.13"
-edition = "2021"
-authors = ["Mathis Wellmann <wellmannmathis@gmail.com"]
-license = "GNU AGPLv3"
-publish = false
+[workspace]
+members = [
+  "classic-rcs",
+  "next-generation-rcs",
+  "optimizers",
+  "lin-reg",
+  "examples/sine",
+  "examples/mackey_glass",
+  "examples/doublescroll",
+  "examples/trades",
+  "examples/trades_sliding_window",
+]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-log = "^0.4.14"
-pretty_env_logger = "^0.4"
-csv = "^1.1.6"
-plotters = "^0.3.1"
-thiserror = "^1"
-nalgebra = { version = "^0.30", features = ["sparse"]}
-nanorand = "^0.7"
-dialoguer = "^0.10.0"
-num = "^0.4"
-num_cpus = "^1.13.1"
-threadpool = "^1.0"
-crossbeam = "^0.8.1"
-
-time_series_generator = "0.3.0"
-sliding_features = "2.5.0"
-trade_aggregation = "1.0.5"
-
-[dev-dependencies]
-round = "^0.1.2"
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "unwind"
