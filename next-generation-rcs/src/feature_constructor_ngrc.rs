@@ -1,4 +1,4 @@
-use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 
 use super::{params::Params, FullFeatureConstructor};
 
@@ -11,7 +11,10 @@ impl FullFeatureConstructor for NGRCConstructor {
     /// # Arguments
     /// inputs: Number of rows are the observed datapoints and number of columns represent the features at each timestep
     ///
-    fn construct_full_features<'a>(params: &Params, lin_part: &DMatrix<f64>) -> DMatrix<f64> {
+    fn construct_full_features<'a>(
+        params: &Params,
+        lin_part: &MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
+    ) -> DMatrix<f64> {
         let d_lin = params.num_time_delay_taps * params.input_dim;
         let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
         let d_total = d_lin + d_nonlin;

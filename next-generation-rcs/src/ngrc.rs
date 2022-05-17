@@ -2,9 +2,9 @@ use std::collections::VecDeque;
 
 use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 
-use super::params::{ParamMapper, Params, PARAM_DIM};
+use super::params::Params;
 use super::FullFeatureConstructor;
-use crate::{lin_reg::LinReg, ReservoirComputer};
+use lin_reg::LinReg;
 
 #[derive(Debug, Clone)]
 pub struct NextGenerationRC<R, C> {
@@ -63,13 +63,11 @@ where
     }
 }
 
-impl<R, C> ReservoirComputer<PARAM_DIM, R> for NextGenerationRC<R, C>
+impl<R, C> NextGenerationRC<R, C>
 where
     R: LinReg,
     C: FullFeatureConstructor,
 {
-    type ParamMapper = ParamMapper;
-
     fn new(params: Params, regressor: R, full_feature_constructor: C) -> Self {
         let d_lin = params.num_time_delay_taps * params.input_dim;
         let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
@@ -102,7 +100,8 @@ where
         inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
         targets: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
     ) {
-        let full_features = self.construct_full_features(inputs);
+        let full_features =
+            <C as FullFeatureConstructor>::construct_full_features(&self.params, inputs);
 
         let warmup = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
 
@@ -157,7 +156,10 @@ where
         for (i, col) in self.inputs.iter().enumerate() {
             inputs.set_row(i, col);
         }
-        let full_features = self.construct_full_features(&inputs.columns(0, inputs.ncols()));
+        let full_features = <C as FullFeatureConstructor>::construct_full_features(
+            &self.params,
+            &inputs.columns(0, inputs.ncols()),
+        );
 
         // extract the state from the last full_feature column
         let mut state: Vec<f64> = vec![0.0; self.d_total + 1];

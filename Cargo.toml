@@ -4,6 +4,8 @@ members = [
   "next-generation-rcs",
   "optimizers",
   "lin-reg",
+  "rc-plot",
+  "common",
   "examples/sine",
   "examples/mackey_glass",
   "examples/doublescroll",

@@ -1,16 +1,14 @@
 #[macro_use]
 extern crate log;
 
-mod plot;
-
 use std::time::Instant;
 
+use common::Activation;
 use dialoguer::{theme::ColorfulTheme, Select};
+use lin_reg::*;
 use nalgebra::{DMatrix, Dim, Matrix};
-use plot::{plot, Series};
-use reservoir_computer::{
-    ngrc, Activation, LinReg, RCParams, ReservoirComputer, TikhonovRegularization,
-};
+use next_generation_rcs::{NextGenerationRC, Params};
+use rc_plot::{plot, Series};
 use time_series_generator::generate_sine_wave;
 
 const TRAIN_LEN: usize = 600;
@@ -109,7 +107,7 @@ pub(crate) fn main() {
             */
         }
         2 => {
-            let params = ngrc::Params {
+            let params = Params {
                 input_dim: 1,
                 output_dim: 1,
                 num_time_delay_taps: 20,
@@ -120,12 +118,12 @@ pub(crate) fn main() {
             let regressor = TikhonovRegularization {
                 regularization_coeff: 990.0,
             };
-            let mut rc = ngrc::NextGenerationRC::new(params, regressor);
+            let mut rc = NextGenerationRC::new(params, regressor);
             let t0 = Instant::now();
             rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));
             info!("NGRC training took {}ms", t0.elapsed().as_millis());
 
-            run_rc::<ngrc::NextGenerationRC<TikhonovRegularization>, 3, TikhonovRegularization>(
+            run_rc::<NextGenerationRC<TikhonovRegularization>, 3, TikhonovRegularization>(
                 &mut rc,
                 &values,
                 "img/sine_ngrc.png",

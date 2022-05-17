@@ -7,7 +7,7 @@ pub enum Activation {
 
 impl Activation {
     /// Perform the activation function over all elements
-    pub(crate) fn activate(&self, vals: &mut [f64]) {
+    pub fn activate(&self, vals: &mut [f64]) {
         match self {
             Activation::Identity => {}
             Activation::Tanh => {

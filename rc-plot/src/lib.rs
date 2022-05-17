@@ -1,6 +1,9 @@
+#[macro_use]
+extern crate log;
+
 mod gif_render;
 mod gif_render_optimizer;
-mod plot;
+pub mod plot;
 
 pub use gif_render::GifRender;
 pub use gif_render_optimizer::GifRenderOptimizer;
