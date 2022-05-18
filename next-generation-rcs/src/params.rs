@@ -1,6 +1,4 @@
-use common::Activation;
-
-pub(crate) const PARAM_DIM: usize = 3;
+use common::{Activation, RCParams};
 
 #[derive(Debug, Clone)]
 pub struct Params {
@@ -11,7 +9,7 @@ pub struct Params {
     pub output_activation: Activation,
 }
 
-impl Params {
+impl RCParams for Params {
     #[inline(always)]
     fn initial_state_value(&self) -> f64 {
         0.0
@@ -28,6 +26,8 @@ impl Params {
 }
 
 /*
+pub(crate) const PARAM_DIM: usize = 3;
+
 pub struct ParamMapper {}
 
 impl OptParamMapper<PARAM_DIM> for ParamMapper {

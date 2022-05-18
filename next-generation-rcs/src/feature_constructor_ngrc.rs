@@ -3,6 +3,7 @@ use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 use super::{params::Params, FullFeatureConstructor};
 
 /// The classic next-generation reservoir computer constructor
+#[derive(Default, Clone, Copy)]
 pub struct NGRCConstructor {}
 
 impl FullFeatureConstructor for NGRCConstructor {

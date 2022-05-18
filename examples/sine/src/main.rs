@@ -3,16 +3,16 @@ extern crate log;
 
 use std::time::Instant;
 
-use common::Activation;
+use common::{Activation, ReservoirComputer};
 use dialoguer::{theme::ColorfulTheme, Select};
 use lin_reg::*;
 use nalgebra::{DMatrix, Dim, Matrix};
-use next_generation_rcs::{NextGenerationRC, Params};
+use next_generation_rcs::{NGRCConstructor, NextGenerationRC, Params};
 use rc_plot::{plot, Series};
 use time_series_generator::generate_sine_wave;
 
 const TRAIN_LEN: usize = 600;
-const SEED: Option<u64> = Some(0);
+// const SEED: Option<u64> = Some(0);
 
 pub(crate) fn main() {
     pretty_env_logger::init();
@@ -118,24 +118,25 @@ pub(crate) fn main() {
             let regressor = TikhonovRegularization {
                 regularization_coeff: 990.0,
             };
-            let mut rc = NextGenerationRC::new(params, regressor);
+            // TODO: try other feature constructors as well
+            let feature_constructor = NGRCConstructor::default();
+            let mut rc = NextGenerationRC::new(params, regressor, feature_constructor);
             let t0 = Instant::now();
             rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));
             info!("NGRC training took {}ms", t0.elapsed().as_millis());
 
-            run_rc::<NextGenerationRC<TikhonovRegularization>, 3, TikhonovRegularization>(
-                &mut rc,
-                &values,
-                "img/sine_ngrc.png",
-            );
+            run_rc::<
+                NextGenerationRC<TikhonovRegularization, NGRCConstructor>,
+                TikhonovRegularization,
+            >(&mut rc, &values, "img/sine_ngrc.png");
         }
         _ => panic!("invalid reservoir computer selection"),
     }
 }
 
-fn run_rc<RC, const N: usize, R>(rc: &mut RC, values: &DMatrix<f64>, filename: &str)
+fn run_rc<RC, R>(rc: &mut RC, values: &DMatrix<f64>, filename: &str)
 where
-    RC: ReservoirComputer<N, R>,
+    RC: ReservoirComputer<R>,
     R: LinReg,
 {
     let mut plot_targets: Series = Vec::with_capacity(1_000_000);
@@ -143,8 +144,7 @@ where
     let mut test_predictions: Series = Vec::with_capacity(1_000_000);
 
     let n_vals = values.nrows();
-    let mut vals: Vec<f64> =
-        vec![rc.params().initial_state_value(); rc.params().reservoir_size() + 1];
+    let mut vals: Vec<f64> = vec![0.0; rc.params().reservoir_size() + 1];
     vals[0] = 1.0;
     let state = Matrix::from_vec_generic(
         Dim::from_usize(1),
@@ -177,7 +177,7 @@ where
             values.row(i - 1)
         };
 
-        rc.update_state(&input, &predicted_out);
+        rc.update_state(&input);
     }
 
     plot(&plot_targets, &train_predictions, &test_predictions, filename, (2160, 2160));

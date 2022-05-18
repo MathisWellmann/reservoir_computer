@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use common::{RCParams, ReservoirComputer};
 use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 
 use super::params::Params;
@@ -27,6 +28,33 @@ where
     R: LinReg,
     C: FullFeatureConstructor,
 {
+    pub fn new(params: Params, regressor: R, full_feature_constructor: C) -> Self {
+        let d_lin = params.num_time_delay_taps * params.input_dim;
+        let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
+        let d_total = d_lin + d_nonlin;
+
+        let readout_matrix = Matrix::from_element_generic(
+            Dim::from_usize(params.output_dim),
+            Dim::from_usize(d_total),
+            0.0,
+        );
+        let state = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(d_total), 0.0);
+
+        let window_cap = params.num_samples_to_skip * params.num_time_delay_taps + 1;
+
+        Self {
+            params,
+            inputs: VecDeque::with_capacity(window_cap),
+            readout_matrix,
+            d_lin,
+            d_total,
+            state,
+            window_cap,
+            regressor,
+            full_feature_constructor,
+        }
+    }
+
     /// Construct the linear part of feature vector
     ///
     /// # Arguments
@@ -63,36 +91,14 @@ where
     }
 }
 
-impl<R, C> NextGenerationRC<R, C>
+impl<R, C> ReservoirComputer<R> for NextGenerationRC<R, C>
 where
     R: LinReg,
     C: FullFeatureConstructor,
 {
-    fn new(params: Params, regressor: R, full_feature_constructor: C) -> Self {
-        let d_lin = params.num_time_delay_taps * params.input_dim;
-        let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
-        let d_total = d_lin + d_nonlin;
-
-        let readout_matrix = Matrix::from_element_generic(
-            Dim::from_usize(params.output_dim),
-            Dim::from_usize(d_total),
-            0.0,
-        );
-        let state = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(d_total), 0.0);
-
-        let window_cap = params.num_samples_to_skip * params.num_time_delay_taps + 1;
-
-        Self {
-            params,
-            inputs: VecDeque::with_capacity(window_cap),
-            readout_matrix,
-            d_lin,
-            d_total,
-            state,
-            window_cap,
-            regressor,
-            full_feature_constructor,
-        }
+    #[inline(always)]
+    fn params(&self) -> &dyn RCParams {
+        &self.params
     }
 
     fn train<'a>(
@@ -131,7 +137,6 @@ where
     fn update_state<'a>(
         &mut self,
         input: &'a MatrixSlice<'a, f64, Const<1>, Dynamic, Const<1>, Dynamic>,
-        _prev_pred: &Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>,
     ) {
         let input =
             <Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>::from_row_slice_generic(
@@ -200,11 +205,6 @@ where
     }
 
     #[inline(always)]
-    fn params(&self) -> &Params {
-        &self.params
-    }
-
-    #[inline(always)]
     fn readout_matrix(&self) -> &DMatrix<f64> {
         &self.readout_matrix
     }
@@ -215,7 +215,7 @@ mod tests {
     use round::round;
 
     use super::*;
-    use crate::lin_reg::TikhonovRegularization;
+    use lin_reg::TikhonovRegularization;
 
     const NUM_VALS: usize = 9;
 

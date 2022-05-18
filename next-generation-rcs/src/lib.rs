@@ -3,6 +3,8 @@ extern crate log;
 
 use nalgebra::{Const, DMatrix, Dynamic, MatrixSlice};
 
+pub use feature_constructor_hengrc::HENGRCConstructor;
+pub use feature_constructor_ngrc::NGRCConstructor;
 pub use ngrc::NextGenerationRC;
 pub use params::Params;
 

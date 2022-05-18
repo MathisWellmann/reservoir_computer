@@ -1,6 +1,6 @@
 [package]
 name = "classic-rcs"
-version = "0.12.0"
+version = "0.12.1"
 edition = "2021"
 authors = ["Mathis Wellmann <wellmannmathis@gmail.com"]
 license = "GNU AGPLv3"
