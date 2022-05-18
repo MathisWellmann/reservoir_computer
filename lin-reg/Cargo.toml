@@ -7,3 +7,8 @@ edition = "2021"
 
 [dependencies]
 nalgebra = "^0.31.0"
+log = "^0.4"
+
+[dev-dependencies]
+pretty_env_logger = "^0.4"
+round = "^0.1"

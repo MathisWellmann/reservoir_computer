@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate log;
+
 use nalgebra::{Const, DMatrix, Dynamic, MatrixSlice};
 
 mod tikhonov_regularization;

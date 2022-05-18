@@ -212,7 +212,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use common::Activation;
     use round::round;
+
+    use crate::NGRCConstructor;
 
     use super::*;
     use lin_reg::TikhonovRegularization;
@@ -244,7 +247,9 @@ mod tests {
         let regressor = TikhonovRegularization {
             regularization_coeff: 0.001,
         };
-        let ngrc = NextGenerationRC::<TikhonovRegularization>::new(params, regressor);
+        let fc = NGRCConstructor::default();
+        let ngrc =
+            NextGenerationRC::<TikhonovRegularization, NGRCConstructor>::new(params, regressor, fc);
 
         let lin_part = ngrc.construct_lin_part(&inputs.rows(0, NUM_VALS));
         info!("inputs: {}", inputs);
@@ -280,7 +285,9 @@ mod tests {
         let regressor = TikhonovRegularization {
             regularization_coeff: 0.001,
         };
-        let ngrc = NextGenerationRC::<TikhonovRegularization>::new(params, regressor);
+        let fc = NGRCConstructor::default();
+        let ngrc =
+            NextGenerationRC::<TikhonovRegularization, NGRCConstructor>::new(params, regressor, fc);
 
         let lin_part = ngrc.construct_lin_part(&inputs.rows(0, NUM_VALS));
         info!("inputs: {}", inputs);
@@ -322,9 +329,15 @@ mod tests {
         let regressor = TikhonovRegularization {
             regularization_coeff: 0.001,
         };
-        let ngrc = NextGenerationRC::<TikhonovRegularization>::new(params, regressor);
+        let fc = NGRCConstructor::default();
+        let ngrc = NextGenerationRC::<TikhonovRegularization, NGRCConstructor>::new(
+            params.clone(),
+            regressor,
+            fc,
+        );
 
-        let mut full_features = ngrc.construct_full_features(&inputs.rows(0, inputs.nrows()));
+        let lin_part = ngrc.construct_lin_part(&inputs.rows(0, inputs.nrows()));
+        let mut full_features = NGRCConstructor::construct_full_features(&params, &lin_part);
         info!("inputs: {}", inputs);
 
         let d_lin = K * I;
