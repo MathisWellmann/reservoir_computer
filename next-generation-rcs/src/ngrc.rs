@@ -112,12 +112,12 @@ where
 
         let warmup = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
 
-        // TODO: add column of 1s here
         let mut design: DMatrix<f64> = Matrix::from_element_generic(
             Dim::from_usize(full_features.nrows()),
             Dim::from_usize(full_features.ncols() + 1),
             0.0,
         );
+        // add column of 1s here
         let col: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
             Matrix::from_element_generic(
                 Dim::from_usize(full_features.nrows()),

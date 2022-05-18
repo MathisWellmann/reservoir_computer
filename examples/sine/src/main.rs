@@ -3,6 +3,7 @@ extern crate log;
 
 use std::time::Instant;
 
+use classic_rcs::{Params as ESNParams, ESN};
 use common::{Activation, ReservoirComputer};
 use dialoguer::{theme::ColorfulTheme, Select};
 use lin_reg::*;
@@ -12,7 +13,7 @@ use rc_plot::{plot, Series};
 use time_series_generator::generate_sine_wave;
 
 const TRAIN_LEN: usize = 600;
-// const SEED: Option<u64> = Some(0);
+const SEED: Option<u64> = Some(0);
 
 pub(crate) fn main() {
     pretty_env_logger::init();
@@ -36,9 +37,7 @@ pub(crate) fn main() {
         .unwrap();
     match e {
         0 => {
-            // TODO:
-            /*
-            let params = esn::Params {
+            let params = ESNParams {
                 input_sparsity: 0.1,
                 input_activation: Activation::Identity,
                 input_weight_scaling: 0.5,
@@ -48,7 +47,6 @@ pub(crate) fn main() {
                 reservoir_sparsity: 0.1,
                 reservoir_activation: Activation::Tanh,
 
-                feedback_gain: 0.0,
                 spectral_radius: 0.9,
                 leaking_rate: 0.2,
                 regularization_coeff: 0.1,
@@ -57,24 +55,22 @@ pub(crate) fn main() {
                 seed: SEED,
                 state_update_noise_frac: 0.005,
                 initial_state_value: 0.0,
-                readout_from_input_as_well: true,
             };
             // TODO: choose lin reg
             let regressor = TikhonovRegularization {
                 regularization_coeff: 0.001,
             };
-            let mut rc = esn::ESN::new(params, regressor);
+            let mut rc = ESN::new(params, regressor);
 
             let t0 = Instant::now();
-            rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
+            rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));
             info!("training done in: {}ms", t0.elapsed().as_millis());
 
-            run_rc::<esn::ESN<1, 1, TikhonovRegularization>, 7, TikhonovRegularization>(
+            run_rc::<ESN<TikhonovRegularization>, TikhonovRegularization>(
                 &mut rc,
                 &values,
                 "img/sine_esn.png",
             );
-            */
         }
         1 => {
             todo!()
@@ -151,6 +147,7 @@ where
         Dim::from_usize(rc.params().reservoir_size() + 1),
         vals,
     );
+    // TODO: ngrc takes +1, esn does not
     rc.set_state(state);
     for i in 1..n_vals {
         plot_targets.push((i as f64, *values.row(i).get(0).unwrap()));

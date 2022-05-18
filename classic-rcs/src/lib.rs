@@ -7,9 +7,8 @@ mod esn;
 // mod eusn;
 // mod rc_trait;
 mod params;
-mod utils;
 
 pub use esn::ESN;
 pub use params::Params;
 
-pub type StateMatrix = Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>;
+pub type StateMatrix = Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;

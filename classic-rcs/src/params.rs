@@ -45,9 +45,6 @@ pub struct Params {
     pub state_update_noise_frac: f64,
     /// Initial value of state
     pub initial_state_value: f64,
-
-    /// If true, concatenates inputs and state to perform readout
-    pub readout_from_input_as_well: bool,
 }
 
 impl RCParams for Params {
@@ -83,7 +80,6 @@ pub struct ParamMapper {
     pub seed: Option<u64>,
     pub state_update_noise_frac: f64,
     pub initial_state_value: f64,
-    pub readout_from_input_as_well: bool,
 }
 
 impl OptParamMapper<PARAM_DIM> for ParamMapper {
@@ -148,7 +144,6 @@ impl OptParamMapper<PARAM_DIM> for ParamMapper {
             seed: self.seed,
             state_update_noise_frac: self.state_update_noise_frac,
             initial_state_value: self.initial_state_value,
-            readout_from_input_as_well: self.readout_from_input_as_well,
         }
     }
 }

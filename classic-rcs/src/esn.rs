@@ -1,6 +1,4 @@
-use nalgebra::{
-    ArrayStorage, Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, SymmetricEigen, VecStorage,
-};
+use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, SymmetricEigen, VecStorage};
 use nanorand::{Rng, WyRand};
 
 use crate::{Params, StateMatrix};
@@ -16,7 +14,6 @@ pub struct ESN<R> {
     reservoir_biases: StateMatrix,
     readout_matrix: DMatrix<f64>,
     state: StateMatrix,
-    extended_state: StateMatrix,
     rng: WyRand,
     regressor: R,
 }
@@ -24,7 +21,7 @@ pub struct ESN<R> {
 impl<R> ESN<R> {
     /// Create a new reservoir, with random initiallization
     /// # Arguments
-    fn new(params: Params, regressor: R) -> Self {
+    pub fn new(params: Params, regressor: R) -> Self {
         let mut rng = match params.seed {
             Some(seed) => WyRand::new_seed(seed),
             None => WyRand::new(),
@@ -51,36 +48,21 @@ impl<R> ESN<R> {
         let input_weight_matrix = Matrix::from_fn_generic(
             Dim::from_usize(params.reservoir_size),
             Dim::from_usize(1),
-            |_, _| {
-                if rng.generate::<f64>() < params.input_sparsity {
-                    (rng.generate::<f64>() * 2.0 - 1.0) * params.input_weight_scaling
-                } else {
-                    0.0
-                }
-            },
+            |_, _| (rng.generate::<f64>() * 2.0 - 1.0) * params.input_weight_scaling,
         );
         let reservoir_biases = Matrix::from_fn_generic(
             Dim::from_usize(params.reservoir_size),
             Dim::from_usize(1),
-            |_, _| (rng.generate::<f64>() * 2.0 - 1.0) * params.reservoir_bias_scaling,
+            |i, _| (rng.generate::<f64>() * 2.0 - 1.0) * params.reservoir_bias_scaling,
         );
 
-        let cols = if params.readout_from_input_as_well {
-            1 + params.reservoir_size
-        } else {
-            params.reservoir_size
-        };
-        let readout_matrix =
-            Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(cols), |_, _| {
-                rng.generate::<f64>() * 2.0 - 1.0
-            });
-        let state = Matrix::from_element_generic(
+        let readout_matrix = Matrix::from_fn_generic(
             Dim::from_usize(params.reservoir_size),
             Dim::from_usize(1),
-            params.initial_state_value,
+            |_, _| rng.generate::<f64>() * 2.0 - 1.0,
         );
-        let extended_state = Matrix::from_element_generic(
-            Dim::from_usize(1 + params.reservoir_size),
+        let state = Matrix::from_element_generic(
+            Dim::from_usize(params.reservoir_size),
             Dim::from_usize(1),
             params.initial_state_value,
         );
@@ -99,7 +81,6 @@ impl<R> ESN<R> {
             state,
             reservoir_biases,
             rng,
-            extended_state,
             regressor,
         }
     }
@@ -109,6 +90,7 @@ impl<R> ReservoirComputer<R> for ESN<R>
 where
     R: LinReg,
 {
+    #[inline(always)]
     fn params(&self) -> &dyn RCParams {
         &self.params
     }
@@ -119,56 +101,40 @@ where
         targets: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
     ) {
         let washout_len = (inputs.ncols() as f64 * self.params.washout_pct) as usize;
-        let harvest_len = inputs.ncols() - washout_len;
+        let harvest_len = inputs.nrows() - washout_len;
 
-        let design_cols = if self.params.readout_from_input_as_well {
-            1 + self.params.reservoir_size
-        } else {
-            self.params.reservoir_size
-        };
-        let mut design_matrix: DMatrix<f64> = DMatrix::from_element_generic(
+        let mut design: DMatrix<f64> = DMatrix::from_element_generic(
             Dim::from_usize(harvest_len),
-            Dim::from_usize(design_cols),
+            Dim::from_usize(self.params.reservoir_size + 1), // +1 to account for column of 1s
             0.0,
         );
-        let mut target_matrix: DMatrix<f64> =
-            Matrix::from_element_generic(Dim::from_usize(harvest_len), Dim::from_usize(1), 0.0);
-        let mut curr_pred = self.readout();
 
         for i in 0..inputs.nrows() {
             self.update_state(&inputs.row(i));
 
-            curr_pred = self.readout();
-
             // discard earlier values, as the state has to stabilize first
             if i >= washout_len {
-                let design: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+                let d: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
                     Matrix::from_fn_generic(
                         Dim::from_usize(1),
-                        Dim::from_usize(design_cols),
+                        Dim::from_usize(self.params.reservoir_size + 1), // +1 to account for 1 at j == 0
                         |_, j| {
-                            if self.params.readout_from_input_as_well {
-                                *self.extended_state.get(j).unwrap()
+                            if j == 0 {
+                                1.0
                             } else {
-                                *self.state.get(j).unwrap()
+                                *self.state.get(j - 1).unwrap()
                             }
                         },
                     );
-                design_matrix.set_row(i - washout_len, &design);
-
-                let target_col = targets.column(i);
-                let target: Matrix<f64, Const<1>, Const<1>, ArrayStorage<f64, 1, 1>> =
-                    Matrix::from_fn_generic(Dim::from_usize(1), Dim::from_usize(1), |_, j| {
-                        *target_col.get(j).unwrap()
-                    });
-                target_matrix.set_row(i - washout_len, &target);
+                design.set_row(i - washout_len, &d);
             }
         }
 
-        self.readout_matrix = self.regressor.fit_readout(
-            &design_matrix.rows(0, design_matrix.nrows()),
-            &target_matrix.rows(0, target_matrix.nrows()),
-        );
+        self.readout_matrix = self
+            .regressor
+            .fit_readout(&design.rows(0, design.nrows()), &targets.rows(0, harvest_len));
+
+        info!("readout dims: ({}, {})", self.readout_matrix.nrows(), self.readout_matrix.ncols());
 
         /*
         // TODO: move this qr based fit into its own file
@@ -197,41 +163,47 @@ where
         &mut self,
         input: &'a MatrixSlice<'a, f64, Const<1>, Dynamic, Const<1>, Dynamic>,
     ) {
-        // perform node-to-node update
         let noise: StateMatrix = Matrix::from_fn_generic(
             Dim::from_usize(self.params.reservoir_size),
             Dim::from_usize(1),
             |_, _| (self.rng.generate::<f64>() * 2.0 - 1.0) * self.params.state_update_noise_frac,
         );
-        let mut state_delta: StateMatrix = &self.input_weight_matrix * input
+        let in_part = &self.input_weight_matrix * input.transpose();
+
+        let mut state_delta: StateMatrix = in_part
             + self.params.leaking_rate * (&self.reservoir_matrix * &self.state)
             + &self.reservoir_biases
             + noise;
         self.params.reservoir_activation.activate(state_delta.as_mut_slice());
 
+        // perform node-to-node update
         self.state = (1.0 - self.params.leaking_rate) * &self.state + state_delta;
-        self.extended_state = Matrix::from_fn_generic(
-            Dim::from_usize(1 + self.params.reservoir_size),
-            Dim::from_usize(1),
-            |i, _| {
-                if i == 0 {
-                    *input.get(0).unwrap()
-                } else {
-                    *self.state.row(i - 1).get(0).unwrap()
-                }
-            },
-        );
     }
 
     /// Perform a readout operation
     #[inline]
     #[must_use]
     fn readout(&self) -> Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> {
-        let mut pred = if self.params.readout_from_input_as_well {
-            &self.extended_state * &self.readout_matrix
-        } else {
-            &self.state * &self.readout_matrix
-        };
+        debug!(
+            "readout: dims of state: ({}, {}), readout: ({}, {})",
+            self.state.nrows(),
+            self.state.ncols(),
+            self.readout_matrix.nrows(),
+            self.readout_matrix.ncols()
+        );
+        // prepend the 1 to state for proper readout
+        let state: StateMatrix = Matrix::from_fn_generic(
+            Dim::from_usize(self.params.reservoir_size + 1),
+            Dim::from_usize(1),
+            |i, _| {
+                if i == 0 {
+                    1.0
+                } else {
+                    *self.state.get(i - 1).unwrap()
+                }
+            },
+        );
+        let mut pred = &state.transpose() * &self.readout_matrix;
         self.params.output_activation.activate(pred.as_mut_slice());
 
         pred
@@ -239,13 +211,11 @@ where
 
     /// Resets the state to it's initial values
     #[inline(always)]
-    fn set_state(&mut self, state: StateMatrix) {
-        self.state = state;
-        self.extended_state = Matrix::from_element_generic(
-            Dim::from_usize(1 + self.params.reservoir_size),
-            Dim::from_usize(1),
-            self.params.initial_state_value,
-        );
+    fn set_state(
+        &mut self,
+        state: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>,
+    ) {
+        self.state = state.transpose();
     }
 
     #[inline(always)]
