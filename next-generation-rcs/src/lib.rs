@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
 
-use nalgebra::{Const, DMatrix, Dynamic, MatrixSlice};
+use nalgebra::DMatrix;
 
 pub use feature_constructor_hengrc::HENGRCConstructor;
 pub use feature_constructor_ngrc::NGRCConstructor;
@@ -15,8 +15,5 @@ mod params;
 
 pub trait FullFeatureConstructor {
     /// Construct the full feature space from the linear part
-    fn construct_full_features<'a>(
-        params: &Params,
-        lin_part: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
-    ) -> DMatrix<f64>;
+    fn construct_full_features<'a>(params: &Params, lin_part: &DMatrix<f64>) -> DMatrix<f64>;
 }

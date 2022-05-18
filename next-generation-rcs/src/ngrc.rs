@@ -106,8 +106,9 @@ where
         inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
         targets: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
     ) {
+        let lin_part = self.construct_lin_part(inputs);
         let full_features =
-            <C as FullFeatureConstructor>::construct_full_features(&self.params, inputs);
+            <C as FullFeatureConstructor>::construct_full_features(&self.params, &lin_part);
 
         let warmup = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
 
@@ -161,10 +162,9 @@ where
         for (i, col) in self.inputs.iter().enumerate() {
             inputs.set_row(i, col);
         }
-        let full_features = <C as FullFeatureConstructor>::construct_full_features(
-            &self.params,
-            &inputs.columns(0, inputs.ncols()),
-        );
+        let lin_part = self.construct_lin_part(&inputs.rows(0, inputs.nrows()));
+        let full_features =
+            <C as FullFeatureConstructor>::construct_full_features(&self.params, &lin_part);
 
         // extract the state from the last full_feature column
         let mut state: Vec<f64> = vec![0.0; self.d_total + 1];
