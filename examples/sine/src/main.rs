@@ -140,14 +140,12 @@ where
     let mut test_predictions: Series = Vec::with_capacity(1_000_000);
 
     let n_vals = values.nrows();
-    let mut vals: Vec<f64> = vec![0.0; rc.params().reservoir_size() + 1];
-    vals[0] = 1.0;
+    let vals: Vec<f64> = vec![0.0; rc.params().reservoir_size()];
     let state = Matrix::from_vec_generic(
         Dim::from_usize(1),
-        Dim::from_usize(rc.params().reservoir_size() + 1),
+        Dim::from_usize(rc.params().reservoir_size()),
         vals,
     );
-    // TODO: ngrc takes +1, esn does not
     rc.set_state(state);
     for i in 1..n_vals {
         plot_targets.push((i as f64, *values.row(i).get(0).unwrap()));

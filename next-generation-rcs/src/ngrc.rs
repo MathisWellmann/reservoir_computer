@@ -7,12 +7,14 @@ use super::params::Params;
 use super::FullFeatureConstructor;
 use lin_reg::LinReg;
 
+type StateMatrix = Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>;
+
 #[derive(Debug, Clone)]
 pub struct NextGenerationRC<R, C> {
     params: Params,
     inputs: VecDeque<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
     readout_matrix: DMatrix<f64>,
-    state: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>,
+    state: StateMatrix,
     // size of the linear part of feature vector
     d_lin: usize,
     // Total size of the feature vector
@@ -189,6 +191,13 @@ where
                 0.0,
             );
         }
+        debug!(
+            "readout: dims of state: ({}, {}), readout: ({}, {})",
+            self.state.nrows(),
+            self.state.ncols(),
+            self.readout_matrix.nrows(),
+            self.readout_matrix.ncols()
+        );
 
         let mut pred = &self.state * &self.readout_matrix;
         self.params.output_activation.activate(pred.as_mut_slice());
@@ -201,6 +210,20 @@ where
         &mut self,
         state: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>,
     ) {
+        // Prepending the 1 required for proper readout
+        // NOTE: this assumes the input state does not have the 1 column yet
+        // It's done to maintain compatibility with classic-rcs
+        let state: StateMatrix = Matrix::from_fn_generic(
+            Dim::from_usize(1),
+            Dim::from_usize(state.ncols() + 1),
+            |_, j| {
+                if j == 0 {
+                    1.0
+                } else {
+                    *state.get(j - 1).unwrap()
+                }
+            },
+        );
         self.state = state;
     }
 
