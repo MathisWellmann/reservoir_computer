@@ -1,6 +1,6 @@
 [package]
 name = "common"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -10,3 +10,8 @@ nalgebra = "^0.31"
 
 # Local deps
 lin-reg = { version = "^0.1", path = "../lin-reg" }
+
+rc-plot = { version = "^0.1", path = "../rc-plot", optional = true }
+
+[features]
+environments = ["rc-plot"]

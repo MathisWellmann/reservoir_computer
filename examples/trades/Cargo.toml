@@ -1,6 +1,6 @@
 [package]
 name = "trades"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -15,6 +15,9 @@ sliding_features = "^2.5"
 trade_aggregation = "^1.0"
 
 # Local deps
-common = { version = "^0.1", path = "../../common"}
+common = { version = "^0.1", path = "../../common", features = ["environments"] }
+rc-plot = { version = "^0.1", path = "../../rc-plot" }
+lin-reg = { version = "^0.1", path = "../../lin-reg" }
 classic-rcs = { version = "^0.13", path = "../../classic-rcs" }
 next-generation-rcs = { version = "^0.1", path = "../../next-generation-rcs" }
+

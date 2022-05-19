@@ -1,18 +1,14 @@
 #[macro_use]
 extern crate log;
 
-mod environments;
-mod plot;
-
 use std::{sync::Arc, time::Instant};
 
+use common::{environments::EnvTrades, Activation, ReservoirComputer};
 use dialoguer::{theme::ColorfulTheme, Select};
-use environments::env_trades::EnvTrades;
+use lin_reg::TikhonovRegularization;
 use nalgebra::{DMatrix, Dim, Matrix};
-use plot::{plot, GifRenderOptimizer, PlotGather};
-use reservoir_computer::{
-    ngrc, Activation, OptParamMapper, ReservoirComputer, TikhonovRegularization,
-};
+use next_generation_rcs::{NGRCConstructor, NextGenerationRC, Params as NGRCParams};
+use rc_plot::{plot, PlotGather};
 use sliding_features::{Echo, RoofingFilter, View};
 use trade_aggregation::{aggregate_all_trades, load_trades_from_csv, TimeAggregator};
 
@@ -139,7 +135,7 @@ pub(crate) fn main() {
             */
         }
         2 => {
-            let params = ngrc::Params {
+            let params = NGRCParams {
                 input_dim: 1,
                 output_dim: 1,
                 num_time_delay_taps: 10,
@@ -150,7 +146,8 @@ pub(crate) fn main() {
             let regressor = TikhonovRegularization {
                 regularization_coeff: 0.001,
             };
-            let mut rc = ngrc::NextGenerationRC::new(params, regressor);
+            let feature_constructor = NGRCConstructor::default();
+            let mut rc = NextGenerationRC::new(params, regressor, feature_constructor);
             let t0 = Instant::now();
             rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));
             info!("NGRC training took {}ms", t0.elapsed().as_millis());
