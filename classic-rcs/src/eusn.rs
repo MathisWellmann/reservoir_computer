@@ -130,10 +130,11 @@ impl<const I: usize, const O: usize, R> EulerStateNetwork<I, O, R>
 where
     R: LinReg,
 {
-    // type ParamMapper = ParamMapper;
-
     /// Create a new untrained EuSN with the given parameters
-    fn new(params: Params, regressor: R) -> Self {
+    fn new<C>(params: Params, regressor: R, reservoir_constructor: C) -> Self
+    where
+        C: ReservoirConstructor,
+    {
         let state = Matrix::from_element_generic(
             Dim::from_usize(params.reservoir_size),
             Dim::from_usize(1),
@@ -144,45 +145,6 @@ where
             Some(seed) => WyRand::new_seed(seed),
             None => WyRand::new(),
         };
-        let mut weights: Vec<Vec<f64>> =
-            vec![vec![0.0; params.reservoir_size]; params.reservoir_size];
-        for i in 0..weights.len() {
-            for j in 0..weights.len() {
-                weights[i][j] =
-                    (rng.generate::<f64>() * 2.0 - 1.0) * params.reservoir_weight_scaling;
-            }
-        }
-        let mut reservoir_matrix: DMatrix<f64> = DMatrix::from_vec_generic(
-            Dim::from_usize(params.reservoir_size),
-            Dim::from_usize(params.reservoir_size),
-            weights.iter().cloned().flatten().collect(),
-        );
-        let identity_m: DMatrix<f64> = DMatrix::from_diagonal_element_generic(
-            Dim::from_usize(params.reservoir_size),
-            Dim::from_usize(params.reservoir_size),
-            1.0,
-        );
-        // This satisfies the constraint of being anti-symmetric
-        reservoir_matrix =
-            (&reservoir_matrix - reservoir_matrix.transpose()) - (params.gamma * identity_m);
-
-        let reservoir_biases = Matrix::from_fn_generic(
-            Dim::from_usize(params.reservoir_size),
-            Dim::from_usize(1),
-            |_, _| (rng.generate::<f64>() * 2.0 - 1.0) * params.reservoir_bias_scaling,
-        );
-
-        let input_weight_matrix = Matrix::from_fn_generic(
-            Dim::from_usize(params.reservoir_size),
-            Dim::from_usize(1),
-            |_, _| {
-                if rng.generate::<f64>() < params.input_sparsity {
-                    (rng.generate::<f64>() * 2.0 - 1.0) * params.input_weight_scaling
-                } else {
-                    0.0
-                }
-            },
-        );
 
         let readout_matrix = Matrix::from_fn_generic(
             Dim::from_usize(O),

@@ -3,7 +3,7 @@ extern crate log;
 
 use std::time::Instant;
 
-use classic_rcs::{ESNConstructor, Params as ESNParams, RC};
+use classic_rcs::{ESNConstructor, EUSNConstructor, Params as ESNParams, RC};
 use common::{Activation, ReservoirComputer};
 use dialoguer::{theme::ColorfulTheme, Select};
 use lin_reg::*;
@@ -80,34 +80,47 @@ pub(crate) fn main() {
             );
         }
         1 => {
-            todo!()
-            /*
-            let params = eusn::Params {
-                input_sparsity: 0.1,
-                input_weight_scaling: 1.0,
-                reservoir_size: 100,
-                reservoir_weight_scaling: 0.05,
-                reservoir_bias_scaling: 0.5,
+            let params = ESNParams {
+                input_activation: Activation::Identity,
+                reservoir_size: 500,
                 reservoir_activation: Activation::Tanh,
-                initial_state_value: 0.0,
+                leaking_rate: 0.1,
+                washout_pct: 0.1,
+                output_activation: Activation::Identity,
                 seed: SEED,
-                washout_frac: 0.1,
-                regularization_coeff: 0.01,
-                epsilon: 0.01,
-                gamma: 0.001,
+                state_update_noise_frac: 0.005,
+                initial_state_value: 0.0,
             };
             // TODO: choose lin reg
             let regressor = TikhonovRegularization {
                 regularization_coeff: 0.001,
             };
-            let mut rc = eusn::EulerStateNetwork::new(params, regressor);
+            let reservoir_size = 500;
+            let reservoir_sparsity = 0.1;
+            let reservoir_bias_scaling = 0.1;
+            let input_sparsity = 1.0;
+            let input_weight_scaling = 0.5;
+            let gamma = 0.0001;
+            let res_constructor = EUSNConstructor::new(
+                SEED,
+                reservoir_size,
+                reservoir_sparsity,
+                reservoir_bias_scaling,
+                input_sparsity,
+                input_weight_scaling,
+                gamma,
+            );
+            let mut rc = RC::new(params, regressor, res_constructor);
 
             let t0 = Instant::now();
-            rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
-            info!("ESN training done in {}ms", t0.elapsed().as_millis());
+            rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));
+            info!("training done in: {}ms", t0.elapsed().as_millis());
 
-            run_rc(&mut rc, &values, "img/sine_eusn.png");
-            */
+            run_rc::<RC<TikhonovRegularization>, TikhonovRegularization>(
+                &mut rc,
+                &values,
+                "img/sine_eusn.png",
+            );
         }
         2 => {
             let params = Params {
