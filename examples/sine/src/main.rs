@@ -3,7 +3,7 @@ extern crate log;
 
 use std::time::Instant;
 
-use classic_rcs::{Params as ESNParams, ESN};
+use classic_rcs::{ESNConstructor, Params as ESNParams, RC};
 use common::{Activation, ReservoirComputer};
 use dialoguer::{theme::ColorfulTheme, Select};
 use lin_reg::*;
@@ -38,18 +38,10 @@ pub(crate) fn main() {
     match e {
         0 => {
             let params = ESNParams {
-                input_sparsity: 0.1,
                 input_activation: Activation::Identity,
-                input_weight_scaling: 0.5,
-                reservoir_bias_scaling: 0.0,
-
                 reservoir_size: 500,
-                reservoir_sparsity: 0.1,
                 reservoir_activation: Activation::Tanh,
-
-                spectral_radius: 0.9,
-                leaking_rate: 0.2,
-                regularization_coeff: 0.1,
+                leaking_rate: 0.1,
                 washout_pct: 0.1,
                 output_activation: Activation::Identity,
                 seed: SEED,
@@ -60,13 +52,28 @@ pub(crate) fn main() {
             let regressor = TikhonovRegularization {
                 regularization_coeff: 0.001,
             };
-            let mut rc = ESN::new(params, regressor);
+            let reservoir_size = 500;
+            let spectral_radius = 0.9;
+            let reservoir_sparsity = 0.1;
+            let reservoir_bias_scaling = 0.1;
+            let input_sparsity = 1.0;
+            let input_weight_scaling = 0.5;
+            let res_constructor = ESNConstructor::new(
+                SEED,
+                reservoir_size,
+                spectral_radius,
+                reservoir_sparsity,
+                reservoir_bias_scaling,
+                input_sparsity,
+                input_weight_scaling,
+            );
+            let mut rc = RC::new(params, regressor, res_constructor);
 
             let t0 = Instant::now();
             rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));
             info!("training done in: {}ms", t0.elapsed().as_millis());
 
-            run_rc::<ESN<TikhonovRegularization>, TikhonovRegularization>(
+            run_rc::<RC<TikhonovRegularization>, TikhonovRegularization>(
                 &mut rc,
                 &values,
                 "img/sine_esn.png",

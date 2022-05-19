@@ -1,6 +1,6 @@
 [package]
 name = "rc-example-sine"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -15,7 +15,7 @@ time_series_generator = "^0.3"
 
 # Local deps
 next-generation-rcs = { version = "^0.1.0", path = "../../next-generation-rcs" }
-classic-rcs = { version = "^0.12.0", path = "../../classic-rcs" }
+classic-rcs = { version = "^0.13.0", path = "../../classic-rcs" }
 lin-reg = { version = "^0.1.0", path = "../../lin-reg" }
 rc-plot = { version = "^0.1.0", path = "../../rc-plot" }
 common = { version = "^0.1", path = "../../common" }

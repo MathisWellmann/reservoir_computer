@@ -3,12 +3,14 @@ extern crate log;
 
 use nalgebra::{Const, Dynamic, Matrix, VecStorage};
 
-mod esn;
-// mod eusn;
-// mod rc_trait;
+mod esn_constructor;
 mod params;
+mod rc;
+mod reservoir_constructor;
 
-pub use esn::ESN;
+pub use esn_constructor::ESNConstructor;
 pub use params::Params;
+pub use rc::RC;
+pub use reservoir_constructor::ReservoirConstructor;
 
 pub type StateMatrix = Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;

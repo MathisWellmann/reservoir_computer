@@ -16,5 +16,5 @@ trade_aggregation = "^1.0"
 
 # Local deps
 common = { version = "^0.1", path = "../../common"}
-classic-rcs = { version = "^0.12", path = "../../classic-rcs" }
+classic-rcs = { version = "^0.13", path = "../../classic-rcs" }
 next-generation-rcs = { version = "^0.1", path = "../../next-generation-rcs" }

@@ -1,16 +1,16 @@
-use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, SymmetricEigen, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 use nanorand::{Rng, WyRand};
 
-use crate::{Params, StateMatrix};
+use crate::{Params, ReservoirConstructor, StateMatrix};
 use common::{RCParams, ReservoirComputer};
 use lin_reg::LinReg;
 
 /// The Reseoir Computer, Leaky Echo State Network
 #[derive(Debug)]
-pub struct ESN<R> {
+pub struct RC<R> {
     params: Params,
     input_weight_matrix: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
-    reservoir_matrix: DMatrix<f64>,
+    reservoir_weights: DMatrix<f64>,
     reservoir_biases: StateMatrix,
     readout_matrix: DMatrix<f64>,
     state: StateMatrix,
@@ -18,43 +18,21 @@ pub struct ESN<R> {
     regressor: R,
 }
 
-impl<R> ESN<R> {
+impl<R> RC<R> {
     /// Create a new reservoir, with random initiallization
     /// # Arguments
-    pub fn new(params: Params, regressor: R) -> Self {
+    pub fn new<C>(params: Params, regressor: R, mut reservoir_constructor: C) -> Self
+    where
+        C: ReservoirConstructor,
+    {
         let mut rng = match params.seed {
             Some(seed) => WyRand::new_seed(seed),
             None => WyRand::new(),
         };
-        let mut weights: Vec<Vec<f64>> =
-            vec![vec![0.0; params.reservoir_size]; params.reservoir_size];
-        for i in 0..weights.len() {
-            for j in 0..weights.len() {
-                if rng.generate::<f64>() < params.reservoir_sparsity {
-                    weights[i][j] = rng.generate::<f64>() * 2.0 - 1.0;
-                }
-            }
-        }
-        let mut reservoir_matrix: DMatrix<f64> = DMatrix::from_vec_generic(
-            Dim::from_usize(params.reservoir_size),
-            Dim::from_usize(params.reservoir_size),
-            weights.iter().cloned().flatten().collect(),
-        );
 
-        let eigen = SymmetricEigen::new(reservoir_matrix.clone());
-        let spec_rad = eigen.eigenvalues.abs().max();
-        reservoir_matrix *= (1.0 / spec_rad) * params.spectral_radius;
-
-        let input_weight_matrix = Matrix::from_fn_generic(
-            Dim::from_usize(params.reservoir_size),
-            Dim::from_usize(1),
-            |_, _| (rng.generate::<f64>() * 2.0 - 1.0) * params.input_weight_scaling,
-        );
-        let reservoir_biases = Matrix::from_fn_generic(
-            Dim::from_usize(params.reservoir_size),
-            Dim::from_usize(1),
-            |i, _| (rng.generate::<f64>() * 2.0 - 1.0) * params.reservoir_bias_scaling,
-        );
+        let reservoir_weights = reservoir_constructor.construct_reservoir_weights();
+        let reservoir_biases = reservoir_constructor.construct_reservoir_biases();
+        let input_weight_matrix = reservoir_constructor.construct_input_weight_matrix();
 
         let readout_matrix = Matrix::from_fn_generic(
             Dim::from_usize(params.reservoir_size),
@@ -66,16 +44,10 @@ impl<R> ESN<R> {
             Dim::from_usize(1),
             params.initial_state_value,
         );
-        trace!(
-            "input_matrix: {}\nreservoir: {}\nreadout_matrix: {}",
-            input_weight_matrix,
-            reservoir_matrix,
-            readout_matrix
-        );
 
         Self {
             params,
-            reservoir_matrix,
+            reservoir_weights,
             input_weight_matrix,
             readout_matrix,
             state,
@@ -86,7 +58,7 @@ impl<R> ESN<R> {
     }
 }
 
-impl<R> ReservoirComputer<R> for ESN<R>
+impl<R> ReservoirComputer<R> for RC<R>
 where
     R: LinReg,
 {
@@ -171,7 +143,7 @@ where
         let in_part = &self.input_weight_matrix * input.transpose();
 
         let mut state_delta: StateMatrix = in_part
-            + self.params.leaking_rate * (&self.reservoir_matrix * &self.state)
+            + self.params.leaking_rate * (&self.reservoir_weights * &self.state)
             + &self.reservoir_biases
             + noise;
         self.params.reservoir_activation.activate(state_delta.as_mut_slice());
