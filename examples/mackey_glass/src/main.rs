@@ -3,6 +3,7 @@ extern crate log;
 
 use std::{collections::VecDeque, sync::Arc, time::Instant};
 
+use classic_rcs::{ESNConstructor, Params, RC};
 use dialoguer::{theme::ColorfulTheme, Select};
 use lin_reg::TikhonovRegularization;
 use nalgebra::{DMatrix, Dim, Matrix};
@@ -41,38 +42,41 @@ pub(crate) fn main() {
         .unwrap();
     match e {
         0 => {
-            // TODO:
-            /*
-            let params = esn::Params {
-                input_sparsity: 0.1,
+            let params = Params {
                 input_activation: Activation::Identity,
-                input_weight_scaling: 0.5,
-                reservoir_bias_scaling: 0.4,
-
                 reservoir_size: 200,
-                reservoir_sparsity: 0.1,
                 reservoir_activation: Activation::Tanh,
-
-                feedback_gain: 0.0,
-                spectral_radius: 0.9,
                 leaking_rate: 0.1,
-                regularization_coeff: 0.1,
                 washout_pct: 0.1,
                 output_activation: Activation::Identity,
                 seed: SEED,
                 state_update_noise_frac: 0.001,
                 initial_state_value: values[0],
-                readout_from_input_as_well: false,
             };
 
             // TODO: choose lin reg
             let regressor = TikhonovRegularization {
                 regularization_coeff: 0.1,
             };
-            let mut rc = esn::ESN::<1, 1, TikhonovRegularization>::new(params, regressor);
+            let reservoir_size = 200;
+            let spectral_radius = 0.9;
+            let reservoir_sparsity = 0.1;
+            let reservoir_bias_scaling = 0.4;
+            let input_sparsity = 0.1;
+            let input_weight_scaling = 0.5;
+            let esn_constructor = ESNConstructor::new(
+                SEED,
+                reservoir_size,
+                spectral_radius,
+                reservoir_sparsity,
+                reservoir_bias_scaling,
+                input_sparsity,
+                input_weight_scaling,
+            );
+            let mut rc = RC::<TikhonovRegularization>::new(params, regressor, esn_constructor);
 
             let t0 = Instant::now();
-            rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
+            rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));
             info!("ESN training done in {}ms", t0.elapsed().as_millis());
 
             let env = EnvMackeyGlass::new(Arc::new(values), TRAIN_LEN);
@@ -86,7 +90,6 @@ pub(crate) fn main() {
                 "img/mackey_glass_esn.png",
                 (3840, 1080),
             );
-            */
         }
         1 => {
             // TODO:

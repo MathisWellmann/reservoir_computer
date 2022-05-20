@@ -3,7 +3,7 @@ extern crate log;
 
 use std::{sync::Arc, time::Instant};
 
-use classic_rcs::{ESNConstructor, Params, RC, EUSNConstructor};
+use classic_rcs::{ESNConstructor, EUSNConstructor, Params, RC};
 use common::{environments::EnvTrades, Activation, ReservoirComputer};
 use dialoguer::{theme::ColorfulTheme, Select};
 use lin_reg::TikhonovRegularization;
@@ -35,7 +35,7 @@ pub(crate) fn main() {
     let mut feature = RoofingFilter::new(Echo::new(), 100, 50);
     for c in candles.iter() {
         feature.update(c.weighted_price);
-        values.push(feature.last() / 100.0);
+        values.push((feature.last() / 100.0) + 100.0);
     }
     info!("got {} datapoints", values.len());
 
@@ -113,7 +113,7 @@ pub(crate) fn main() {
                 input_activation: Activation::Identity,
                 leaking_rate: 0.1,
                 washout_pct: 0.1,
-                output_activation: Activation::Tanh,
+                output_activation: Activation::Identity,
                 state_update_noise_frac: 0.001,
             };
             // TODO: choose lin reg
