@@ -3,7 +3,7 @@ extern crate log;
 
 use std::{collections::VecDeque, sync::Arc, time::Instant};
 
-use classic_rcs::{ESNConstructor, Params, RC};
+use classic_rcs::{ESNConstructor, EUSNConstructor, Params, RC};
 use dialoguer::{theme::ColorfulTheme, Select};
 use lin_reg::TikhonovRegularization;
 use nalgebra::{DMatrix, Dim, Matrix};
@@ -92,30 +92,40 @@ pub(crate) fn main() {
             );
         }
         1 => {
-            // TODO:
-            /*
-            let params = eusn::Params {
-                input_sparsity: 0.1,
-                input_weight_scaling: 1.0,
+            let params = Params {
                 reservoir_size: 300,
-                reservoir_weight_scaling: 0.1,
-                reservoir_bias_scaling: 1.0,
                 reservoir_activation: Activation::Tanh,
                 initial_state_value: values[0],
                 seed: SEED,
-                washout_frac: 0.1,
-                regularization_coeff: 0.1,
-                epsilon: 0.008,
-                gamma: 0.05,
+                input_activation: Activation::Identity,
+                leaking_rate: 0.1,
+                washout_pct: 0.1,
+                output_activation: Activation::Identity,
+                state_update_noise_frac: 0.001,
             };
             // TODO: choose lin reg
             let regressor = TikhonovRegularization {
                 regularization_coeff: 0.1,
             };
-            let mut rc = eusn::EulerStateNetwork::new(params, regressor);
+            let reservoir_size = 300;
+            let reservoir_weight_scaling = 1.0;
+            let reservoir_bias_scaling = 1.0;
+            let input_sparsity = 0.1;
+            let input_weight_scaling = 1.0;
+            let gamma = 0.05;
+            let eusn_constructor = EUSNConstructor::new(
+                SEED,
+                reservoir_size,
+                reservoir_weight_scaling,
+                reservoir_bias_scaling,
+                input_sparsity,
+                input_weight_scaling,
+                gamma,
+            );
+            let mut rc = RC::new(params, regressor, eusn_constructor);
 
             let t0 = Instant::now();
-            rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
+            rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));
             info!("ESN training done in {}ms", t0.elapsed().as_millis());
 
             let env = EnvMackeyGlass::new(Arc::new(values), TRAIN_LEN);
@@ -126,10 +136,9 @@ pub(crate) fn main() {
                 &p.plot_targets(),
                 &p.train_predictions(),
                 &p.test_predictions(),
-                "img/mackey_glass_esn.png",
+                "img/mackey_glass_eusn.png",
                 (3840, 1080),
             );
-            */
         }
         2 => {
             let params = NGRCParams {
