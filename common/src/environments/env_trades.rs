@@ -29,13 +29,11 @@ impl EnvTrades {
     {
         rc.train(&self.values.rows(0, self.train_len - 1), &self.values.rows(1, self.train_len));
 
-        let mut vals: Vec<f64> =
-            vec![rc.params().initial_state_value(); rc.params().reservoir_size() + 1];
-        vals[0] = 1.0;
+        let vals: Vec<f64> = vec![rc.params().initial_state_value(); rc.params().reservoir_size()];
         let state: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
             Matrix::from_vec_generic(
                 Dim::from_usize(1),
-                Dim::from_usize(rc.params().reservoir_size() + 1),
+                Dim::from_usize(rc.params().reservoir_size()),
                 vals,
             );
         rc.set_state(state);

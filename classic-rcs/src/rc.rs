@@ -140,9 +140,9 @@ where
             Dim::from_usize(1),
             |_, _| (self.rng.generate::<f64>() * 2.0 - 1.0) * self.params.state_update_noise_frac,
         );
-        let in_part = &self.input_weight_matrix * input.transpose();
+        let lin_part = &self.input_weight_matrix * input.transpose();
 
-        let mut state_delta: StateMatrix = in_part
+        let mut state_delta: StateMatrix = lin_part
             + self.params.leaking_rate * (&self.reservoir_weights * &self.state)
             + &self.reservoir_biases
             + noise;

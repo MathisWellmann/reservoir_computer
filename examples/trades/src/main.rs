@@ -3,6 +3,7 @@ extern crate log;
 
 use std::{sync::Arc, time::Instant};
 
+use classic_rcs::{ESNConstructor, Params, RC, EUSNConstructor};
 use common::{environments::EnvTrades, Activation, ReservoirComputer};
 use dialoguer::{theme::ColorfulTheme, Select};
 use lin_reg::TikhonovRegularization;
@@ -16,6 +17,7 @@ const INPUT_DIM: usize = 1;
 const TRAIN_LEN: usize = 5000;
 const TEST_WINDOW: usize = 600;
 const NUM_GENS: usize = 100;
+const SEED: Option<u64> = Some(0);
 
 pub(crate) fn main() {
     pretty_env_logger::init();
@@ -57,33 +59,38 @@ pub(crate) fn main() {
         .unwrap();
     match e {
         0 => {
-            // TODO:
-            /*
             let washout_pct = 0.0;
-            let params = esn::Params {
-                input_sparsity: 0.2,
+            let params = Params {
                 input_activation: Activation::Identity,
-                input_weight_scaling: 0.2,
                 reservoir_size: 500,
-                reservoir_bias_scaling: 0.05,
-                reservoir_sparsity: 0.02,
                 reservoir_activation: Activation::Tanh,
-                feedback_gain: 0.0,
-                spectral_radius: 0.9,
                 leaking_rate: 0.02,
-                regularization_coeff: 0.02,
                 washout_pct,
                 output_activation: Activation::Identity,
                 seed: Some(0),
                 state_update_noise_frac: 0.001,
                 initial_state_value: values[0],
-                readout_from_input_as_well: false,
             };
             // TODO: choose lin reg
             let regressor = TikhonovRegularization {
                 regularization_coeff: 0.001,
             };
-            let mut rc = esn::ESN::<1, 1, TikhonovRegularization>::new(params, regressor);
+            let reservoir_size = 500;
+            let spectral_radius = 0.9;
+            let reservoir_sparsity = 0.02;
+            let reservoir_bias_scaling = 0.05;
+            let input_sparsity = 0.2;
+            let input_weight_scaling = 0.2;
+            let esn_constructor = ESNConstructor::new(
+                SEED,
+                reservoir_size,
+                spectral_radius,
+                reservoir_sparsity,
+                reservoir_bias_scaling,
+                input_sparsity,
+                input_weight_scaling,
+            );
+            let mut rc = RC::<TikhonovRegularization>::new(params, regressor, esn_constructor);
 
             let env = EnvTrades::new(Arc::new(values), TRAIN_LEN);
             let mut p = PlotGather::default();
@@ -96,30 +103,39 @@ pub(crate) fn main() {
                 "img/trades_esn.png",
                 (2160, 2160),
             );
-            */
         }
         1 => {
-            // TODO:
-            /*
-            let params = eusn::Params {
-                input_sparsity: 0.1,
-                input_weight_scaling: 0.1,
+            let params = Params {
                 reservoir_size: 500,
-                reservoir_weight_scaling: 0.1,
-                reservoir_bias_scaling: 0.5,
                 reservoir_activation: Activation::Tanh,
                 initial_state_value: 0.0,
                 seed: Some(0),
-                washout_frac: 0.1,
-                regularization_coeff: 0.01,
-                epsilon: 0.01,
-                gamma: 0.001,
+                input_activation: Activation::Identity,
+                leaking_rate: 0.1,
+                washout_pct: 0.1,
+                output_activation: Activation::Tanh,
+                state_update_noise_frac: 0.001,
             };
             // TODO: choose lin reg
             let regressor = TikhonovRegularization {
                 regularization_coeff: 0.001,
             };
-            let mut rc = eusn::EulerStateNetwork::new(params, regressor);
+            let reservoir_size = 500;
+            let reservoir_weight_scaling = 0.1;
+            let reservoir_bias_scaling = 0.5;
+            let input_sparsity = 0.1;
+            let input_weight_scaling = 0.1;
+            let gamma = 0.001;
+            let eusn_constructor = EUSNConstructor::new(
+                SEED,
+                reservoir_size,
+                reservoir_weight_scaling,
+                reservoir_bias_scaling,
+                input_sparsity,
+                input_weight_scaling,
+                gamma,
+            );
+            let mut rc = RC::<TikhonovRegularization>::new(params, regressor, eusn_constructor);
 
             let env = EnvTrades::new(Arc::new(values), TRAIN_LEN);
             let mut p = PlotGather::default();
@@ -132,7 +148,6 @@ pub(crate) fn main() {
                 "img/trades_eusn.png",
                 (2160, 2160),
             );
-            */
         }
         2 => {
             let params = NGRCParams {
