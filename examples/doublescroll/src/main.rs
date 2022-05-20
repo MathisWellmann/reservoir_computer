@@ -1,14 +1,14 @@
 #[macro_use]
 extern crate log;
 
-mod plot;
-
 use std::{fs::File, time::Instant};
 
+use common::{Activation, ReservoirComputer};
 use dialoguer::{theme::ColorfulTheme, Select};
+use lin_reg::{LinReg, TikhonovRegularization};
 use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, VecStorage};
-use plot::{plot, PlotGather};
-use reservoir_computer::{ngrc, Activation, LinReg, ReservoirComputer, TikhonovRegularization};
+use next_generation_rcs::{NGRCConstructor, NextGenerationRC, Params as NGRCParams};
+use rc_plot::{plot, PlotGather};
 
 const TRAIN_LEN: usize = 100;
 const TEST_LEN: usize = 800;
@@ -55,7 +55,7 @@ pub(crate) fn main() {
             todo!("EuSN not yet available")
         }
         2 => {
-            let params = ngrc::Params {
+            let params = NGRCParams {
                 input_dim: 3,
                 output_dim: 3,
                 num_time_delay_taps: 5,
@@ -65,7 +65,8 @@ pub(crate) fn main() {
             let regressor = TikhonovRegularization {
                 regularization_coeff: 0.0001,
             };
-            let mut rc = ngrc::NextGenerationRC::new(params, regressor);
+            let ngrc_constructor = NGRCConstructor::default();
+            let mut rc = NextGenerationRC::new(params, regressor, ngrc_constructor);
 
             let mut p = PlotGather::default();
             gather_plot_data(&values, &mut rc, Some(&mut p));
@@ -82,12 +83,12 @@ pub(crate) fn main() {
     }
 }
 
-pub(crate) fn gather_plot_data<RC, const N: usize, R>(
+pub(crate) fn gather_plot_data<RC, R>(
     values: &DMatrix<f64>,
     rc: &mut RC,
     mut plot: Option<&mut PlotGather>,
 ) where
-    RC: ReservoirComputer<N, R>,
+    RC: ReservoirComputer<R>,
     R: LinReg,
 {
     let t0 = Instant::now();
@@ -120,6 +121,6 @@ pub(crate) fn gather_plot_data<RC, const N: usize, R>(
             values.row(i - 1)
         };
 
-        rc.update_state(&input, &predicted_out);
+        rc.update_state(&input);
     }
 }

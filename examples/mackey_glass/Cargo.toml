@@ -1,6 +1,6 @@
 [package]
 name = "mackey_glass"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,3 +11,10 @@ pretty_env_logger = "^0.4"
 nalgebra = "^0.31"
 dialoguer = "^0.10"
 nanorand = "^0.7"
+
+# Local deps
+common = { version = "^0.1", path = "../../common", features = ["environments"]}
+lin-reg = { version = "^0.1", path = "../../lin-reg"}
+rc-plot = { version = "^0.1", path = "../../rc-plot"}
+classic-rcs = { version = "^0.13", path = "../../classic-rcs" }
+next-generation-rcs = { version = "^0.1", path = "../../next-generation-rcs" }

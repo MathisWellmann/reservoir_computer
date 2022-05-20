@@ -1,16 +1,13 @@
 #[macro_use]
 extern crate log;
 
-mod environments;
-mod load_sample_data;
-mod plot;
-
 use std::time::Instant;
 
+use common::{load_trade_data::load_trade_data, Activation, ReservoirComputer};
 use dialoguer::{theme::ColorfulTheme, Select};
+use lin_reg::LinReg;
 use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice};
-use plot::{GifRender, Series};
-use reservoir_computer::{Activation, LinReg, RCParams, ReservoirComputer, TikhonovRegularization};
+use rc_plot::{GifRender, Series};
 use sliding_features::{Constant, Echo, Multiply, View, ALMA, VSCT};
 
 // const SEED: Option<u64> = Some(0);
@@ -20,7 +17,7 @@ pub(crate) const VALIDATION_LEN: usize = 2_000;
 pub(crate) fn main() {
     info!("loading sample data");
 
-    let series: Vec<f64> = load_sample_data::load_sample_data();
+    let series: Vec<f64> = load_trade_data();
 
     let mut feature =
         Multiply::new(VSCT::new(ALMA::new(Echo::new(), 100), TRAIN_LEN), Constant::new(0.2));
@@ -220,9 +217,9 @@ fn run_sliding_opt_firefly<RC, const N: usize, R>(
 }
 */
 
-fn run_sliding<RC, const N: usize, R>(rc: &mut RC, values: Vec<f64>, filename: &str)
+fn run_sliding<RC, R>(rc: &mut RC, values: Vec<f64>, filename: &str)
 where
-    RC: ReservoirComputer<N, R>,
+    RC: ReservoirComputer<R>,
     R: LinReg,
 {
     let t0 = Instant::now();
@@ -259,12 +256,12 @@ where
     info!("took {}s", t0.elapsed().as_secs());
 }
 
-fn gather_plot_data<'a, RC, const N: usize, R>(
+fn gather_plot_data<'a, RC, R>(
     values: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
     rc: &mut RC,
 ) -> (Series, Series, Series)
 where
-    RC: ReservoirComputer<N, R>,
+    RC: ReservoirComputer<R>,
     R: LinReg,
 {
     let mut plot_targets = Vec::with_capacity(values.len());
@@ -289,7 +286,7 @@ where
             values.row(j - 1)
         };
 
-        rc.update_state(&input, &predicted_out);
+        rc.update_state(&input);
     }
 
     (plot_targets, train_preds, test_preds)

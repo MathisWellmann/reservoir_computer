@@ -71,6 +71,39 @@ mod tests {
         assert_eq!(readout_matrix, goal_matrix,)
     }
 
+    #[test]
+    fn tikhonov_regularization_shifted() {
+        if let Err(_) = pretty_env_logger::try_init() {}
+
+        // Note the first column being just ones
+        let design: DMatrix<f64> = Matrix::from_vec_generic(
+            Dim::from_usize(4),
+            Dim::from_usize(3),
+            vec![100.0, 100.0, 100.0, 100.0, 0.0, 100.0, 200.0, 300.0, 0.0, 0.0, 100.0, 200.0],
+        );
+        let targets: DMatrix<f64> = Matrix::from_vec_generic(
+            Dim::from_usize(4),
+            Dim::from_usize(1),
+            vec![100.0, 200.0, 300.0, 400.0],
+        );
+        info!("design: {}, targets: {}", design, targets);
+
+        let regressor = TikhonovRegularization {
+            regularization_coeff: 0.0,
+        };
+        let mut readout_matrix = regressor
+            .fit_readout(&design.columns(0, design.ncols()), &targets.columns(0, targets.ncols()));
+        info!("readout_matrix: {}", readout_matrix);
+
+        let goal_matrix: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+            Matrix::from_vec_generic(Dim::from_usize(3), Dim::from_usize(1), vec![1.0, 1.0, 0.0]);
+
+        // round readout
+        readout_matrix.iter_mut().for_each(|v| *v = round(*v, 1));
+
+        assert_eq!(readout_matrix, goal_matrix,)
+    }
+
     /// Tests how to extract the last observed state and perform a readout from it
     #[test]
     fn readout_from_state() {

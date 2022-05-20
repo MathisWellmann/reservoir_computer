@@ -2,7 +2,7 @@ use std::fs::File;
 
 /// Load the sample data from csv file
 /// output are price returns
-pub(crate) fn load_sample_data() -> Vec<f64> {
+pub fn load_trade_data() -> Vec<f64> {
     let f = File::open("data/Bitmex_XBTUSD_1M.csv").unwrap();
 
     let mut r = csv::Reader::from_reader(f);
@@ -16,5 +16,3 @@ pub(crate) fn load_sample_data() -> Vec<f64> {
 
     out
 }
-
-fn main() {}

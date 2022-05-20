@@ -1,18 +1,16 @@
 #[macro_use]
 extern crate log;
 
-mod environments;
-mod plot;
-
 use std::{collections::VecDeque, sync::Arc, time::Instant};
 
 use dialoguer::{theme::ColorfulTheme, Select};
+use lin_reg::TikhonovRegularization;
 use nalgebra::{DMatrix, Dim, Matrix};
 use nanorand::{Rng, WyRand};
-use plot::plot;
-use reservoir_computer::{ngrc, Activation, ReservoirComputer, TikhonovRegularization};
+use rc_plot::{plot, PlotGather};
 
-use crate::{environments::env_mackey_glass::EnvMackeyGlass, plot::PlotGather};
+use common::{environments::EnvMackeyGlass, Activation, ReservoirComputer};
+use next_generation_rcs::{NGRCConstructor, NextGenerationRC, Params as NGRCParams};
 
 const TRAIN_LEN: usize = 5000;
 const TEST_LEN: usize = 1000;
@@ -131,7 +129,7 @@ pub(crate) fn main() {
             */
         }
         2 => {
-            let params = ngrc::Params {
+            let params = NGRCParams {
                 input_dim: 1,
                 output_dim: 1,
                 num_time_delay_taps: 11,
@@ -142,7 +140,8 @@ pub(crate) fn main() {
             let regressor = TikhonovRegularization {
                 regularization_coeff: 95.0,
             };
-            let mut rc = ngrc::NextGenerationRC::new(params, regressor);
+            let ngrc_constructor = NGRCConstructor::default();
+            let mut rc = NextGenerationRC::new(params, regressor, ngrc_constructor);
             let t0 = Instant::now();
             rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));
             info!("NGRC training took {}ms", t0.elapsed().as_millis());
