@@ -142,14 +142,16 @@ where
         );
         let lin_part = &self.input_weight_matrix * input.transpose();
 
-        let mut state_delta: StateMatrix = lin_part
+        let state_delta: StateMatrix = lin_part
             + self.params.leaking_rate * (&self.reservoir_weights * &self.state)
             + &self.reservoir_biases
             + noise;
-        self.params.reservoir_activation.activate(state_delta.as_mut_slice());
 
         // perform node-to-node update
-        self.state = (1.0 - self.params.leaking_rate) * &self.state + state_delta;
+        let mut state = (1.0 - self.params.leaking_rate) * &self.state + state_delta;
+        self.params.reservoir_activation.activate(state.as_mut_slice());
+
+        self.state = state;
     }
 
     /// Perform a readout operation
