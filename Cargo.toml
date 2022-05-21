@@ -9,8 +9,6 @@ members = [
   "examples/sine",
   "examples/mackey_glass",
   "examples/doublescroll",
-  "examples/trades",
-  "examples/trades_sliding_window",
 ]
 
 [profile.release]

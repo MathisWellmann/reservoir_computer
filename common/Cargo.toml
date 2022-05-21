@@ -1,13 +1,12 @@
 [package]
 name = "common"
-version = "0.1.5"
+version = "0.2.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 nalgebra = "^0.31"
-csv = { version = "^1.1", optional = true }
 
 # Local deps
 lin-reg = { version = "^0.1", path = "../lin-reg" }
@@ -15,4 +14,3 @@ rc-plot = { version = "^0.1", path = "../rc-plot", optional = true }
 
 [features]
 environments = ["rc-plot"]
-load_trade_data = ["csv"]

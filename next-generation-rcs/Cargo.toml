@@ -12,7 +12,7 @@ nalgebra = "^0.31"
 
 # Local deps
 lin-reg = { version = "^0.1", path = "../lin-reg" }
-common = { version = "^0.1", path = "../common" }
+common = { version = "^0.2", path = "../common" }
 
 [dev-dependencies]
 round = "^0.1"

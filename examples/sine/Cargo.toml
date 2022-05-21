@@ -18,7 +18,7 @@ next-generation-rcs = { version = "^0.1.0", path = "../../next-generation-rcs" }
 classic-rcs = { version = "^0.13.0", path = "../../classic-rcs" }
 lin-reg = { version = "^0.1.0", path = "../../lin-reg" }
 rc-plot = { version = "^0.1.0", path = "../../rc-plot" }
-common = { version = "^0.1", path = "../../common" }
+common = { version = "^0.2", path = "../../common" }
 
 [[bin]]
 name = "sine"

@@ -42,9 +42,10 @@ pub(crate) fn main() {
         .unwrap();
     match e {
         0 => {
+            let reservoir_size = 200;
             let params = Params {
                 input_activation: Activation::Identity,
-                reservoir_size: 200,
+                reservoir_size,
                 reservoir_activation: Activation::Tanh,
                 leaking_rate: 0.1,
                 washout_pct: 0.1,
@@ -56,9 +57,8 @@ pub(crate) fn main() {
 
             // TODO: choose lin reg
             let regressor = TikhonovRegularization {
-                regularization_coeff: 0.1,
+                regularization_coeff: 0.01,
             };
-            let reservoir_size = 200;
             let spectral_radius = 0.9;
             let reservoir_sparsity = 0.1;
             let reservoir_bias_scaling = 0.4;

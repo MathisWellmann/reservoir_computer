@@ -5,10 +5,8 @@ use lin_reg::LinReg;
 use rc_plot::PlotGather;
 
 mod env_mackey_glass;
-mod env_trades;
 
 pub use env_mackey_glass::EnvMackeyGlass;
-pub use env_trades::EnvTrades;
 
 /// Optimization environment for validating parameters
 /// R: ReservoirComputer
