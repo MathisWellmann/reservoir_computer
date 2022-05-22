@@ -10,8 +10,8 @@ impl FullFeatureConstructor for NGRCConstructor {
     /// Construct the nonlinear part of feature matrix from linear part
     ///
     /// # Arguments
-    /// inputs: Number of rows are the observed datapoints and number of columns represent the features at each timestep
-    ///
+    /// inputs: Number of rows are the observed datapoints and number of columns
+    /// represent the features at each timestep
     fn construct_full_features<'a>(params: &Params, lin_part: &DMatrix<f64>) -> DMatrix<f64> {
         let d_lin = params.num_time_delay_taps * params.input_dim;
         let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;

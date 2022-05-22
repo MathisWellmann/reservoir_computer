@@ -1,6 +1,5 @@
-use nalgebra::{Const, DMatrix, Dynamic, Matrix, MatrixSlice, VecStorage};
-
 use lin_reg::LinReg;
+use nalgebra::{Const, DMatrix, Dynamic, Matrix, MatrixSlice, VecStorage};
 
 /// The ReservoirComputer trait
 /// N: Number of values to map into Parameters

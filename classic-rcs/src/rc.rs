@@ -1,9 +1,9 @@
+use common::{RCParams, ReservoirComputer};
+use lin_reg::LinReg;
 use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 use nanorand::{Rng, WyRand};
 
 use crate::{Params, ReservoirConstructor, StateMatrix};
-use common::{RCParams, ReservoirComputer};
-use lin_reg::LinReg;
 
 /// The Reseoir Computer, Leaky Echo State Network
 #[derive(Debug)]
@@ -22,9 +22,7 @@ impl<R> RC<R> {
     /// Create a new reservoir, with random initiallization
     /// # Arguments
     pub fn new<C>(params: Params, regressor: R, mut reservoir_constructor: C) -> Self
-    where
-        C: ReservoirConstructor,
-    {
+    where C: ReservoirConstructor {
         let mut rng = match params.seed {
             Some(seed) => WyRand::new_seed(seed),
             None => WyRand::new(),
@@ -59,8 +57,7 @@ impl<R> RC<R> {
 }
 
 impl<R> ReservoirComputer<R> for RC<R>
-where
-    R: LinReg,
+where R: LinReg
 {
     #[inline(always)]
     fn params(&self) -> &dyn RCParams {
@@ -89,7 +86,8 @@ where
                 let d: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
                     Matrix::from_fn_generic(
                         Dim::from_usize(1),
-                        Dim::from_usize(self.params.reservoir_size + 1), // +1 to account for 1 at j == 0
+                        Dim::from_usize(self.params.reservoir_size + 1), /* +1 to account for 1
+                                                                          * at j == 0 */
                         |_, j| {
                             if j == 0 {
                                 1.0

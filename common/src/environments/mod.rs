@@ -1,8 +1,7 @@
-use crate::ReservoirComputer;
-
 use lin_reg::LinReg;
-
 use rc_plot::PlotGather;
+
+use crate::ReservoirComputer;
 
 mod env_mackey_glass;
 

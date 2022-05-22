@@ -1,10 +1,9 @@
 #[macro_use]
 extern crate log;
 
-use nalgebra::DMatrix;
-
 pub use feature_constructor_hengrc::HENGRCConstructor;
 pub use feature_constructor_ngrc::NGRCConstructor;
+use nalgebra::DMatrix;
 pub use ngrc::NextGenerationRC;
 pub use params::Params;
 

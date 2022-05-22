@@ -1,11 +1,10 @@
 use std::collections::VecDeque;
 
 use common::{RCParams, ReservoirComputer};
+use lin_reg::LinReg;
 use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
 
-use super::params::Params;
-use super::FullFeatureConstructor;
-use lin_reg::LinReg;
+use super::{params::Params, FullFeatureConstructor};
 
 type StateMatrix = Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>;
 
@@ -60,8 +59,8 @@ where
     /// Construct the linear part of feature vector
     ///
     /// # Arguments
-    /// inputs: Number of rows are the observed datapoints and number of columns represent the features at each timestep
-    ///
+    /// inputs: Number of rows are the observed datapoints and number of columns
+    /// represent the features at each timestep
     fn construct_lin_part<'a>(
         &self,
         inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
@@ -236,12 +235,11 @@ where
 #[cfg(test)]
 mod tests {
     use common::Activation;
+    use lin_reg::TikhonovRegularization;
     use round::round;
 
-    use crate::NGRCConstructor;
-
     use super::*;
-    use lin_reg::TikhonovRegularization;
+    use crate::NGRCConstructor;
 
     const NUM_VALS: usize = 9;
 

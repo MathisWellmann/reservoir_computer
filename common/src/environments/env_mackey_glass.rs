@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::ReservoirComputer;
 use lin_reg::LinReg;
 use nalgebra::{DMatrix, Dim, Matrix};
 
 use super::PlotGather;
+use crate::ReservoirComputer;
 
 pub struct EnvMackeyGlass {
     values: Arc<DMatrix<f64>>,

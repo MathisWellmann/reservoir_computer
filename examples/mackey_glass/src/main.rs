@@ -4,14 +4,13 @@ extern crate log;
 use std::{collections::VecDeque, sync::Arc, time::Instant};
 
 use classic_rcs::{ESNConstructor, EUSNConstructor, Params, RC};
+use common::{environments::EnvMackeyGlass, Activation, ReservoirComputer};
 use dialoguer::{theme::ColorfulTheme, Select};
 use lin_reg::TikhonovRegularization;
 use nalgebra::{DMatrix, Dim, Matrix};
 use nanorand::{Rng, WyRand};
-use rc_plot::{plot, PlotGather};
-
-use common::{environments::EnvMackeyGlass, Activation, ReservoirComputer};
 use next_generation_rcs::{NGRCConstructor, NextGenerationRC, Params as NGRCParams};
+use rc_plot::{plot, PlotGather};
 
 const TRAIN_LEN: usize = 5000;
 const TEST_LEN: usize = 1000;

@@ -1,3 +1,5 @@
+use crate::Series;
+
 #[derive(Debug, Clone, Default)]
 pub struct PlotGather {
     plot_targets: Series,

@@ -104,7 +104,8 @@ mod tests {
         assert_eq!(readout_matrix, goal_matrix,)
     }
 
-    /// Tests how to extract the last observed state and perform a readout from it
+    /// Tests how to extract the last observed state and perform a readout from
+    /// it
     #[test]
     fn readout_from_state() {
         if let Err(_) = pretty_env_logger::try_init() {}

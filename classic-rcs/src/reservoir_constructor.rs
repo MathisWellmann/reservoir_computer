@@ -2,7 +2,8 @@ use nalgebra::{Const, DMatrix, Dynamic, Matrix, VecStorage};
 
 use crate::StateMatrix;
 
-/// Provides the abstraction needed for custom implementations of the reservoir generation process
+/// Provides the abstraction needed for custom implementations of the reservoir
+/// generation process
 pub trait ReservoirConstructor {
     fn construct_reservoir_weights(&mut self) -> DMatrix<f64>;
 
