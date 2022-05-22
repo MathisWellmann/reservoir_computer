@@ -6,18 +6,23 @@ use threadpool::ThreadPool;
 
 use crate::{reservoir_computers::OptParamMapper, LinReg, OptEnvironment, ReservoirComputer};
 
-// TODO: rename to Params
+/// Fireflys required parameters
 #[derive(Debug, Clone)]
-pub struct FireflyParams {
+pub struct Params {
     /// Influces the clustering behaviour. In range [0, 1]
     pub gamma: f64,
+
     /// Amount of random influence in parameter update
     pub alpha: f64,
+
     /// Step size
     pub step_size: f64,
+
+    /// Population size
     pub num_candidates: usize,
 }
 
+/// Performs optimization using the firefly algorithm
 pub struct FireflyOptimizer<const N: usize> {
     params: FireflyParams,
     candidates: Vec<[f64; N]>,
@@ -28,6 +33,7 @@ pub struct FireflyOptimizer<const N: usize> {
 }
 
 impl<const N: usize> FireflyOptimizer<N> {
+    /// Create a new Firefly optimizer with the given parameters
     pub fn new(params: FireflyParams) -> Self {
         // TODO: optional poisson-disk sampling
         let mut rng = WyRand::new();

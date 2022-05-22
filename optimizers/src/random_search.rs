@@ -6,6 +6,7 @@ use threadpool::ThreadPool;
 
 use crate::{reservoir_computers::OptParamMapper, LinReg, OptEnvironment, ReservoirComputer};
 
+/// Optimization using random search algorithm
 pub struct RandomSearch<const N: usize> {
     /// Minimization objective
     best_error: f64,
@@ -17,7 +18,7 @@ pub struct RandomSearch<const N: usize> {
 }
 
 impl<const N: usize> RandomSearch<N> {
-    #[inline]
+    /// Create a new random search based optimizer
     pub fn new(seed: Option<u64>, num_candidates: usize) -> Self {
         let rng = if let Some(seed) = seed {
             WyRand::new_seed(seed)
