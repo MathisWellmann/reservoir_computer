@@ -1,10 +1,12 @@
 use std::{cmp::max, sync::Arc};
 
+use common::ReservoirComputer;
 use crossbeam::channel::unbounded;
+use lin_reg::LinReg;
 use nanorand::{Rng, WyRand};
 use threadpool::ThreadPool;
 
-use crate::{reservoir_computers::OptParamMapper, LinReg, OptEnvironment, ReservoirComputer};
+use crate::OptEnvironment;
 
 /// Optimization using random search algorithm
 pub struct RandomSearch<const N: usize> {
@@ -36,14 +38,12 @@ impl<const N: usize> RandomSearch<N> {
         }
     }
 
-    pub fn step<RC, const I: usize, const O: usize, R>(
-        &mut self,
-        env: Arc<dyn OptEnvironment<RC, I, O, N, R> + Send + Sync>,
-        param_mapper: &RC::ParamMapper,
-        regressor: R,
-    ) where
-        RC: ReservoirComputer<I, O, N, R> + Send + Sync + 'static,
+    pub fn step<RC, R, F, E>(&mut self, env: Arc<E>, rc_gen: F)
+    where
+        RC: ReservoirComputer<R> + Send + Sync + 'static,
         R: LinReg + Send + Sync + 'static,
+        F: Fn(&[f64; N]) -> RC,
+        E: OptEnvironment<RC, R> + Send + Sync + 'static,
     {
         let pool = ThreadPool::new(max(num_cpus::get() - 1, 1));
 
@@ -53,10 +53,9 @@ impl<const N: usize> RandomSearch<N> {
         for (i, c) in self.candidates.iter().enumerate() {
             let ch_fit_s = ch_fit_s.clone();
             let e = env.clone();
-            let params = param_mapper.map(&c);
-            let mut rc = RC::new(params, regressor.clone());
+            let mut rc = rc_gen(&c);
             pool.execute(move || {
-                let f = e.evaluate(&mut rc, None);
+                let f = e.evaluate(&mut rc);
                 ch_fit_s.send((i, f)).unwrap();
             });
         }

@@ -17,9 +17,6 @@ nalgebra = { version = "^0.31.0", features = ["sparse"]}
 nanorand = "^0.7"
 dialoguer = "^0.10.0"
 num = "^0.4"
-num_cpus = "^1.13.1"
-threadpool = "^1.0"
-crossbeam = "^0.8.1"
 
 sliding_features = "2.5.0"
 trade_aggregation = "1.0.5"

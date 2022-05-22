@@ -5,6 +5,7 @@ use nalgebra::{Const, DMatrix, Dynamic, Matrix, MatrixSlice, VecStorage};
 /// N: Number of values to map into Parameters
 /// R: The linear regression method to use
 pub trait ReservoirComputer<R: LinReg> {
+    /// The reservoir parameters
     fn params(&self) -> &dyn RCParams;
 
     /// Train the readout layer using the given inputs and targets
@@ -36,18 +37,3 @@ pub trait RCParams {
 
     fn reservoir_size(&self) -> usize;
 }
-
-/*
-/// This is used for specifying desired parameter ranges
-pub type Range = (f64, f64);
-
-/// Maps the optimizer candidate parameters to concrete RC params
-/// T is the type of Parameter output specific to the type of Reservoir Computer
-/// N is the dimensionality of parameter space and is specific to the type of
-/// Reservoir Computer
-pub trait OptParamMapper<const N: usize> {
-    type Params: RCParams;
-
-    fn map(&self, params: &[f64; N]) -> Self::Params;
-}
-*/

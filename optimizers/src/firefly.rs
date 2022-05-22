@@ -1,10 +1,12 @@
 use std::{cmp::max, sync::Arc};
 
+use common::ReservoirComputer;
 use crossbeam::channel::unbounded;
+use lin_reg::LinReg;
 use nanorand::{Rng, WyRand};
 use threadpool::ThreadPool;
 
-use crate::{reservoir_computers::OptParamMapper, LinReg, OptEnvironment, ReservoirComputer};
+use crate::OptEnvironment;
 
 /// Fireflys required parameters
 #[derive(Debug, Clone)]
@@ -24,7 +26,7 @@ pub struct Params {
 
 /// Performs optimization using the firefly algorithm
 pub struct FireflyOptimizer<const N: usize> {
-    params: FireflyParams,
+    params: Params,
     candidates: Vec<[f64; N]>,
     rmses: Vec<f64>,
     best_rmse: f64,
@@ -34,7 +36,7 @@ pub struct FireflyOptimizer<const N: usize> {
 
 impl<const N: usize> FireflyOptimizer<N> {
     /// Create a new Firefly optimizer with the given parameters
-    pub fn new(params: FireflyParams) -> Self {
+    pub fn new(params: Params) -> Self {
         // TODO: optional poisson-disk sampling
         let mut rng = WyRand::new();
         let candidates = (0..params.num_candidates)
@@ -58,14 +60,12 @@ impl<const N: usize> FireflyOptimizer<N> {
         }
     }
 
-    pub fn step<RC, const I: usize, const O: usize, R>(
-        &mut self,
-        env: Arc<dyn OptEnvironment<RC, I, O, N, R> + Send + Sync>,
-        param_mapper: &RC::ParamMapper,
-        regressor: R,
-    ) where
-        RC: ReservoirComputer<I, O, N, R> + Send + Sync + 'static,
+    pub fn step<RC, R, F, E>(&mut self, env: Arc<E>, rc_gen: F)
+    where
+        RC: ReservoirComputer<R> + Send + Sync + 'static,
         R: LinReg + Send + Sync + 'static,
+        F: Fn(&[f64; N]) -> RC,
+        E: OptEnvironment<RC, R> + Send + Sync + 'static,
     {
         self.update_candidates();
 
@@ -76,10 +76,9 @@ impl<const N: usize> FireflyOptimizer<N> {
             let ch_fit_s = ch_fit_s.clone();
             let c = c.clone();
             let e = env.clone();
-            let params = param_mapper.map(&c);
-            let mut rc = RC::new(params, regressor.clone());
+            let mut rc = rc_gen(&c);
             pool.execute(move || {
-                let f = e.evaluate(&mut rc, None);
+                let f = e.evaluate(&mut rc);
                 ch_fit_s.send((i, f)).unwrap();
             });
         }
