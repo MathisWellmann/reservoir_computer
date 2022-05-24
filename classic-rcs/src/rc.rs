@@ -22,7 +22,9 @@ impl<R> RC<R> {
     /// Create a new reservoir, with random initiallization
     /// # Arguments
     pub fn new<C>(params: Params, regressor: R, mut reservoir_constructor: C) -> Self
-    where C: ReservoirConstructor {
+    where
+        C: ReservoirConstructor,
+    {
         let mut rng = match params.seed {
             Some(seed) => WyRand::new_seed(seed),
             None => WyRand::new(),
@@ -57,7 +59,8 @@ impl<R> RC<R> {
 }
 
 impl<R> ReservoirComputer<R> for RC<R>
-where R: LinReg
+where
+    R: LinReg,
 {
     #[inline(always)]
     fn params(&self) -> &dyn RCParams {
@@ -103,8 +106,6 @@ where R: LinReg
         self.readout_matrix = self
             .regressor
             .fit_readout(&design.rows(0, design.nrows()), &targets.rows(0, harvest_len));
-
-        info!("readout dims: ({}, {})", self.readout_matrix.nrows(), self.readout_matrix.ncols());
 
         /*
         // TODO: move this qr based fit into its own file
@@ -156,13 +157,6 @@ where R: LinReg
     #[inline]
     #[must_use]
     fn readout(&self) -> Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> {
-        debug!(
-            "readout: dims of state: ({}, {}), readout: ({}, {})",
-            self.state.nrows(),
-            self.state.ncols(),
-            self.readout_matrix.nrows(),
-            self.readout_matrix.ncols()
-        );
         // prepend the 1 to state for proper readout
         let state: StateMatrix = Matrix::from_fn_generic(
             Dim::from_usize(self.params.reservoir_size + 1),

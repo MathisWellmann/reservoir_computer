@@ -45,7 +45,7 @@ impl<const N: usize> RandomSearch<N> {
         F: Fn(&[f64; N]) -> RC,
         E: OptEnvironment<RC, R> + Send + Sync + 'static,
     {
-        let pool = ThreadPool::new(max(num_cpus::get() - 1, 1));
+        let pool = ThreadPool::new(max(num_cpus::get() - 2, 1));
 
         self.candidates = self.gen_candidates(self.num_candidates);
 
