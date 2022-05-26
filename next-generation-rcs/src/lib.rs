@@ -14,5 +14,8 @@ mod params;
 
 pub trait FullFeatureConstructor {
     /// Construct the full feature space from the linear part
-    fn construct_full_features<'a>(params: &Params, lin_part: &DMatrix<f64>) -> DMatrix<f64>;
+    fn construct_full_features<'a>(&self, lin_part: &DMatrix<f64>) -> DMatrix<f64>;
+
+    /// The total dimension of features
+    fn d_total(&self) -> usize;
 }

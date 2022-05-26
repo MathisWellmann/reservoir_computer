@@ -4,22 +4,34 @@ use super::{params::Params, FullFeatureConstructor};
 
 /// The high-efficiency next-generation reservoir computer constructor
 /// loosely based on: https://arxiv.org/abs/2110.13614
-#[derive(Default, Clone, Copy)]
-pub struct HENGRCConstructor {}
+#[derive(Clone)]
+pub struct HENGRCConstructor {
+    params: Params,
+}
+
+impl HENGRCConstructor {
+    pub fn new(params: Params) -> Self {
+        Self {
+            params,
+        }
+    }
+}
 
 impl FullFeatureConstructor for HENGRCConstructor {
-    fn construct_full_features<'a>(params: &Params, lin_part: &DMatrix<f64>) -> DMatrix<f64> {
-        let d_lin = params.num_time_delay_taps;
+    fn construct_full_features<'a>(&self, lin_part: &DMatrix<f64>) -> DMatrix<f64> {
+        let d_lin = self.params.num_time_delay_taps;
         let d_nonlin = (2 * d_lin) - 1;
         let d_total = d_lin + d_nonlin;
 
+        let warmup = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
+
         let mut full_features: DMatrix<f64> = Matrix::from_element_generic(
-            Dim::from_usize(lin_part.nrows()),
+            Dim::from_usize(lin_part.nrows() - warmup),
             Dim::from_usize(d_total),
             0.0,
         );
-        for i in 0..lin_part.nrows() {
-            full_features.set_row(i, &lin_part.row(i).resize_horizontally(d_total, 0.0));
+        for i in warmup..lin_part.nrows() {
+            full_features.set_row(i - warmup, &lin_part.row(i).resize_horizontally(d_total, 0.0));
         }
 
         let mut cnt: usize = 0;
@@ -31,13 +43,14 @@ impl FullFeatureConstructor for HENGRCConstructor {
                 let column: Vec<f64> = lin_part
                     .column(i)
                     .iter()
-                    .zip(lin_part.column((i as i32 - j) as usize).iter())
+                    .skip(warmup)
+                    .zip(lin_part.column((i as i32 - j) as usize).iter().skip(warmup))
                     .map(|(middel, prev)| middel * prev)
                     .collect();
 
                 let column: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
                     Matrix::from_vec_generic(
-                        Dim::from_usize(lin_part.nrows()),
+                        Dim::from_usize(lin_part.nrows() - warmup),
                         Dim::from_usize(1),
                         column,
                     );
@@ -47,6 +60,12 @@ impl FullFeatureConstructor for HENGRCConstructor {
         }
 
         full_features
+    }
+
+    fn d_total(&self) -> usize {
+        let d_lin = self.params.num_time_delay_taps;
+        let d_nonlin = (2 * d_lin) - 1;
+        d_lin + d_nonlin
     }
 }
 

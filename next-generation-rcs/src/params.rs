@@ -17,7 +17,6 @@ impl RCParams for Params {
 
     #[inline(always)]
     fn reservoir_size(&self) -> usize {
-        // TODO: enable this to work in more dimensions
         const INPUT_DIM: usize = 1;
         let d_lin = self.num_time_delay_taps * INPUT_DIM;
         let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;

@@ -14,14 +14,11 @@ pub struct NextGenerationRC<R, C> {
     inputs: VecDeque<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
     readout_matrix: DMatrix<f64>,
     state: StateMatrix,
-    // size of the linear part of feature vector
     d_lin: usize,
-    // Total size of the feature vector
-    d_total: usize,
     // capacity of sliding window of inputs
     window_cap: usize,
     regressor: R,
-    full_feature_constructor: C,
+    constructor: C,
 }
 
 impl<R, C> NextGenerationRC<R, C>
@@ -29,17 +26,26 @@ where
     R: LinReg,
     C: FullFeatureConstructor,
 {
-    pub fn new(params: Params, regressor: R, full_feature_constructor: C) -> Self {
-        let d_lin = params.num_time_delay_taps * params.input_dim;
-        let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
-        let d_total = d_lin + d_nonlin;
-
+    /// Create a new reservoir computer of the next generation kind
+    ///
+    /// # Arguments:
+    /// params: The parameters
+    /// regressor: The linear regression being used
+    /// constructor: The full feature constructor
+    ///
+    pub fn new(params: Params, regressor: R, constructor: C) -> Self {
         let readout_matrix = Matrix::from_element_generic(
             Dim::from_usize(params.output_dim),
-            Dim::from_usize(d_total),
+            Dim::from_usize(constructor.d_total()),
             0.0,
         );
-        let state = Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(d_total), 0.0);
+        let state = Matrix::from_element_generic(
+            Dim::from_usize(1),
+            Dim::from_usize(constructor.d_total()),
+            0.0,
+        );
+
+        let d_lin = params.num_time_delay_taps * params.input_dim;
 
         let window_cap = params.num_samples_to_skip * params.num_time_delay_taps + 1;
 
@@ -47,12 +53,11 @@ where
             params,
             inputs: VecDeque::with_capacity(window_cap),
             readout_matrix,
-            d_lin,
-            d_total,
             state,
+            d_lin,
             window_cap,
             regressor,
-            full_feature_constructor,
+            constructor,
         }
     }
 
@@ -61,6 +66,7 @@ where
     /// # Arguments
     /// inputs: Number of rows are the observed datapoints and number of columns
     /// represent the features at each timestep
+    ///
     fn construct_lin_part<'a>(
         &self,
         inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
@@ -108,8 +114,7 @@ where
         targets: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
     ) {
         let lin_part = self.construct_lin_part(inputs);
-        let full_features =
-            <C as FullFeatureConstructor>::construct_full_features(&self.params, &lin_part);
+        let full_features = self.constructor.construct_full_features(&lin_part);
 
         let warmup = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
 
@@ -164,11 +169,10 @@ where
             inputs.set_row(i, col);
         }
         let lin_part = self.construct_lin_part(&inputs.rows(0, inputs.nrows()));
-        let full_features =
-            <C as FullFeatureConstructor>::construct_full_features(&self.params, &lin_part);
+        let full_features = self.constructor.construct_full_features(&lin_part);
 
         // extract the state from the last full_feature column
-        let mut state: Vec<f64> = vec![0.0; self.d_total + 1];
+        let mut state: Vec<f64> = vec![0.0; self.constructor.d_total() + 1];
         state[0] = 1.0;
         for (i, f) in full_features.row(full_features.nrows() - 1).iter().enumerate() {
             state[i + 1] = *f;
@@ -176,7 +180,7 @@ where
         self.state =
             <Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>::from_vec_generic(
                 Dim::from_usize(1),
-                Dim::from_usize(self.d_total + 1), // +1 as the first column is always a 1
+                Dim::from_usize(self.constructor.d_total() + 1), // +1 as the first column is always a 1
                 state,
             );
     }
