@@ -1,12 +1,19 @@
 use common::{Activation, RCParams};
 
+/// The parameters required for any next generation reservoir computer
 #[derive(Debug, Clone)]
 pub struct Params {
-    pub input_dim: usize,
-    pub output_dim: usize,
+    /// Number of taps from which input values are sampled
     pub num_time_delay_taps: usize,
+
+    /// Number of input samples to skip. Basically spaces taps out
     pub num_samples_to_skip: usize,
+
+    /// Activation function of output
     pub output_activation: Activation,
+
+    /// The state size of reservoir, dictated by constructor used
+    pub reservoir_size: usize,
 }
 
 impl RCParams for Params {
@@ -17,23 +24,6 @@ impl RCParams for Params {
 
     #[inline(always)]
     fn reservoir_size(&self) -> usize {
-        const INPUT_DIM: usize = 1;
-        let d_lin = self.num_time_delay_taps * INPUT_DIM;
-        let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
-        d_lin + d_nonlin
+        self.reservoir_size
     }
 }
-
-/*
-pub(crate) const PARAM_DIM: usize = 3;
-
-pub struct ParamMapper {}
-
-impl OptParamMapper<PARAM_DIM> for ParamMapper {
-    type Params = Params;
-
-    fn map(&self, params: &[f64; PARAM_DIM]) -> Self::Params {
-        todo!()
-    }
-}
-*/

@@ -14,7 +14,6 @@ pub struct NextGenerationRC<R, C> {
     inputs: VecDeque<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
     readout_matrix: DMatrix<f64>,
     state: StateMatrix,
-    d_lin: usize,
     // capacity of sliding window of inputs
     window_cap: usize,
     regressor: R,
@@ -32,10 +31,9 @@ where
     /// params: The parameters
     /// regressor: The linear regression being used
     /// constructor: The full feature constructor
-    ///
     pub fn new(params: Params, regressor: R, constructor: C) -> Self {
         let readout_matrix = Matrix::from_element_generic(
-            Dim::from_usize(params.output_dim),
+            Dim::from_usize(1),
             Dim::from_usize(constructor.d_total()),
             0.0,
         );
@@ -45,8 +43,6 @@ where
             0.0,
         );
 
-        let d_lin = params.num_time_delay_taps * params.input_dim;
-
         let window_cap = params.num_samples_to_skip * params.num_time_delay_taps + 1;
 
         Self {
@@ -54,7 +50,6 @@ where
             inputs: VecDeque::with_capacity(window_cap),
             readout_matrix,
             state,
-            d_lin,
             window_cap,
             regressor,
             constructor,
@@ -66,7 +61,6 @@ where
     /// # Arguments
     /// inputs: Number of rows are the observed datapoints and number of columns
     /// represent the features at each timestep
-    ///
     fn construct_lin_part<'a>(
         &self,
         inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
@@ -75,7 +69,7 @@ where
 
         let mut lin_part: DMatrix<f64> = Matrix::from_element_generic(
             Dim::from_usize(inputs.nrows()),
-            Dim::from_usize(self.d_lin),
+            Dim::from_usize(self.params.num_time_delay_taps),
             0.0,
         );
 
@@ -148,7 +142,7 @@ where
         let input =
             <Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>::from_row_slice_generic(
                 Dim::from_usize(1),
-                Dim::from_usize(self.params.input_dim),
+                Dim::from_usize(1),
                 input.iter().cloned().collect::<Vec<f64>>().as_slice(),
             );
         self.inputs.push_back(input);
@@ -160,11 +154,8 @@ where
             return;
         }
 
-        let mut inputs: DMatrix<f64> = Matrix::from_element_generic(
-            Dim::from_usize(self.window_cap),
-            Dim::from_usize(self.params.input_dim),
-            0.0,
-        );
+        let mut inputs: DMatrix<f64> =
+            Matrix::from_element_generic(Dim::from_usize(self.window_cap), Dim::from_usize(1), 0.0);
         for (i, col) in self.inputs.iter().enumerate() {
             inputs.set_row(i, col);
         }
@@ -180,7 +171,8 @@ where
         self.state =
             <Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>::from_vec_generic(
                 Dim::from_usize(1),
-                Dim::from_usize(self.constructor.d_total() + 1), // +1 as the first column is always a 1
+                Dim::from_usize(self.constructor.d_total() + 1), /* +1 as the first column is
+                                                                  * always a 1 */
                 state,
             );
     }
@@ -188,11 +180,7 @@ where
     #[inline(always)]
     fn readout(&self) -> Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> {
         if self.inputs.len() < self.window_cap {
-            return Matrix::from_element_generic(
-                Dim::from_usize(self.params.output_dim),
-                Dim::from_usize(1),
-                0.0,
-            );
+            return Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(1), 0.0);
         }
         debug!(
             "readout: dims of state: ({}, {}), readout: ({}, {})",

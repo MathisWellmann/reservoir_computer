@@ -6,24 +6,31 @@ use super::{params::Params, FullFeatureConstructor};
 /// loosely based on: https://arxiv.org/abs/2110.13614
 #[derive(Clone)]
 pub struct HENGRCConstructor {
-    params: Params,
+    num_time_delay_taps: usize,
+    num_samples_to_skip: usize,
 }
 
 impl HENGRCConstructor {
-    pub fn new(params: Params) -> Self {
+    /// Create a new constructor for the next generation reservoir computer
+    ///
+    /// # Arguments:
+    /// num_time_delay_taps: The number of values to sample from input sequence
+    /// num_samples_to_skip: Take samples from inputs every n steps
+    pub fn new(num_time_delay_taps: usize, num_samples_to_skip: usize) -> Self {
         Self {
-            params,
+            num_time_delay_taps,
+            num_samples_to_skip,
         }
     }
 }
 
 impl FullFeatureConstructor for HENGRCConstructor {
     fn construct_full_features<'a>(&self, lin_part: &DMatrix<f64>) -> DMatrix<f64> {
-        let d_lin = self.params.num_time_delay_taps;
+        let d_lin = self.num_time_delay_taps;
         let d_nonlin = (2 * d_lin) - 1;
         let d_total = d_lin + d_nonlin;
 
-        let warmup = self.params.num_time_delay_taps * self.params.num_samples_to_skip;
+        let warmup = self.num_time_delay_taps * self.num_samples_to_skip;
 
         let mut full_features: DMatrix<f64> = Matrix::from_element_generic(
             Dim::from_usize(lin_part.nrows() - warmup),
@@ -63,7 +70,7 @@ impl FullFeatureConstructor for HENGRCConstructor {
     }
 
     fn d_total(&self) -> usize {
-        let d_lin = self.params.num_time_delay_taps;
+        let d_lin = self.num_time_delay_taps;
         let d_nonlin = (2 * d_lin) - 1;
         d_lin + d_nonlin
     }
