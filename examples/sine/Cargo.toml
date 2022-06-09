@@ -14,10 +14,10 @@ nalgebra = "^0.31"
 time_series_generator = "^0.3"
 
 # Local deps
-next-generation-rcs = { version = "^0.1.0", path = "../../next-generation-rcs" }
-classic-rcs = { version = "^0.13.0", path = "../../classic-rcs" }
-lin-reg = { version = "^0.1.0", path = "../../lin-reg" }
-rc-plot = { version = "^0.1.0", path = "../../rc-plot" }
+next-generation-rcs = { version = "^0.2", path = "../../next-generation-rcs" }
+classic-rcs = { version = "^0.13", path = "../../classic-rcs" }
+lin-reg = { version = "^0.1", path = "../../lin-reg" }
+rc-plot = { version = "^0.1", path = "../../rc-plot" }
 common = { version = "^0.2", path = "../../common" }
 
 [[bin]]

@@ -8,7 +8,7 @@ use common::{Activation, ReservoirComputer};
 use dialoguer::{theme::ColorfulTheme, Select};
 use lin_reg::*;
 use nalgebra::{DMatrix, Dim, Matrix};
-use next_generation_rcs::{NGRCConstructor, NextGenerationRC, Params};
+use next_generation_rcs::{FullFeatureConstructor, NGRCConstructor, NextGenerationRC, Params};
 use rc_plot::{plot, Series};
 use time_series_generator::generate_sine_wave;
 
@@ -123,19 +123,19 @@ pub(crate) fn main() {
             );
         }
         2 => {
+            let num_time_delay_taps = 20;
+            let num_samples_to_skip = 5;
+            let feature_constructor =
+                NGRCConstructor::new(num_time_delay_taps, num_samples_to_skip);
             let params = Params {
-                input_dim: 1,
-                output_dim: 1,
-                num_time_delay_taps: 20,
-                num_samples_to_skip: 5,
+                num_time_delay_taps,
+                num_samples_to_skip,
                 output_activation: Activation::Identity,
+                reservoir_size: feature_constructor.d_total(),
             };
-            // TODO: choose lin reg
             let regressor = TikhonovRegularization {
                 regularization_coeff: 990.0,
             };
-            // TODO: try other feature constructors as well
-            let feature_constructor = NGRCConstructor::default();
             let mut rc = NextGenerationRC::new(params, regressor, feature_constructor);
             let t0 = Instant::now();
             rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));

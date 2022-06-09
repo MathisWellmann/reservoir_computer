@@ -17,4 +17,4 @@ common = { version = "^0.2", path = "../../common", features = ["environments"]}
 lin-reg = { version = "^0.1", path = "../../lin-reg"}
 rc-plot = { version = "^0.1", path = "../../rc-plot"}
 classic-rcs = { version = "^0.13", path = "../../classic-rcs" }
-next-generation-rcs = { version = "^0.1", path = "../../next-generation-rcs" }
+next-generation-rcs = { version = "^0.2", path = "../../next-generation-rcs" }
