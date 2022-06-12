@@ -10,7 +10,5 @@ log = "^0.4"
 pretty_env_logger = "^0.4"
 arrayfire = "^3.8"
 
-# Local deps
 common = { version = "^0.2", path = "../common" }
-next-generation-rcs = { version = "^0.2", path = "../next-generation-rcs" }
 

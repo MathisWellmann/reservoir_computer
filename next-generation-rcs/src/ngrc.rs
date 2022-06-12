@@ -76,7 +76,6 @@ where
         for delay in 0..self.params.num_time_delay_taps {
             let mut column = vec![0.0; inputs.nrows()];
             for j in delay * self.params.num_samples_to_skip..inputs.nrows() {
-                // TODO: support for more than 1 input dimension
                 column[j] = *inputs
                     .column(0)
                     .get(j - delay * self.params.num_samples_to_skip)
@@ -251,8 +250,6 @@ mod tests {
 
         const K: usize = 3;
         let params = Params {
-            input_dim: 1,
-            output_dim: 1,
             num_time_delay_taps: K,
             num_samples_to_skip: 1,
             output_activation: Activation::Tanh,

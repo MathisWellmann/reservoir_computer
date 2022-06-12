@@ -1,3 +1,12 @@
+#[macro_use]
+extern crate log;
+
+mod ngrc;
+mod params;
+
+pub use ngrc::NextGenerationRC;
+pub use params::Params;
+
 #[cfg(test)]
 mod tests {
     use arrayfire::*;
