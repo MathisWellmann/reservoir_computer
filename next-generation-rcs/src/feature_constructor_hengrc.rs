@@ -78,7 +78,6 @@ impl FullFeatureConstructor for HENGRCConstructor {
 
 #[cfg(test)]
 mod tests {
-    use common::Activation;
     use round::round;
 
     use super::*;
@@ -94,17 +93,10 @@ mod tests {
         );
         info!("lin_part: {}", lin_part);
 
-        let params = Params {
-            input_dim: 1,
-            output_dim: 1,
-            num_time_delay_taps: 4,
-            num_samples_to_skip: 1,
-            output_activation: Activation::Identity,
-        };
-        let mut full_features =
-            <HENGRCConstructor as FullFeatureConstructor>::construct_full_features(
-                &params, &lin_part,
-            );
+        let num_time_delay_taps = 4;
+        let num_samples_to_skip = 1;
+        let constructor = HENGRCConstructor::new(num_time_delay_taps, num_samples_to_skip);
+        let mut full_features = constructor.construct_full_features(&lin_part);
 
         full_features.iter_mut().for_each(|v| *v = round(*v, 4));
 

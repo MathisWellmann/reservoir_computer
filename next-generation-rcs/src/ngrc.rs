@@ -249,15 +249,16 @@ mod tests {
         let inputs = get_inputs();
 
         const K: usize = 3;
+        let fc = NGRCConstructor::new(K, 1);
         let params = Params {
             num_time_delay_taps: K,
             num_samples_to_skip: 1,
             output_activation: Activation::Tanh,
+            reservoir_size: fc.d_total(),
         };
         let regressor = TikhonovRegularization {
             regularization_coeff: 0.001,
         };
-        let fc = NGRCConstructor::default();
         let ngrc =
             NextGenerationRC::<TikhonovRegularization, NGRCConstructor>::new(params, regressor, fc);
 
@@ -285,17 +286,16 @@ mod tests {
         let inputs = get_inputs();
 
         const K: usize = 2;
+        let fc = NGRCConstructor::new(K, 1);
         let params = Params {
-            input_dim: 1,
-            output_dim: 1,
             num_time_delay_taps: K,
             num_samples_to_skip: 2,
             output_activation: Activation::Tanh,
+            reservoir_size: fc.d_total(),
         };
         let regressor = TikhonovRegularization {
             regularization_coeff: 0.001,
         };
-        let fc = NGRCConstructor::default();
         let ngrc =
             NextGenerationRC::<TikhonovRegularization, NGRCConstructor>::new(params, regressor, fc);
 
@@ -317,11 +317,6 @@ mod tests {
     }
 
     #[test]
-    fn ngrc_lin_part_2d() {
-        todo!()
-    }
-
-    #[test]
     fn ngrc_nonlin_part_1d() {
         if let Err(_) = pretty_env_logger::try_init() {}
 
@@ -329,25 +324,26 @@ mod tests {
 
         const I: usize = 1;
         const K: usize = 2;
+        let fc = NGRCConstructor::new(
+            K, 1
+        );
         let params = Params {
-            input_dim: 1,
-            output_dim: 1,
             num_time_delay_taps: K,
             num_samples_to_skip: 1,
             output_activation: Activation::Tanh,
+            reservoir_size: fc.d_total(),
         };
         let regressor = TikhonovRegularization {
             regularization_coeff: 0.001,
         };
-        let fc = NGRCConstructor::default();
         let ngrc = NextGenerationRC::<TikhonovRegularization, NGRCConstructor>::new(
             params.clone(),
             regressor,
-            fc,
+            fc.clone(),
         );
 
         let lin_part = ngrc.construct_lin_part(&inputs.rows(0, inputs.nrows()));
-        let mut full_features = NGRCConstructor::construct_full_features(&params, &lin_part);
+        let mut full_features = fc.construct_full_features(&lin_part);
         info!("inputs: {}", inputs);
 
         let d_lin = K * I;
