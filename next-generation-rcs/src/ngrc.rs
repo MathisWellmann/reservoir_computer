@@ -324,9 +324,7 @@ mod tests {
 
         const I: usize = 1;
         const K: usize = 2;
-        let fc = NGRCConstructor::new(
-            K, 1
-        );
+        let fc = NGRCConstructor::new(K, 1);
         let params = Params {
             num_time_delay_taps: K,
             num_samples_to_skip: 1,
