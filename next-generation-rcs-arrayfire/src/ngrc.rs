@@ -1,17 +1,25 @@
 use std::time::Instant;
 
-use arrayfire::{col, mul, rows, set_col, set_cols, Array, Dim4};
+use arrayfire::{
+    col, diag_create, inverse, mul, rows, set_col, set_cols, transpose, Array, Dim4, MatProp,
+};
 
 use crate::params::Params;
 
 pub struct NextGenerationRC {
     params: Params,
+    readout_matrix: Array<f32>,
 }
 
 impl NextGenerationRC {
     pub fn new(params: Params) -> Self {
+        let d_lin = params.num_time_delay_taps;
+        let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
+        let d_total = d_lin + d_nonlin;
+
         Self {
             params,
+            readout_matrix: Array::new_empty(Dim4::new(&[1, d_total as u64, 1, 1])),
         }
     }
 
@@ -36,7 +44,7 @@ impl NextGenerationRC {
         Array::new(&values, Dim4::new(&[nrows as u64, ncols as u64, 1, 1]))
     }
 
-    fn construct_full_features(&self, inputs: &[f32]) -> Array<f32> {
+    fn construct_design_matrix(&self, inputs: &[f32]) -> Array<f32> {
         let t0 = Instant::now();
 
         let lin_part = self.construct_lin_part(inputs);
@@ -46,16 +54,20 @@ impl NextGenerationRC {
         let nrows = num_input_rows - warmup as u64;
         let d_lin = self.params.num_time_delay_taps;
         let d_nonlin = d_lin * (d_lin + 1) * (d_lin + 2) / 6;
-        let ncols = d_lin + d_nonlin;
+        let ncols = d_lin + d_nonlin + 1; // Add column of 1s here already
 
-        let mut full_features = Array::new_empty(Dim4::new(&[nrows, ncols as u64, 1, 1]));
+        let mut design = Array::new_empty(Dim4::new(&[nrows, ncols as u64, 1, 1]));
+
+        // Insert column of 1s
+        let column: Vec<f32> = vec![1.0; nrows as usize];
+        set_col(&mut design, &Array::new(&column, Dim4::new(&[nrows, 1, 1, 1])), 0);
 
         // Copy over lin part
         set_cols(
-            &mut full_features,
+            &mut design,
             &rows(&lin_part, warmup as i64, (num_input_rows - 1) as i64),
-            0,
-            d_lin as i64 - 1,
+            1,
+            d_lin as i64,
         );
 
         let mut cnt: usize = 0;
@@ -69,7 +81,7 @@ impl NextGenerationRC {
                     );
 
                     set_col(
-                        &mut full_features,
+                        &mut design,
                         &rows(&column, warmup as i64, (num_input_rows - 1) as i64),
                         (d_lin + cnt) as i64,
                     );
@@ -80,10 +92,31 @@ impl NextGenerationRC {
 
         info!("construct_full_features took {}ms", t0.elapsed().as_millis());
 
-        full_features
+        design
     }
 
-    pub fn train(&mut self, inputs: &[f32], targets: &[f32]) {}
+    pub fn train(&mut self, inputs: &[f32], targets: &[f32]) {
+        let design = self.construct_design_matrix(inputs);
+
+        // Fit linear regression
+        let design_ncols = design.dims().get()[1];
+        let reg_m = diag_create(
+            &Array::new(
+                &vec![self.params.regularization_coeff; design_ncols as usize],
+                Dim4::new(&[design_ncols, 1, 1, 1]),
+            ),
+            0,
+        );
+
+        let targets = Array::new(&targets, Dim4::new(&[targets.len() as u64, 1, 1, 1]));
+
+        let t0 = transpose(&design, false);
+        let p0 = &t0 * &design;
+        let p1 = inverse(&(p0 + reg_m), MatProp::NONE);
+        let p2 = t0 * targets;
+
+        self.readout_matrix = p1 * p2;
+    }
 }
 
 #[cfg(test)]
@@ -114,6 +147,7 @@ mod tests {
             num_samples_to_skip: 1,
             output_activation: Activation::Tanh,
             reservoir_size,
+            regularization_coeff: 0.1,
         };
         let rc = NextGenerationRC::new(params);
 
@@ -145,11 +179,12 @@ mod tests {
             num_samples_to_skip: 1,
             output_activation: Activation::Tanh,
             reservoir_size,
+            regularization_coeff: 0.1,
         };
         let rc = NextGenerationRC::new(params);
 
         let inputs = get_inputs();
-        let full_features = rc.construct_full_features(&inputs);
+        let full_features = rc.construct_design_matrix(&inputs);
 
         af_print!("full_features", full_features);
     }

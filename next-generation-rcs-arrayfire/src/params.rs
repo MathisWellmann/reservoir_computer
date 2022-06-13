@@ -14,6 +14,9 @@ pub struct Params {
 
     /// The state size of reservoir, dictated by constructor used
     pub reservoir_size: usize,
+
+    /// Ridge regression regularization coefficient
+    pub regularization_coeff: f32,
 }
 
 impl RCParams for Params {
