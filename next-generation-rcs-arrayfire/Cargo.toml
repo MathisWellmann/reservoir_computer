@@ -10,5 +10,6 @@ log = "^0.4"
 pretty_env_logger = "^0.4"
 arrayfire = "^3.8"
 
-common = { version = "^0.2", path = "../common" }
+time_series_generator = "^0.3"
 
+rc-plot = { version = "^0.1", path = "../rc-plot" }
