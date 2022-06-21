@@ -2,7 +2,6 @@
 members = [
   "classic-rcs",
   "next-generation-rcs",
-  "next-generation-rcs-arrayfire",
   "optimizers",
   "lin-reg",
   "rc-plot",
