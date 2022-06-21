@@ -36,8 +36,6 @@ impl NGRCArrayfire {
     }
 
     fn construct_lin_part(&self, inputs: &[f32]) -> Array<f32> {
-        let t0 = Instant::now();
-
         let nrows = inputs.len();
         let ncols = self.params.num_time_delay_taps;
 
@@ -50,8 +48,6 @@ impl NGRCArrayfire {
             }
             values.append(&mut column);
         }
-
-        info!("consturct_lin_part took {}ms", t0.elapsed().as_millis());
 
         Array::new(&values, Dim4::new(&[nrows as u64, ncols as u64, 1, 1]))
     }
@@ -104,7 +100,7 @@ impl NGRCArrayfire {
             }
         }
 
-        info!("construct_full_features took {}ms", t0.elapsed().as_millis());
+        debug!("construct_full_features took {}ms", t0.elapsed().as_millis());
 
         design
     }
@@ -163,7 +159,7 @@ impl NGRCArrayfire {
         // There is only one element in pred,
         // which i want to extract and this seems to be the only way to do it
         let val = sum_all(&pred);
-        info!("readout val: {:?}", val);
+        debug!("readout val: {:?}", val);
         self.params.output_activation.activate(val.0)
     }
 }

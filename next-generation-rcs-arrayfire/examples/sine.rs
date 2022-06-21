@@ -24,7 +24,7 @@ pub(crate) fn main() {
         num_time_delay_taps: 20,
         num_samples_to_skip: 5,
         output_activation: Activation::Identity,
-        regularization_coeff: 990.0,
+        regularization_coeff: 5.0,
     };
     let mut rc = NGRCArrayfire::new(params);
 
