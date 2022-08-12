@@ -9,6 +9,9 @@ pub trait ReservoirComputer<R: LinReg> {
     fn params(&self) -> &dyn RCParams;
 
     /// Train the readout layer using the given inputs and targets
+    ///
+    /// # Arguments:
+    /// inputs: A Matrix where there are N rows corresponding to the datapoints
     fn train<'a>(
         &mut self,
         inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,

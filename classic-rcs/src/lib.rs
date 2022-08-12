@@ -1,3 +1,6 @@
+#![deny(missing_docs)]
+#![warn(clippy::all)]
+
 #[macro_use]
 extern crate log;
 
