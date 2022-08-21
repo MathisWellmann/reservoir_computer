@@ -3,6 +3,7 @@ use nanorand::{Rng, WyRand};
 
 use crate::ReservoirConstructor;
 
+/// The constructor for the Euler State Network
 pub struct EUSNConstructor {
     rng: WyRand,
     reservoir_size: usize,
@@ -17,6 +18,7 @@ pub struct EUSNConstructor {
 }
 
 impl EUSNConstructor {
+    /// Create a new instance of the Euler State Network constructor
     pub fn new(
         seed: Option<u64>,
         reservoir_size: usize,

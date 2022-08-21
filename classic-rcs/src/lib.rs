@@ -1,3 +1,5 @@
+//! This crate is for the classic variants of reservoir computers
+
 #![deny(missing_docs)]
 #![warn(clippy::all)]
 
@@ -18,4 +20,5 @@ pub use params::Params;
 pub use rc::RC;
 pub use reservoir_constructor::ReservoirConstructor;
 
+/// The State matrix used for the classic reservoir computers
 pub type StateMatrix = Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;

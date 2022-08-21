@@ -140,18 +140,20 @@ pub(crate) fn main() {
             );
         }
         2 => {
+            let num_time_delay_taps = 11;
+            let num_samples_to_skip = 2;
+
             let params = NGRCParams {
-                input_dim: 1,
-                output_dim: 1,
-                num_time_delay_taps: 11,
-                num_samples_to_skip: 2,
+                num_time_delay_taps,
+                num_samples_to_skip,
                 output_activation: Activation::Identity,
+                reservoir_size: num_time_delay_taps * num_samples_to_skip,
             };
             // TODO: choose lin reg
             let regressor = TikhonovRegularization {
                 regularization_coeff: 95.0,
             };
-            let ngrc_constructor = NGRCConstructor::default();
+            let ngrc_constructor = NGRCConstructor::new(num_time_delay_taps, num_samples_to_skip);
             let mut rc = NextGenerationRC::new(params, regressor, ngrc_constructor);
             let t0 = Instant::now();
             rc.train(&values.rows(0, TRAIN_LEN - 1), &values.rows(1, TRAIN_LEN));

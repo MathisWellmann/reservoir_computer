@@ -55,17 +55,19 @@ pub(crate) fn main() {
             todo!("EuSN not yet available")
         }
         2 => {
+            let num_time_delay_taps = 5;
+            let num_samples_to_skip = 2;
+
             let params = NGRCParams {
-                input_dim: 3,
-                output_dim: 3,
-                num_time_delay_taps: 5,
-                num_samples_to_skip: 2,
+                num_time_delay_taps,
+                num_samples_to_skip,
                 output_activation: Activation::Identity,
+                reservoir_size: num_time_delay_taps * num_samples_to_skip,
             };
             let regressor = TikhonovRegularization {
                 regularization_coeff: 0.0001,
             };
-            let ngrc_constructor = NGRCConstructor::default();
+            let ngrc_constructor = NGRCConstructor::new(num_time_delay_taps, num_samples_to_skip);
             let mut rc = NextGenerationRC::new(params, regressor, ngrc_constructor);
 
             let mut p = PlotGather::default();
