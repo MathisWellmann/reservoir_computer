@@ -43,7 +43,7 @@ Monero (XMR) address:
 47xMvxNKsCKMt2owkDuN1Bci2KMiqGrAFCQFSLijWLs49ua67222Wu3LZryyopDVPYgYmAnYkSZSz9ZW2buaDwdyKTWGwwb
 ```
 
-![monero](img/monero_donations_qrcode.png)
+![monero](img_readme/monero_donations_qrcode.png)
 
 ### License
 Copyright (C) 2020  <Mathis Wellmann wellmannmathis@gmail.com>
@@ -61,4 +61,4 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-![GNU AGPLv3](img/agplv3.png)
+![GNU AGPLv3](img_readme/agplv3.png)
