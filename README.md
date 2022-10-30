@@ -13,6 +13,8 @@ so I they may not work for multi dimensional IO. If you are capable of generaliz
 
 There are two distinct approaches to reservoir computing,
 one which I'll call the [classic approach](./classic-rcs) and the [next-generation RCs](./next-generation-rcs).
+The former was pioneed by Jaeger and Maass et al.
+The latter was introduced recently [here](https://www.nature.com/articles/s41467-021-25801-2)
 They both require two distinct APIs and the classic approach has significantly more parameters (7 vs 3).
 
 This repository contains three concrete reservoir computers:
@@ -27,6 +29,7 @@ This repository contains three concrete reservoir computers:
 - implement lyapunov time for analysis purposes
 - Make error measure generic and add MAE as well as RMSE, which already exists
 - Add all fields to all Cargo.toml files
+- Add prediction plot to this README
 
 ### Contributions
 If you find a bug or would like to help out, feel free to create a pull-request.
