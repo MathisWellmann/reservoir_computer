@@ -56,11 +56,10 @@ pub(crate) fn main() {
         }
         2 => {
             let params = NGRCParams {
-                input_dim: 3,
-                output_dim: 3,
                 num_time_delay_taps: 5,
                 num_samples_to_skip: 2,
                 output_activation: Activation::Identity,
+                reservoir_size: todo!(),
             };
             let regressor = TikhonovRegularization {
                 regularization_coeff: 0.0001,
