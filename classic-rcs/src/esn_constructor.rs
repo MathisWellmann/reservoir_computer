@@ -31,6 +31,7 @@ pub struct ESNConstructor {
 }
 
 impl ESNConstructor {
+    /// Create a new Echo State Network constructor
     pub fn new(
         seed: Option<u64>,
         reservoir_size: usize,

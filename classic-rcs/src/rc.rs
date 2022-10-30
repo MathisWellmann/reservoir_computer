@@ -5,7 +5,7 @@ use nanorand::{Rng, WyRand};
 
 use crate::{Params, ReservoirConstructor, StateMatrix};
 
-/// The Reseoir Computer, Leaky Echo State Network
+/// The classic reservoir computer
 #[derive(Debug)]
 pub struct RC<R> {
     params: Params,
@@ -19,10 +19,16 @@ pub struct RC<R> {
 }
 
 impl<R> RC<R> {
-    /// Create a new reservoir, with random initiallization
-    /// # Arguments
+    /// Create a new reservoir, with random weight initiallization
+    ///
+    /// # Arguments:
+    /// params: The required Parameters
+    /// regressor: The linear regression method to use
+    /// reservoir_constructor: The way to generate the initial weights of the reservoir
     pub fn new<C>(params: Params, regressor: R, mut reservoir_constructor: C) -> Self
-    where C: ReservoirConstructor {
+    where
+        C: ReservoirConstructor,
+    {
         let mut rng = match params.seed {
             Some(seed) => WyRand::new_seed(seed),
             None => WyRand::new(),
@@ -57,7 +63,8 @@ impl<R> RC<R> {
 }
 
 impl<R> ReservoirComputer<R> for RC<R>
-where R: LinReg
+where
+    R: LinReg,
 {
     #[inline(always)]
     fn params(&self) -> &dyn RCParams {
@@ -103,28 +110,6 @@ where R: LinReg
         self.readout_matrix = self
             .regressor
             .fit_readout(&design.rows(0, design.nrows()), &targets.rows(0, harvest_len));
-
-        /*
-        // TODO: move this qr based fit into its own file
-        // TODO: put into its own lin_reg file with tests
-        // Ridge regression regularization, I think
-        let x: DMatrix<f64> = Matrix::from_fn_generic(
-            Dim::from_usize(harvest_len),
-            Dim::from_usize(design_cols),
-            |i, j| {
-                if i == j {
-                    *design_matrix.row(i).column(j).get(0).unwrap()
-                        + self.params.regularization_coeff
-                } else {
-                    *design_matrix.row(i).column(j).get(0).unwrap()
-                }
-            },
-        );
-        let qr = x.qr();
-        let a = qr.r().try_inverse().unwrap() * qr.q().transpose();
-        let b = a * &target_matrix;
-        self.readout_matrix = b.transpose();
-        */
     }
 
     fn update_state<'a>(
