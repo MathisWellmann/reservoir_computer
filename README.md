@@ -11,17 +11,11 @@ It achieves this by making many things generic, so you can just plug and play yo
 Currently I belive my networks only work for 1 dimensional input signals, which is my use case,
 so I they may not work for multi dimensional IO.
 
-There are two distinct approaches to reservoir computing,
-one which I'll call the [classic approach](./classic-rcs) and the [next-generation RCs](./next-generation-rcs).
-They both require two distinct APIs and the classic approach has significantly more parameters (7 vs 3).
-
-This repository contains three concrete reservoir computers:
+This repository contains these concrete reservoir computers:
 - Echo State Network (ESN)
 - Euler State Network (EuSN)
-- Next Generation Reservoir Computer (NGRC)
 
 ## TODOS:
 - benchmark chaotic dynamical systems
 - implement lyapunov time for analysis purposes
-- Make error measure generic and add MAE as well as RMSE, which already exists
 - Add all fields to all Cargo.toml files

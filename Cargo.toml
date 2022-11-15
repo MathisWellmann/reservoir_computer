@@ -1,17 +1,27 @@
-[workspace]
-members = [
-  "classic-rcs",
-  "next-generation-rcs",
-  "optimizers",
-  "lin-reg",
-  "rc-plot",
-  "common",
-  "examples/sine",
-  "examples/mackey_glass",
-  "examples/doublescroll",
-]
+[package]
+name = "classic-rcs"
+version = "0.13.2"
+edition = "2021"
+authors = ["Mathis Wellmann <wellmannmathis@gmail.com"]
+license = "GNU AGPLv3"
+publish = false
 
-[profile.release]
-lto = "fat"
-codegen-units = 1
-panic = "unwind"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "^0.4.14"
+pretty_env_logger = "^0.4"
+plotters = "^0.3.1"
+thiserror = "^1"
+nalgebra = { version = "^0.31.0", features = ["sparse"]}
+nanorand = "^0.7"
+dialoguer = "^0.10.0"
+num = "^0.4"
+
+# TODO: remove
+sliding_features = "2.5.0"
+trade_aggregation = "1.0.5"
+
+[dev-dependencies]
+round = "^0.1"
+pretty_env_logger = "^0.4"

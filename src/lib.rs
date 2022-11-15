@@ -10,9 +10,11 @@ use nalgebra::{Const, Dynamic, Matrix, VecStorage};
 
 mod esn_constructor;
 mod eusn_constructor;
+mod lin_reg;
 mod params;
 mod rc;
 mod reservoir_constructor;
+mod tikhonov_regularization;
 
 pub use esn_constructor::ESNConstructor;
 pub use eusn_constructor::EUSNConstructor;
