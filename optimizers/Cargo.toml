@@ -1,17 +1,18 @@
 [package]
 name = "optimizers"
-version = "0.2.1"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
 
 [dependencies]
-log = "^0.4"
+log.workspace = true
 num_cpus = "^1.13"
 threadpool = "^1.0"
 crossbeam = "^0.8"
 nanorand = "^0.7"
 
 # Local deps
-common = { version = "^0.2", path = "../common" }
-lin-reg = { version = "^0.1", path = "../lin-reg" }
+common = { path = "../common" }
+lin-reg = { path = "../lin-reg" }

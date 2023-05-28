@@ -1,24 +1,25 @@
 [package]
 name = "rc-example-sine"
-version = "0.1.5"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
 
 [dependencies]
-log = "^0.4"
-pretty_env_logger = "^0.4"
-dialoguer = "^0.10"
-nalgebra = "^0.31"
+log.workspace = true
+pretty_env_logger.workspace = true
+dialoguer.workspace = true
+nalgebra.workspace = true
 
 time_series_generator = "^0.3"
 
 # Local deps
-next-generation-rcs = { version = "^0.2", path = "../../next-generation-rcs" }
-classic-rcs = { version = "^0.13", path = "../../classic-rcs" }
-lin-reg = { version = "^0.1", path = "../../lin-reg" }
-rc-plot = { version = "^0.1", path = "../../rc-plot" }
-common = { version = "^0.2", path = "../../common" }
+next-generation-rcs = { path = "../../next-generation-rcs" }
+classic-rcs = { path = "../../classic-rcs" }
+lin-reg = { path = "../../lin-reg" }
+rc-plot = { path = "../../rc-plot" }
+common = { path = "../../common" }
 
 [[bin]]
 name = "sine"

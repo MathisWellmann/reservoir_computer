@@ -1,14 +1,15 @@
 [package]
 name = "lin-reg"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
 
 [dependencies]
-nalgebra = "^0.31.0"
-log = "^0.4"
+nalgebra.workspace = true
+log.workspace = true
 
 [dev-dependencies]
-pretty_env_logger = "^0.4"
+pretty_env_logger.workspace = true
 round = "^0.1"

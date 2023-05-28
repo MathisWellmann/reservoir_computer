@@ -1,10 +1,11 @@
 [package]
 name = "rc-plot"
-version = "0.1.2"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
 
 [dependencies]
-log = "^0.4"
-plotters = "^0.3"
+log.workspace = true
+plotters.workspace = true

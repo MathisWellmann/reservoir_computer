@@ -16,6 +16,11 @@ This repository contains three concrete reservoir computers:
 - Euler State Network (EuSN)
 - Next Generation Reservoir Computer (NGRC)
 
+Examples inculde:
+- [doublescroll](/examples/doublescroll)
+- [mackey_glass](/examples/mackey_glass)
+- [sine](/examples/sine)
+
 :warning: The implementation aims to be as close as possible to the theoretical groundwork layed out in many academic papers, however the correctness cannot be guaranteed.
 Its obvious that reservoir computers benefit massively from GPU acceleration due to the heavy use of matmul operations. A GPU variant of each network can be derived fairly easily from the knowledge in this repo. I use [arrayfire-rs](https://github.com/arrayfire/arrayfire-rust) for this acceleration (in separate repo and private for now)
 
