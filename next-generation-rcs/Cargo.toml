@@ -8,7 +8,6 @@ publish.workspace = true
 
 [dependencies]
 log.workspace = true
-pretty_env_logger.workspace = true
 nalgebra.workspace = true
 
 # Local deps
@@ -16,4 +15,5 @@ lin-reg = { path = "../lin-reg" }
 common = { path = "../common" }
 
 [dev-dependencies]
+pretty_env_logger.workspace = true
 round = "^0.1"

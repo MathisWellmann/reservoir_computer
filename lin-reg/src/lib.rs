@@ -1,5 +1,7 @@
-#[macro_use]
-extern crate log;
+//! A linear regression crate for fitting the readout layer
+
+#![deny(unused_imports, unused_crate_dependencies)]
+#![warn(missing_docs)]
 
 use nalgebra::{Const, DMatrix, Dyn, MatrixSlice};
 

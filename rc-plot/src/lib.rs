@@ -1,3 +1,8 @@
+//! A helper crate for plotting
+
+#![deny(unused_imports, unused_crate_dependencies)]
+#![warn(missing_docs)]
+
 #[macro_use]
 extern crate log;
 

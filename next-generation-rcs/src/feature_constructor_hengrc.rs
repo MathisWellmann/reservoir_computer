@@ -1,6 +1,6 @@
 use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, VecStorage};
 
-use super::{params::Params, FullFeatureConstructor};
+use super::FullFeatureConstructor;
 
 /// The high-efficiency next-generation reservoir computer constructor
 /// loosely based on: https://arxiv.org/abs/2110.13614

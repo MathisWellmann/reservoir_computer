@@ -1,3 +1,5 @@
+//! Provides an `OptEnvironment`
+
 use lin_reg::LinReg;
 use rc_plot::PlotGather;
 

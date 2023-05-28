@@ -53,7 +53,7 @@ mod tests {
             Dim::from_usize(1),
             vec![1.0, 2.0, 3.0, 4.0],
         );
-        info!("design: {}, targets: {}", design, targets);
+        log::info!("design: {}, targets: {}", design, targets);
 
         let regressor = TikhonovRegularization {
             regularization_coeff: 0.0,
@@ -62,7 +62,7 @@ mod tests {
             &design.columns(0, design.ncols()),
             &targets.columns(0, targets.ncols()),
         );
-        info!("readout_matrix: {}", readout_matrix);
+        log::info!("readout_matrix: {}", readout_matrix);
 
         let goal_matrix: Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> =
             Matrix::from_vec_generic(Dim::from_usize(3), Dim::from_usize(1), vec![1.0, 1.0, 0.0]);
@@ -90,7 +90,7 @@ mod tests {
             Dim::from_usize(1),
             vec![100.0, 200.0, 300.0, 400.0],
         );
-        info!("design: {}, targets: {}", design, targets);
+        log::info!("design: {}, targets: {}", design, targets);
 
         let regressor = TikhonovRegularization {
             regularization_coeff: 0.0,
@@ -99,7 +99,7 @@ mod tests {
             &design.columns(0, design.ncols()),
             &targets.columns(0, targets.ncols()),
         );
-        info!("readout_matrix: {}", readout_matrix);
+        log::info!("readout_matrix: {}", readout_matrix);
 
         let goal_matrix: Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> =
             Matrix::from_vec_generic(Dim::from_usize(3), Dim::from_usize(1), vec![1.0, 1.0, 0.0]);
@@ -127,20 +127,20 @@ mod tests {
             Dim::from_usize(1),
             vec![1.0, 2.0, 3.0, 4.0],
         );
-        info!("design: {}, targets: {}", design, targets);
+        log::info!("design: {}, targets: {}", design, targets);
 
         // Try to use the last row to predict the last target
         let state: DMatrix<f64> =
             Matrix::from_vec_generic(Dim::from_usize(1), Dim::from_usize(3), vec![1.0, 3.0, 2.0]);
         let target: DMatrix<f64> =
             Matrix::from_vec_generic(Dim::from_usize(1), Dim::from_usize(1), vec![4.0]);
-        info!("state: {}, target: {}", state, target);
+        log::info!("state: {}, target: {}", state, target);
 
         let readout: Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> =
             Matrix::from_vec_generic(Dim::from_usize(3), Dim::from_usize(1), vec![1.0, 1.0, 0.0]);
 
         let o = state * readout;
-        info!("o: {}", o);
+        log::info!("o: {}", o);
 
         assert_eq!(o, target);
     }

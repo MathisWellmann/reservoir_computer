@@ -8,8 +8,8 @@ publish.workspace = true
 
 [dependencies]
 nalgebra.workspace = true
-log.workspace = true
 
 [dev-dependencies]
+log.workspace = true
 pretty_env_logger.workspace = true
 round = "^0.1"

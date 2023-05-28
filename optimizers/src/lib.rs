@@ -1,3 +1,8 @@
+//! Optimizers that can evaluate reservoir computers
+
+#![deny(unused_imports, unused_crate_dependencies)]
+#![warn(missing_docs)]
+
 use common::ReservoirComputer;
 use lin_reg::LinReg;
 
