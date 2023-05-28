@@ -1,5 +1,5 @@
 # Reservoir Computers
-:radioactive: This old project has been collecting dust for a bit, so making this public for educational purposes, but don't expect much (It's a CPU implementation afterall).
+:radioactive: This project has been collecting dust for a bit, so making this public for educational purposes, but don't expect much (It's a CPU implementation afterall).
 
 [Reservoir Computers](https://en.wikipedia.org/wiki/Reservoir_computing) 
 are a type of recurrent neural network with a fixed internal connection matrix.
@@ -17,6 +17,7 @@ This repository contains three concrete reservoir computers:
 - Echo State Network (ESN)
 - Euler State Network (EuSN)
 - Next Generation Reservoir Computer (NGRC)
+- High-efficiency NGRC (HENGRC)
 
 Examples inculde:
 - [doublescroll](/examples/doublescroll)
