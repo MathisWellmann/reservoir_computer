@@ -1,21 +1,15 @@
 # Reservoir Computers
 [Reservoir Computers](https://en.wikipedia.org/wiki/Reservoir_computing) 
 are a type of recurrent neural network with a fixed internal connection matrix.
-The only thing being "trained" in this paradigm is the readout layer, by fitting a linear regression includingt regularization.
+The only thing being "trained" in this paradigm is the readout layer, by fitting a linear regression including regularization.
 This makes it extremely efficient and powerful for predictive tasks of (chaotic) dynamical systems.
 
-This crate provides a few reservoir computer implementations in Rust.
-They all run on CPU and rely on the nalgebra crate for matrix multiplications.
+This crate provides a few reservoir computer implementations in Rust mainly for educational purposes.
+They all run on CPU and rely on the (`nalgebra`)[https://github.com/dimforge/nalgebra] crate for matrix multiplications.
 It is intended to be a flexible, research oriented library that allows anyone to implement their own spin of RC.
 It achieves this by making many things generic, so you can just plug and play your own extensions.
-Currently I belive my networks only work for 1 dimensional input signals, which is my use case,
-so I they may not work for multi dimensional IO. If you are capable of generalizing this to arbitrary IO dimension, I encourage you to implement is and create a PR.
-
-There are two distinct approaches to reservoir computing,
-one which I'll call the [classic approach](./classic-rcs) and the [next-generation RCs](./next-generation-rcs).
-The former was pioneed by Jaeger and Maass et al.
-The latter was introduced recently [here](https://www.nature.com/articles/s41467-021-25801-2)
-They both require two distinct APIs and the classic approach has significantly more parameters (7 vs 3).
+Currently It only works for 1 dimensional input signals. 
+If you are capable of generalizing this to arbitrary IO dimension, I encourage you to implement is and create a PR.
 
 This repository contains three concrete reservoir computers:
 - Echo State Network (ESN)

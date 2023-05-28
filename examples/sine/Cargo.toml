@@ -23,4 +23,3 @@ common = { version = "^0.2", path = "../../common" }
 [[bin]]
 name = "sine"
 path = "src/main.rs"
-

@@ -13,7 +13,7 @@ log = "^0.4.14"
 pretty_env_logger = "^0.4"
 plotters = "^0.3.1"
 thiserror = "^1"
-nalgebra = { version = "^0.31.0", features = ["sparse"]}
+nalgebra = { version = "^0.31.0", features = ["sparse"] }
 nanorand = "^0.7"
 dialoguer = "^0.10.0"
 num = "^0.4"
