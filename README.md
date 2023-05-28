@@ -32,7 +32,6 @@ Wrote this a couple of years ago, so there are some things todo, like:
 - benchmark chaotic dynamical systems
 - implement lyapunov time for analysis purposes
 - Make error measure generic and add MAE as well as RMSE, which already exists
-- Add all fields to all Cargo.toml files
 - Add prediction plot to this README
 
 ### Contributions
