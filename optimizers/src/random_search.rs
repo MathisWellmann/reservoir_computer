@@ -1,3 +1,5 @@
+//! The random search algorithm
+
 use std::{cmp::max, sync::Arc};
 
 use common::ReservoirComputer;
@@ -38,6 +40,7 @@ impl<const N: usize> RandomSearch<N> {
         }
     }
 
+    /// Perform a single optimization step
     pub fn step<RC, R, F, E>(&mut self, env: Arc<E>, rc_gen: F)
     where
         RC: ReservoirComputer<R> + Send + Sync + 'static,
@@ -72,21 +75,25 @@ impl<const N: usize> RandomSearch<N> {
         }
     }
 
+    /// The best evaluated parameters
     #[inline(always)]
     pub fn elite_params(&self) -> &[f64; N] {
         &self.best_params
     }
 
+    /// The best RMSE of the `elite_params`
     #[inline(always)]
     pub fn best_rmse(&self) -> f64 {
         self.best_error
     }
 
+    /// All the candidates to be evaluated
     #[inline(always)]
     pub fn candidates(&self) -> &Vec<[f64; N]> {
         &self.candidates
     }
 
+    /// All the RMSE's of candidates that have been evaluated
     #[inline(always)]
     pub fn rmses(&self) -> &Vec<f64> {
         &self.rmses

@@ -1,3 +1,6 @@
+//! The firefly optimization algorithm
+//! See: <https://en.wikipedia.org/wiki/Firefly_algorithm>
+
 use std::{cmp::max, sync::Arc};
 
 use common::ReservoirComputer;
@@ -60,6 +63,7 @@ impl<const N: usize> FireflyOptimizer<N> {
         }
     }
 
+    /// Perform a single optimization step
     pub fn step<RC, R, F, E>(&mut self, env: Arc<E>, rc_gen: F)
     where
         RC: ReservoirComputer<R> + Send + Sync + 'static,
@@ -143,21 +147,25 @@ impl<const N: usize> FireflyOptimizer<N> {
         }
     }
 
+    /// Get a reference to the best performing parameters
     #[inline(always)]
     pub fn elite_params(&self) -> &[f64; N] {
         &self.elite_params
     }
 
+    /// The `elite_params` RMSE error
     #[inline(always)]
     pub fn best_rmse(&self) -> f64 {
         self.best_rmse
     }
 
+    /// All evaluated RMSEs
     #[inline(always)]
     pub fn rmses(&self) -> &Vec<f64> {
         &self.rmses
     }
 
+    /// All the candidates to evaluate
     #[inline(always)]
     pub fn candidates(&self) -> &Vec<[f64; N]> {
         &self.candidates

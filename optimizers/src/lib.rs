@@ -9,6 +9,7 @@ use lin_reg::LinReg;
 pub mod firefly;
 pub mod random_search;
 
+/// Any environment that wants to evaluate a reservoir computer must implement this
 pub trait OptEnvironment<RC, R>
 where
     RC: ReservoirComputer<R>,

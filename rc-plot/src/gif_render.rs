@@ -2,12 +2,14 @@ use plotters::{coord::Shift, prelude::*};
 
 use super::Series;
 
+/// Used to render a gif
 pub struct GifRender<'a> {
     root: DrawingArea<BitMapBackend<'a>, Shift>,
     filename: &'a str,
 }
 
 impl<'a> GifRender<'a> {
+    /// Create a new instance of `GifRender`
     pub fn new(filename: &'a str, dims: (u32, u32)) -> Self {
         let root = BitMapBackend::gif(filename, dims, 100)
             .unwrap()
@@ -16,6 +18,7 @@ impl<'a> GifRender<'a> {
         Self { root, filename }
     }
 
+    /// Update the state of the `GifRender` with the newest information
     pub fn update(&mut self, targets: &Series, train_preds: &Series, test_preds: &Series) {
         self.root.fill(&WHITE).unwrap();
         let ts_min = targets[0].0;

@@ -1,7 +1,11 @@
+/// The possible activation functions to apply to the output of reservoir computers
 #[derive(Debug, Clone, Copy)]
 pub enum Activation {
+    /// The identity function
     Identity,
+    /// The hyperbolic tangent
     Tanh,
+    /// The rectified linear unit
     Relu,
 }
 

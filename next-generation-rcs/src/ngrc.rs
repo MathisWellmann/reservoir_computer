@@ -8,6 +8,7 @@ use super::{params::Params, FullFeatureConstructor};
 
 type StateMatrix = Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>>;
 
+/// A next-generation reservoir computer
 #[derive(Debug, Clone)]
 pub struct NextGenerationRC<R, C> {
     params: Params,

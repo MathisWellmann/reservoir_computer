@@ -16,4 +16,5 @@ pub use gif_render_optimizer::GifRenderOptimizer;
 pub use plot::plot;
 pub use plot_gather::PlotGather;
 
+/// A convenient type for a timeseries
 pub type Series = Vec<(f64, f64)>;

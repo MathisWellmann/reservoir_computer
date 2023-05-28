@@ -3,9 +3,6 @@
 #![deny(missing_docs)]
 #![warn(clippy::all)]
 
-#[macro_use]
-extern crate log;
-
 use nalgebra::{Const, Dyn, Matrix, VecStorage};
 
 mod esn_constructor;

@@ -1,7 +1,10 @@
+//! Plotting related code
+
 use plotters::prelude::*;
 
 use super::Series;
 
+/// Plot a bunch of series
 pub fn plot(
     targets: &Series,
     train_preds: &Series,

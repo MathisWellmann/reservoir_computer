@@ -6,13 +6,15 @@ use nalgebra::{DMatrix, Dim, Matrix};
 use super::PlotGather;
 use crate::ReservoirComputer;
 
+/// A mackey glass environment.
+/// See: <https://en.wikipedia.org/wiki/Mackey%E2%80%93Glass_equations>
 pub struct EnvMackeyGlass {
     values: Arc<DMatrix<f64>>,
     train_len: usize,
 }
 
 impl EnvMackeyGlass {
-    #[inline]
+    /// Construct a new instance of this environment
     pub fn new(values: Arc<DMatrix<f64>>, train_len: usize) -> Self {
         assert!(
             values.nrows() > train_len,
@@ -24,6 +26,7 @@ impl EnvMackeyGlass {
 }
 
 impl EnvMackeyGlass {
+    /// Evaluate a reservoir computer on the mackey glass benchmark
     pub fn evaluate<RC, R>(&self, rc: &mut RC, mut plot: Option<&mut PlotGather>) -> f64
     where
         RC: ReservoirComputer<R>,

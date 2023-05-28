@@ -2,6 +2,7 @@ use plotters::{coord::Shift, prelude::*};
 
 use super::Series;
 
+/// A gif render for the optimizer state
 pub struct GifRenderOptimizer<'a> {
     root: DrawingArea<BitMapBackend<'a>, Shift>,
     fits: Vec<Series>,
@@ -9,6 +10,7 @@ pub struct GifRenderOptimizer<'a> {
 }
 
 impl<'a> GifRenderOptimizer<'a> {
+    /// Create a new instance of the `GifRenderOptimizer`
     pub fn new(filename: &str, dims: (u32, u32), num_candidates: usize) -> Self {
         let root = BitMapBackend::gif(filename, dims, 100)
             .unwrap()
@@ -21,6 +23,7 @@ impl<'a> GifRenderOptimizer<'a> {
         }
     }
 
+    /// Update the `GifRender` information
     pub fn update<const N: usize>(
         &mut self,
         targets: &Series,

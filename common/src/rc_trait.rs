@@ -18,6 +18,7 @@ pub trait ReservoirComputer<R: LinReg> {
         targets: &'a MatrixView<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
     );
 
+    /// Update the reservoir computer state with the newest observed input
     fn update_state<'a>(&mut self, input: &'a MatrixView<'a, f64, Const<1>, Dyn, Const<1>, Dyn>);
 
     /// Performs a readout of the current reservoir state
@@ -26,11 +27,15 @@ pub trait ReservoirComputer<R: LinReg> {
     /// Sets the internal state matrix
     fn set_state(&mut self, state: Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>>);
 
+    /// Get a reference to the readout matrix
     fn readout_matrix(&self) -> &DMatrix<f64>;
 }
 
+/// Any reservoir computer parameter struct must implement this.
 pub trait RCParams {
+    /// The value of the initial state
     fn initial_state_value(&self) -> f64;
 
+    /// The number of inner nodes (`neurons`) in the network
     fn reservoir_size(&self) -> usize;
 }

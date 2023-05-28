@@ -15,7 +15,6 @@ use rc_plot::{plot, PlotGather};
 const TRAIN_LEN: usize = 5000;
 const TEST_LEN: usize = 1000;
 const SEED: Option<u64> = Some(0);
-const NUM_GENS: usize = 100;
 
 pub(crate) fn main() {
     let total_len = TRAIN_LEN + TEST_LEN;
@@ -83,7 +82,7 @@ pub(crate) fn main() {
             env.evaluate(&mut rc, Some(&mut p));
 
             plot(
-                &p.plot_targets(),
+                &p.target_series(),
                 &p.train_predictions(),
                 &p.test_predictions(),
                 "img/mackey_glass_esn.png",
@@ -132,7 +131,7 @@ pub(crate) fn main() {
             env.evaluate(&mut rc, Some(&mut p));
 
             plot(
-                &p.plot_targets(),
+                &p.target_series(),
                 &p.train_predictions(),
                 &p.test_predictions(),
                 "img/mackey_glass_eusn.png",
@@ -164,7 +163,7 @@ pub(crate) fn main() {
             env.evaluate(&mut rc, Some(&mut p));
 
             plot(
-                &p.plot_targets(),
+                &p.target_series(),
                 &p.train_predictions(),
                 &p.test_predictions(),
                 "img/mackey_glass_ngrc.png",
