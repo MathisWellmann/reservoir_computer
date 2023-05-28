@@ -3,7 +3,7 @@
 #![deny(unused_imports, unused_crate_dependencies)]
 #![warn(missing_docs)]
 
-use nalgebra::{Const, DMatrix, Dyn, MatrixSlice};
+use nalgebra::{Const, DMatrix, Dyn, MatrixView};
 
 mod tikhonov_regularization;
 
@@ -18,7 +18,7 @@ pub trait LinReg: Clone {
     /// targets: Target data having O rows as the output dimensionality
     fn fit_readout<'a>(
         &self,
-        design: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
-        targets: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        design: &'a MatrixView<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        targets: &'a MatrixView<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
     ) -> DMatrix<f64>;
 }

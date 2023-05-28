@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use common::{RCParams, ReservoirComputer};
 use lin_reg::LinReg;
-use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, MatrixSlice, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, MatrixView, VecStorage};
 
 use super::{params::Params, FullFeatureConstructor};
 
@@ -63,7 +63,7 @@ where
     /// represent the features at each timestep
     fn construct_lin_part<'a>(
         &self,
-        inputs: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        inputs: &'a MatrixView<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
     ) -> DMatrix<f64> {
         assert_eq!(
             inputs.ncols(),
@@ -107,8 +107,8 @@ where
 
     fn train<'a>(
         &mut self,
-        inputs: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
-        targets: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        inputs: &'a MatrixView<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        targets: &'a MatrixView<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
     ) {
         let lin_part = self.construct_lin_part(inputs);
         let full_features = self.constructor.construct_full_features(&lin_part);
@@ -138,7 +138,7 @@ where
         );
     }
 
-    fn update_state<'a>(&mut self, input: &'a MatrixSlice<'a, f64, Const<1>, Dyn, Const<1>, Dyn>) {
+    fn update_state<'a>(&mut self, input: &'a MatrixView<'a, f64, Const<1>, Dyn, Const<1>, Dyn>) {
         let input =
             <Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>>>::from_row_slice_generic(
                 Dim::from_usize(1),

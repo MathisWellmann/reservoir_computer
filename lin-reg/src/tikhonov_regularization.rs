@@ -1,4 +1,4 @@
-use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, MatrixSlice};
+use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, MatrixView};
 
 use super::LinReg;
 
@@ -14,8 +14,8 @@ pub struct TikhonovRegularization {
 impl LinReg for TikhonovRegularization {
     fn fit_readout<'a>(
         &self,
-        design: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
-        targets: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        design: &'a MatrixView<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        targets: &'a MatrixView<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
     ) -> DMatrix<f64> {
         let reg_m: DMatrix<f64> = Matrix::from_diagonal_element_generic(
             Dim::from_usize(design.ncols()),

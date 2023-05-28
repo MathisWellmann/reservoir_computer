@@ -7,7 +7,7 @@ The only thing being "trained" in this paradigm is the readout layer, by fitting
 This makes it extremely efficient and powerful for predictive tasks of (chaotic) dynamical systems.
 
 This crate provides a few reservoir computer implementations in Rust mainly for educational purposes.
-They all run on CPU and rely on the (`nalgebra`)[https://github.com/dimforge/nalgebra] crate for matrix multiplications.
+They all run on CPU and rely on the [`nalgebra`](https://github.com/dimforge/nalgebra) crate for matrix multiplications.
 It is intended to be a flexible, research oriented library that allows anyone to implement their own spin of RC.
 It achieves this by making many things generic, so you can just plug and play your own extensions.
 Currently It only works for 1 dimensional input signals. 

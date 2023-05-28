@@ -1,6 +1,6 @@
 use common::{RCParams, ReservoirComputer};
 use lin_reg::LinReg;
-use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, MatrixSlice, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, MatrixView, VecStorage};
 use nanorand::{Rng, WyRand};
 
 use crate::{Params, ReservoirConstructor, StateMatrix};
@@ -74,8 +74,8 @@ where
 
     fn train<'a>(
         &mut self,
-        inputs: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
-        targets: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        inputs: &'a MatrixView<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        targets: &'a MatrixView<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
     ) {
         let washout_len = (inputs.ncols() as f64 * self.params.washout_pct) as usize;
         let harvest_len = inputs.nrows() - washout_len;
@@ -114,7 +114,7 @@ where
         );
     }
 
-    fn update_state<'a>(&mut self, input: &'a MatrixSlice<'a, f64, Const<1>, Dyn, Const<1>, Dyn>) {
+    fn update_state<'a>(&mut self, input: &'a MatrixView<'a, f64, Const<1>, Dyn, Const<1>, Dyn>) {
         let noise: StateMatrix = Matrix::from_fn_generic(
             Dim::from_usize(self.params.reservoir_size),
             Dim::from_usize(1),
