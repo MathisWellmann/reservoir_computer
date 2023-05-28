@@ -78,9 +78,8 @@ impl<const N: usize> FireflyOptimizer<N> {
         let (ch_fit_s, ch_fit_r) = unbounded();
         for (i, c) in self.candidates.iter().enumerate() {
             let ch_fit_s = ch_fit_s.clone();
-            let c = c.clone();
             let e = env.clone();
-            let mut rc = rc_gen(&c);
+            let mut rc = rc_gen(c);
             pool.execute(move || {
                 let f = e.evaluate(&mut rc);
                 ch_fit_s.send((i, f)).unwrap();
@@ -102,7 +101,7 @@ impl<const N: usize> FireflyOptimizer<N> {
         }
         if min_rmse < self.best_rmse {
             self.best_rmse = min_rmse;
-            self.elite_params = self.candidates[min_idx].clone();
+            self.elite_params = self.candidates[min_idx];
         }
     }
 
@@ -138,12 +137,10 @@ impl<const N: usize> FireflyOptimizer<N> {
 
     // ensure the parameter bounds of the problem
     fn bounds_checked(old: f64, new: f64) -> f64 {
-        if new > 1.0 {
-            old
-        } else if new < 0.0 {
-            old
-        } else {
+        if (0.0..=1.0).contains(&new) {
             new
+        } else {
+            old
         }
     }
 

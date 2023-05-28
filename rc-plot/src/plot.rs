@@ -44,7 +44,7 @@ pub fn plot(
     let mut cc0 = ChartBuilder::on(&areas[0])
         .margin(5)
         .set_all_label_area_size(50)
-        .caption("values", ("sans-serif", 30).into_font().with_color(&BLACK))
+        .caption("values", ("sans-serif", 30).into_font().with_color(BLACK))
         .build_cartesian_2d(ts_min..ts_max, target_min..target_max)
         .unwrap();
     cc0.configure_mesh()
@@ -55,20 +55,20 @@ pub fn plot(
         .draw()
         .unwrap();
 
-    cc0.draw_series(LineSeries::new(targets.clone(), &BLACK))
+    cc0.draw_series(LineSeries::new(targets.clone(), BLACK))
         .unwrap()
         .label("targets")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));
     cc0.draw_series(LineSeries::new(train_preds.clone(), &RED))
         .unwrap()
         .label("train_preds")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
-    cc0.draw_series(LineSeries::new(test_preds.clone(), &GREEN))
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
+    cc0.draw_series(LineSeries::new(test_preds.clone(), GREEN))
         .unwrap()
         .label("test_preds")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREEN));
     cc0.configure_series_labels()
-        .border_style(&BLACK)
+        .border_style(BLACK)
         .draw()
         .unwrap();
 

@@ -29,7 +29,7 @@ impl<'a> GifRenderOptimizer<'a> {
         targets: &Series,
         train_preds: &Series,
         test_preds: &Series,
-        fits: &Vec<f64>, // current fitnesses of each candidate
+        fits: &[f64], // current fitnesses of each candidate
         idx: usize,
         parameters: &Vec<[f64; N]>,
     ) {
@@ -62,7 +62,7 @@ impl<'a> GifRenderOptimizer<'a> {
             .y_label_area_size(40)
             .caption(
                 "parameters 1, 2",
-                ("sans-serif", 20).into_font().with_color(&BLACK),
+                ("sans-serif", 20).into_font().with_color(BLACK),
             )
             .build_cartesian_2d(0_f64..1_f64, 0_f64..1_f64)
             .unwrap();
@@ -70,14 +70,14 @@ impl<'a> GifRenderOptimizer<'a> {
             .margin(5)
             .x_label_area_size(20)
             .y_label_area_size(40)
-            .caption("rmse", ("sans-serif", 20).into_font().with_color(&BLACK))
+            .caption("rmse", ("sans-serif", 20).into_font().with_color(BLACK))
             .build_cartesian_2d(0_f64..self.max_ts, (0_f64..10_000_000_f64).log_scale())
             .unwrap();
         let mut cc2 = ChartBuilder::on(&lower[1])
             .margin(5)
             .x_label_area_size(20)
             .y_label_area_size(40)
-            .caption("values", ("sans-serif", 20).into_font().with_color(&BLACK))
+            .caption("values", ("sans-serif", 20).into_font().with_color(BLACK))
             .build_cartesian_2d(ts_min..ts_max, target_min..target_max)
             .unwrap();
         let mut cc3 = ChartBuilder::on(&lower[0])
@@ -86,7 +86,7 @@ impl<'a> GifRenderOptimizer<'a> {
             .y_label_area_size(40)
             .caption(
                 "parameters 3, 4",
-                ("sans-serif", 20).into_font().with_color(&BLACK),
+                ("sans-serif", 20).into_font().with_color(BLACK),
             )
             .build_cartesian_2d(0_f64..1_f64, 0_f64..1_f64)
             .unwrap();
@@ -133,7 +133,7 @@ impl<'a> GifRenderOptimizer<'a> {
         )
         .unwrap()
         .label("params_0_1")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));
         cc3.draw_series(
             params_2_3
                 .iter()
@@ -141,26 +141,26 @@ impl<'a> GifRenderOptimizer<'a> {
         )
         .unwrap()
         .label("params_2_3")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));
 
         for f in &self.fits {
-            cc1.draw_series(LineSeries::new(f.clone(), &BLACK)).unwrap();
+            cc1.draw_series(LineSeries::new(f.clone(), BLACK)).unwrap();
         }
 
-        cc2.draw_series(LineSeries::new(targets.clone(), &BLACK))
+        cc2.draw_series(LineSeries::new(targets.clone(), BLACK))
             .unwrap()
             .label("targets")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK));
-        cc2.draw_series(LineSeries::new(train_preds.clone(), &RED))
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));
+        cc2.draw_series(LineSeries::new(train_preds.clone(), RED))
             .unwrap()
             .label("train_preds")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
-        cc2.draw_series(LineSeries::new(test_preds.clone(), &GREEN))
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
+        cc2.draw_series(LineSeries::new(test_preds.clone(), GREEN))
             .unwrap()
             .label("test_preds")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREEN));
         cc2.configure_series_labels()
-            .border_style(&BLACK)
+            .border_style(BLACK)
             .draw()
             .unwrap();
 

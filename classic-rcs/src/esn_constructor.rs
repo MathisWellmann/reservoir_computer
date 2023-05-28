@@ -71,7 +71,7 @@ impl ReservoirConstructor for ESNConstructor {
         let mut reservoir_matrix: DMatrix<f64> = DMatrix::from_vec_generic(
             Dim::from_usize(self.reservoir_size),
             Dim::from_usize(self.reservoir_size),
-            weights.iter().cloned().flatten().collect(),
+            Vec::from_iter(weights.iter().flatten().cloned()),
         );
 
         let eigen = SymmetricEigen::new(reservoir_matrix.clone());

@@ -82,9 +82,9 @@ pub(crate) fn main() {
             env.evaluate(&mut rc, Some(&mut p));
 
             plot(
-                &p.target_series(),
-                &p.train_predictions(),
-                &p.test_predictions(),
+                p.target_series(),
+                p.train_predictions(),
+                p.test_predictions(),
                 "img/mackey_glass_esn.png",
                 (3840, 1080),
             );
@@ -131,9 +131,9 @@ pub(crate) fn main() {
             env.evaluate(&mut rc, Some(&mut p));
 
             plot(
-                &p.target_series(),
-                &p.train_predictions(),
-                &p.test_predictions(),
+                p.target_series(),
+                p.train_predictions(),
+                p.test_predictions(),
                 "img/mackey_glass_eusn.png",
                 (3840, 1080),
             );
@@ -163,9 +163,9 @@ pub(crate) fn main() {
             env.evaluate(&mut rc, Some(&mut p));
 
             plot(
-                &p.target_series(),
-                &p.train_predictions(),
-                &p.test_predictions(),
+                p.target_series(),
+                p.train_predictions(),
+                p.test_predictions(),
                 "img/mackey_glass_ngrc.png",
                 (3840, 1080),
             );
@@ -494,7 +494,7 @@ pub(crate) fn mackey_glass_series(sample_len: usize, tau: usize, seed: Option<u6
 
     let mut inp = vec![0.0; sample_len];
 
-    for timestep in 0..sample_len {
+    for item in inp.iter_mut().take(sample_len) {
         for _ in 0..delta_t {
             let x_tau = history.pop_front().unwrap();
             history.push_back(timeseries);
@@ -502,7 +502,7 @@ pub(crate) fn mackey_glass_series(sample_len: usize, tau: usize, seed: Option<u6
             timeseries = last_hist
                 + (0.2 * x_tau / (1.0 + x_tau.powi(10)) - 0.1 * last_hist) / delta_t as f64;
         }
-        inp[timestep] = timeseries;
+        *item = timeseries;
     }
     // apply tanh nonlinearity
     inp.iter_mut().for_each(|v| *v = v.tanh());

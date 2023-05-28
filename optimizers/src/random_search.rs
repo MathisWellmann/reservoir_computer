@@ -56,7 +56,7 @@ impl<const N: usize> RandomSearch<N> {
         for (i, c) in self.candidates.iter().enumerate() {
             let ch_fit_s = ch_fit_s.clone();
             let e = env.clone();
-            let mut rc = rc_gen(&c);
+            let mut rc = rc_gen(c);
             pool.execute(move || {
                 let f = e.evaluate(&mut rc);
                 ch_fit_s.send((i, f)).unwrap();

@@ -77,9 +77,9 @@ pub(crate) fn main() {
             gather_plot_data(&values, &mut rc, Some(&mut p));
 
             plot(
-                &p.target_series(),
-                &p.train_predictions(),
-                &p.test_predictions(),
+                p.target_series(),
+                p.train_predictions(),
+                p.test_predictions(),
                 "img/doublescroll_ngrc.png",
                 (2160, 2160),
             );

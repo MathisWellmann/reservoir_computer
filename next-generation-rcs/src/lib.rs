@@ -20,7 +20,7 @@ mod params;
 /// Allows the full features of the next-gen series of reservoir computers to be constructed
 pub trait FullFeatureConstructor {
     /// Construct the full feature space from the linear part
-    fn construct_full_features<'a>(&self, lin_part: &DMatrix<f64>) -> DMatrix<f64>;
+    fn construct_full_features(&self, lin_part: &DMatrix<f64>) -> DMatrix<f64>;
 
     /// The total dimension of features
     fn d_total(&self) -> usize;

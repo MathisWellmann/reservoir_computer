@@ -39,8 +39,8 @@ impl<'a> GifRender<'a> {
             .x_label_area_size(20)
             .y_label_area_size(40)
             .caption(
-                &self.filename,
-                ("sans-serif", 20).into_font().with_color(&BLACK),
+                self.filename,
+                ("sans-serif", 20).into_font().with_color(BLACK),
             )
             .build_cartesian_2d(ts_min..ts_max, target_min..target_max)
             .unwrap();
@@ -56,17 +56,17 @@ impl<'a> GifRender<'a> {
         cc0.draw_series(LineSeries::new(targets.clone(), &BLACK))
             .unwrap()
             .label("targets")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK));
-        cc0.draw_series(LineSeries::new(train_preds.clone(), &RED))
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));
+        cc0.draw_series(LineSeries::new(train_preds.clone(), RED))
             .unwrap()
             .label("train_preds")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
-        cc0.draw_series(LineSeries::new(test_preds.clone(), &GREEN))
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
+        cc0.draw_series(LineSeries::new(test_preds.clone(), GREEN))
             .unwrap()
             .label("test_preds")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREEN));
         cc0.configure_series_labels()
-            .border_style(&BLACK)
+            .border_style(BLACK)
             .draw()
             .unwrap();
 
