@@ -26,7 +26,11 @@ pub(crate) fn main() {
 
     let values: DMatrix<f64> =
         Matrix::from_vec_generic(Dim::from_usize(values.len()), Dim::from_usize(1), values);
-    info!("values.nrows(): {}, values.ncols(): {}", values.nrows(), values.ncols());
+    info!(
+        "values.nrows(): {}, values.ncols(): {}",
+        values.nrows(),
+        values.ncols()
+    );
 
     let rcs = vec!["ESN", "EuSN", "NG-RC"];
     let e = Select::with_theme(&ColorfulTheme::default())
@@ -195,5 +199,11 @@ where
         rc.update_state(&input);
     }
 
-    plot(&plot_targets, &train_predictions, &test_predictions, filename, (2160, 2160));
+    plot(
+        &plot_targets,
+        &train_predictions,
+        &test_predictions,
+        filename,
+        (2160, 2160),
+    );
 }

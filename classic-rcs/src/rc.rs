@@ -27,7 +27,9 @@ impl<R> RC<R> {
     /// reservoir_constructor: The way to generate the initial weights of the
     /// reservoir
     pub fn new<C>(params: Params, regressor: R, mut reservoir_constructor: C) -> Self
-    where C: ReservoirConstructor {
+    where
+        C: ReservoirConstructor,
+    {
         let mut rng = match params.seed {
             Some(seed) => WyRand::new_seed(seed),
             None => WyRand::new(),
@@ -62,7 +64,8 @@ impl<R> RC<R> {
 }
 
 impl<R> ReservoirComputer<R> for RC<R>
-where R: LinReg
+where
+    R: LinReg,
 {
     #[inline(always)]
     fn params(&self) -> &dyn RCParams {
@@ -105,9 +108,10 @@ where R: LinReg
             }
         }
 
-        self.readout_matrix = self
-            .regressor
-            .fit_readout(&design.rows(0, design.nrows()), &targets.rows(0, harvest_len));
+        self.readout_matrix = self.regressor.fit_readout(
+            &design.rows(0, design.nrows()),
+            &targets.rows(0, harvest_len),
+        );
     }
 
     fn update_state<'a>(&mut self, input: &'a MatrixSlice<'a, f64, Const<1>, Dyn, Const<1>, Dyn>) {
@@ -125,7 +129,9 @@ where R: LinReg
 
         // perform node-to-node update
         let mut state = (1.0 - self.params.leaking_rate) * &self.state + state_delta;
-        self.params.reservoir_activation.activate(state.as_mut_slice());
+        self.params
+            .reservoir_activation
+            .activate(state.as_mut_slice());
 
         self.state = state;
     }

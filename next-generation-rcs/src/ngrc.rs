@@ -65,7 +65,11 @@ where
         &self,
         inputs: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
     ) -> DMatrix<f64> {
-        assert_eq!(inputs.ncols(), 1, "more than 1 input dimension not implemented yet");
+        assert_eq!(
+            inputs.ncols(),
+            1,
+            "more than 1 input dimension not implemented yet"
+        );
 
         let mut lin_part: DMatrix<f64> = Matrix::from_element_generic(
             Dim::from_usize(inputs.nrows()),
@@ -161,7 +165,11 @@ where
         // extract the state from the last full_feature column
         let mut state: Vec<f64> = vec![0.0; self.constructor.d_total() + 1];
         state[0] = 1.0;
-        for (i, f) in full_features.row(full_features.nrows() - 1).iter().enumerate() {
+        for (i, f) in full_features
+            .row(full_features.nrows() - 1)
+            .iter()
+            .enumerate()
+        {
             state[i + 1] = *f;
         }
         self.state = <Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>>>::from_vec_generic(

@@ -33,7 +33,10 @@ pub(crate) fn main() {
             Matrix::from_vec_generic(
                 Dim::from_usize(1),
                 Dim::from_usize(row.len() - 1),
-                row.iter().take(row.len() - 1).cloned().collect::<Vec<f64>>(),
+                row.iter()
+                    .take(row.len() - 1)
+                    .cloned()
+                    .collect::<Vec<f64>>(),
             );
         values.set_row(i, &input_row);
     }
@@ -94,7 +97,10 @@ pub(crate) fn gather_plot_data<RC, R>(
     R: LinReg,
 {
     let t0 = Instant::now();
-    rc.train(&values.columns(0, TRAIN_LEN - 1), &values.columns(1, TRAIN_LEN));
+    rc.train(
+        &values.columns(0, TRAIN_LEN - 1),
+        &values.columns(1, TRAIN_LEN),
+    );
     info!("NGRC training took {}ms", t0.elapsed().as_millis());
 
     for i in 1..values.nrows() {

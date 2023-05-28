@@ -32,7 +32,9 @@ pub fn plot(
 
     let root_area = BitMapBackend::new(filename, dims).into_drawing_area();
     root_area.fill(&WHITE).unwrap();
-    let root_area = root_area.titled(filename, ("sans-serif", 20).into_font()).unwrap();
+    let root_area = root_area
+        .titled(filename, ("sans-serif", 20).into_font())
+        .unwrap();
 
     let areas = root_area.split_evenly((1, 1));
 
@@ -62,7 +64,10 @@ pub fn plot(
         .unwrap()
         .label("test_preds")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
-    cc0.configure_series_labels().border_style(&BLACK).draw().unwrap();
+    cc0.configure_series_labels()
+        .border_style(&BLACK)
+        .draw()
+        .unwrap();
 
     info!("successfully plotted to {}", filename);
 }

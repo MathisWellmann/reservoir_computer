@@ -82,20 +82,26 @@ impl ReservoirConstructor for ESNConstructor {
     }
 
     fn construct_reservoir_biases(&mut self) -> StateMatrix {
-        Matrix::from_fn_generic(Dim::from_usize(self.reservoir_size), Dim::from_usize(1), |_, _| {
-            (self.rng.generate::<f64>() * 2.0 - 1.0) * self.reservoir_bias_scaling
-        })
+        Matrix::from_fn_generic(
+            Dim::from_usize(self.reservoir_size),
+            Dim::from_usize(1),
+            |_, _| (self.rng.generate::<f64>() * 2.0 - 1.0) * self.reservoir_bias_scaling,
+        )
     }
 
     fn construct_input_weight_matrix(
         &mut self,
     ) -> Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> {
-        Matrix::from_fn_generic(Dim::from_usize(self.reservoir_size), Dim::from_usize(1), |_, _| {
-            if self.rng.generate::<f64>() < self.input_sparsity {
-                (self.rng.generate::<f64>() * 2.0 - 1.0) * self.input_weight_scaling
-            } else {
-                0.0
-            }
-        })
+        Matrix::from_fn_generic(
+            Dim::from_usize(self.reservoir_size),
+            Dim::from_usize(1),
+            |_, _| {
+                if self.rng.generate::<f64>() < self.input_sparsity {
+                    (self.rng.generate::<f64>() * 2.0 - 1.0) * self.input_weight_scaling
+                } else {
+                    0.0
+                }
+            },
+        )
     }
 }

@@ -14,12 +14,12 @@ pub struct EnvMackeyGlass {
 impl EnvMackeyGlass {
     #[inline]
     pub fn new(values: Arc<DMatrix<f64>>, train_len: usize) -> Self {
-        assert!(values.nrows() > train_len, "make sure train_len < number of datapoints");
+        assert!(
+            values.nrows() > train_len,
+            "make sure train_len < number of datapoints"
+        );
 
-        Self {
-            values,
-            train_len,
-        }
+        Self { values, train_len }
     }
 }
 
@@ -29,7 +29,10 @@ impl EnvMackeyGlass {
         RC: ReservoirComputer<R>,
         R: LinReg,
     {
-        rc.train(&self.values.rows(0, self.train_len - 1), &self.values.rows(1, self.train_len));
+        rc.train(
+            &self.values.rows(0, self.train_len - 1),
+            &self.values.rows(1, self.train_len),
+        );
 
         let vals: Vec<f64> = vec![rc.params().initial_state_value(); rc.params().reservoir_size()];
         let state = Matrix::from_vec_generic(

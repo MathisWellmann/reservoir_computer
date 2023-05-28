@@ -9,12 +9,11 @@ pub struct GifRender<'a> {
 
 impl<'a> GifRender<'a> {
     pub fn new(filename: &'a str, dims: (u32, u32)) -> Self {
-        let root = BitMapBackend::gif(filename, dims, 100).unwrap().into_drawing_area();
+        let root = BitMapBackend::gif(filename, dims, 100)
+            .unwrap()
+            .into_drawing_area();
 
-        Self {
-            root,
-            filename,
-        }
+        Self { root, filename }
     }
 
     pub fn update(&mut self, targets: &Series, train_preds: &Series, test_preds: &Series) {
@@ -36,7 +35,10 @@ impl<'a> GifRender<'a> {
             .margin(5)
             .x_label_area_size(20)
             .y_label_area_size(40)
-            .caption(&self.filename, ("sans-serif", 20).into_font().with_color(&BLACK))
+            .caption(
+                &self.filename,
+                ("sans-serif", 20).into_font().with_color(&BLACK),
+            )
             .build_cartesian_2d(ts_min..ts_max, target_min..target_max)
             .unwrap();
 
@@ -60,7 +62,10 @@ impl<'a> GifRender<'a> {
             .unwrap()
             .label("test_preds")
             .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
-        cc0.configure_series_labels().border_style(&BLACK).draw().unwrap();
+        cc0.configure_series_labels()
+            .border_style(&BLACK)
+            .draw()
+            .unwrap();
 
         self.root.present().unwrap();
     }

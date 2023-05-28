@@ -10,7 +10,9 @@ pub struct GifRenderOptimizer<'a> {
 
 impl<'a> GifRenderOptimizer<'a> {
     pub fn new(filename: &str, dims: (u32, u32), num_candidates: usize) -> Self {
-        let root = BitMapBackend::gif(filename, dims, 100).unwrap().into_drawing_area();
+        let root = BitMapBackend::gif(filename, dims, 100)
+            .unwrap()
+            .into_drawing_area();
 
         Self {
             root,
@@ -55,7 +57,10 @@ impl<'a> GifRenderOptimizer<'a> {
             .margin(5)
             .x_label_area_size(20)
             .y_label_area_size(40)
-            .caption("parameters 1, 2", ("sans-serif", 20).into_font().with_color(&BLACK))
+            .caption(
+                "parameters 1, 2",
+                ("sans-serif", 20).into_font().with_color(&BLACK),
+            )
             .build_cartesian_2d(0_f64..1_f64, 0_f64..1_f64)
             .unwrap();
         let mut cc1 = ChartBuilder::on(&upper[1])
@@ -76,7 +81,10 @@ impl<'a> GifRenderOptimizer<'a> {
             .margin(5)
             .x_label_area_size(20)
             .y_label_area_size(40)
-            .caption("parameters 3, 4", ("sans-serif", 20).into_font().with_color(&BLACK))
+            .caption(
+                "parameters 3, 4",
+                ("sans-serif", 20).into_font().with_color(&BLACK),
+            )
             .build_cartesian_2d(0_f64..1_f64, 0_f64..1_f64)
             .unwrap();
 
@@ -115,14 +123,22 @@ impl<'a> GifRenderOptimizer<'a> {
             params_0_1.push((p[0], p[1]));
             params_2_3.push((p[2], p[3]));
         }
-        cc0.draw_series(params_0_1.iter().map(|(x, y)| Circle::new((*x, *y), 2, BLACK.filled())))
-            .unwrap()
-            .label("params_0_1")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK));
-        cc3.draw_series(params_2_3.iter().map(|(x, y)| Circle::new((*x, *y), 2, BLACK.filled())))
-            .unwrap()
-            .label("params_2_3")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK));
+        cc0.draw_series(
+            params_0_1
+                .iter()
+                .map(|(x, y)| Circle::new((*x, *y), 2, BLACK.filled())),
+        )
+        .unwrap()
+        .label("params_0_1")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK));
+        cc3.draw_series(
+            params_2_3
+                .iter()
+                .map(|(x, y)| Circle::new((*x, *y), 2, BLACK.filled())),
+        )
+        .unwrap()
+        .label("params_2_3")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK));
 
         for f in &self.fits {
             cc1.draw_series(LineSeries::new(f.clone(), &BLACK)).unwrap();
@@ -140,7 +156,10 @@ impl<'a> GifRenderOptimizer<'a> {
             .unwrap()
             .label("test_preds")
             .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
-        cc2.configure_series_labels().border_style(&BLACK).draw().unwrap();
+        cc2.configure_series_labels()
+            .border_style(&BLACK)
+            .draw()
+            .unwrap();
 
         self.root.present().unwrap();
     }

@@ -58,8 +58,10 @@ mod tests {
         let regressor = TikhonovRegularization {
             regularization_coeff: 0.0,
         };
-        let mut readout_matrix = regressor
-            .fit_readout(&design.columns(0, design.ncols()), &targets.columns(0, targets.ncols()));
+        let mut readout_matrix = regressor.fit_readout(
+            &design.columns(0, design.ncols()),
+            &targets.columns(0, targets.ncols()),
+        );
         info!("readout_matrix: {}", readout_matrix);
 
         let goal_matrix: Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> =
@@ -79,7 +81,9 @@ mod tests {
         let design: DMatrix<f64> = Matrix::from_vec_generic(
             Dim::from_usize(4),
             Dim::from_usize(3),
-            vec![100.0, 100.0, 100.0, 100.0, 0.0, 100.0, 200.0, 300.0, 0.0, 0.0, 100.0, 200.0],
+            vec![
+                100.0, 100.0, 100.0, 100.0, 0.0, 100.0, 200.0, 300.0, 0.0, 0.0, 100.0, 200.0,
+            ],
         );
         let targets: DMatrix<f64> = Matrix::from_vec_generic(
             Dim::from_usize(4),
@@ -91,8 +95,10 @@ mod tests {
         let regressor = TikhonovRegularization {
             regularization_coeff: 0.0,
         };
-        let mut readout_matrix = regressor
-            .fit_readout(&design.columns(0, design.ncols()), &targets.columns(0, targets.ncols()));
+        let mut readout_matrix = regressor.fit_readout(
+            &design.columns(0, design.ncols()),
+            &targets.columns(0, targets.ncols()),
+        );
         info!("readout_matrix: {}", readout_matrix);
 
         let goal_matrix: Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> =

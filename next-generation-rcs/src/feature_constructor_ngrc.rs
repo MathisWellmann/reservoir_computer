@@ -43,7 +43,10 @@ impl FullFeatureConstructor for NGRCConstructor {
             0.0,
         );
         for i in warmup..lin_part.nrows() {
-            full_features.set_row(i - warmup, &lin_part.row(i).resize_horizontally(d_total, 0.0));
+            full_features.set_row(
+                i - warmup,
+                &lin_part.row(i).resize_horizontally(d_total, 0.0),
+            );
         }
 
         let mut cnt: usize = 0;
