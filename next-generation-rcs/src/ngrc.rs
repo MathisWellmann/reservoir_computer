@@ -2,16 +2,16 @@ use std::collections::VecDeque;
 
 use common::{RCParams, ReservoirComputer};
 use lin_reg::LinReg;
-use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, MatrixSlice, VecStorage};
 
 use super::{params::Params, FullFeatureConstructor};
 
-type StateMatrix = Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>;
+type StateMatrix = Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>>;
 
 #[derive(Debug, Clone)]
 pub struct NextGenerationRC<R, C> {
     params: Params,
-    inputs: VecDeque<Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>,
+    inputs: VecDeque<Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>>>,
     readout_matrix: DMatrix<f64>,
     state: StateMatrix,
     // capacity of sliding window of inputs
@@ -63,7 +63,7 @@ where
     /// represent the features at each timestep
     fn construct_lin_part<'a>(
         &self,
-        inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
+        inputs: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
     ) -> DMatrix<f64> {
         assert_eq!(inputs.ncols(), 1, "more than 1 input dimension not implemented yet");
 
@@ -82,7 +82,7 @@ where
                     .unwrap_or(&0.0);
             }
             let col_idx = inputs.ncols() * delay;
-            let column: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+            let column: Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> =
                 Matrix::from_vec_generic(Dim::from_usize(column.len()), Dim::from_usize(1), column);
             lin_part.set_column(col_idx, &column);
         }
@@ -103,8 +103,8 @@ where
 
     fn train<'a>(
         &mut self,
-        inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
-        targets: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
+        inputs: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        targets: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
     ) {
         let lin_part = self.construct_lin_part(inputs);
         let full_features = self.constructor.construct_full_features(&lin_part);
@@ -117,7 +117,7 @@ where
             0.0,
         );
         // add column of 1s here
-        let col: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+        let col: Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> =
             Matrix::from_element_generic(
                 Dim::from_usize(full_features.nrows()),
                 Dim::from_usize(1),
@@ -134,12 +134,9 @@ where
         );
     }
 
-    fn update_state<'a>(
-        &mut self,
-        input: &'a MatrixSlice<'a, f64, Const<1>, Dynamic, Const<1>, Dynamic>,
-    ) {
+    fn update_state<'a>(&mut self, input: &'a MatrixSlice<'a, f64, Const<1>, Dyn, Const<1>, Dyn>) {
         let input =
-            <Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>::from_row_slice_generic(
+            <Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>>>::from_row_slice_generic(
                 Dim::from_usize(1),
                 Dim::from_usize(1),
                 input.iter().cloned().collect::<Vec<f64>>().as_slice(),
@@ -167,17 +164,16 @@ where
         for (i, f) in full_features.row(full_features.nrows() - 1).iter().enumerate() {
             state[i + 1] = *f;
         }
-        self.state =
-            <Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>>::from_vec_generic(
-                Dim::from_usize(1),
-                Dim::from_usize(self.constructor.d_total() + 1), /* +1 as the first column is
-                                                                  * always a 1 */
-                state,
-            );
+        self.state = <Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>>>::from_vec_generic(
+            Dim::from_usize(1),
+            Dim::from_usize(self.constructor.d_total() + 1), /* +1 as the first column is
+                                                              * always a 1 */
+            state,
+        );
     }
 
     #[inline(always)]
-    fn readout(&self) -> Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> {
+    fn readout(&self) -> Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>> {
         if self.inputs.len() < self.window_cap {
             return Matrix::from_element_generic(Dim::from_usize(1), Dim::from_usize(1), 0.0);
         }
@@ -196,10 +192,7 @@ where
     }
 
     #[inline(always)]
-    fn set_state(
-        &mut self,
-        state: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>,
-    ) {
+    fn set_state(&mut self, state: Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>>) {
         // Prepending the 1 required for proper readout
         // NOTE: this assumes the input state does not have the 1 column yet
         // It's done to maintain compatibility with classic-rcs

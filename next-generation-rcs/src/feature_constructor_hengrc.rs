@@ -1,4 +1,4 @@
-use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, VecStorage};
 
 use super::{params::Params, FullFeatureConstructor};
 
@@ -55,7 +55,7 @@ impl FullFeatureConstructor for HENGRCConstructor {
                     .map(|(middel, prev)| middel * prev)
                     .collect();
 
-                let column: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+                let column: Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> =
                     Matrix::from_vec_generic(
                         Dim::from_usize(lin_part.nrows() - warmup),
                         Dim::from_usize(1),
@@ -93,7 +93,7 @@ mod tests {
         );
         info!("lin_part: {}", lin_part);
 
-        let num_time_delay_taps = 4;
+        let num_time_delay_taps = 3;
         let num_samples_to_skip = 1;
         let constructor = HENGRCConstructor::new(num_time_delay_taps, num_samples_to_skip);
         let mut full_features = constructor.construct_full_features(&lin_part);

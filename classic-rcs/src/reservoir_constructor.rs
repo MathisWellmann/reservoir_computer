@@ -1,4 +1,4 @@
-use nalgebra::{Const, DMatrix, Dynamic, Matrix, VecStorage};
+use nalgebra::{Const, DMatrix, Dyn, Matrix, VecStorage};
 
 use crate::StateMatrix;
 
@@ -14,5 +14,5 @@ pub trait ReservoirConstructor {
     /// Construct the input connections into the reservoir
     fn construct_input_weight_matrix(
         &mut self,
-    ) -> Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;
+    ) -> Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>>;
 }

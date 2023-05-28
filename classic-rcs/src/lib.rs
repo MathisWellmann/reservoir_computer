@@ -6,7 +6,7 @@
 #[macro_use]
 extern crate log;
 
-use nalgebra::{Const, Dynamic, Matrix, VecStorage};
+use nalgebra::{Const, Dyn, Matrix, VecStorage};
 
 mod esn_constructor;
 mod eusn_constructor;
@@ -21,4 +21,4 @@ pub use rc::RC;
 pub use reservoir_constructor::ReservoirConstructor;
 
 /// The State matrix used for the classic reservoir computers
-pub type StateMatrix = Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>;
+pub type StateMatrix = Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>>;

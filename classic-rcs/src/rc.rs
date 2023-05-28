@@ -1,6 +1,6 @@
 use common::{RCParams, ReservoirComputer};
 use lin_reg::LinReg;
-use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, MatrixSlice, VecStorage};
 use nanorand::{Rng, WyRand};
 
 use crate::{Params, ReservoirConstructor, StateMatrix};
@@ -9,7 +9,7 @@ use crate::{Params, ReservoirConstructor, StateMatrix};
 #[derive(Debug)]
 pub struct RC<R> {
     params: Params,
-    input_weight_matrix: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>>,
+    input_weight_matrix: Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>>,
     reservoir_weights: DMatrix<f64>,
     reservoir_biases: StateMatrix,
     readout_matrix: DMatrix<f64>,
@@ -71,8 +71,8 @@ where R: LinReg
 
     fn train<'a>(
         &mut self,
-        inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
-        targets: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
+        inputs: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        targets: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
     ) {
         let washout_len = (inputs.ncols() as f64 * self.params.washout_pct) as usize;
         let harvest_len = inputs.nrows() - washout_len;
@@ -88,7 +88,7 @@ where R: LinReg
 
             // discard earlier values, as the state has to stabilize first
             if i >= washout_len {
-                let d: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+                let d: Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>> =
                     Matrix::from_fn_generic(
                         Dim::from_usize(1),
                         Dim::from_usize(self.params.reservoir_size + 1), /* +1 to account for 1
@@ -110,10 +110,7 @@ where R: LinReg
             .fit_readout(&design.rows(0, design.nrows()), &targets.rows(0, harvest_len));
     }
 
-    fn update_state<'a>(
-        &mut self,
-        input: &'a MatrixSlice<'a, f64, Const<1>, Dynamic, Const<1>, Dynamic>,
-    ) {
+    fn update_state<'a>(&mut self, input: &'a MatrixSlice<'a, f64, Const<1>, Dyn, Const<1>, Dyn>) {
         let noise: StateMatrix = Matrix::from_fn_generic(
             Dim::from_usize(self.params.reservoir_size),
             Dim::from_usize(1),
@@ -136,7 +133,7 @@ where R: LinReg
     /// Perform a readout operation
     #[inline]
     #[must_use]
-    fn readout(&self) -> Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> {
+    fn readout(&self) -> Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>> {
         // prepend the 1 to state for proper readout
         let state: StateMatrix = Matrix::from_fn_generic(
             Dim::from_usize(self.params.reservoir_size + 1),
@@ -157,10 +154,7 @@ where R: LinReg
 
     /// Resets the state to it's initial values
     #[inline(always)]
-    fn set_state(
-        &mut self,
-        state: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>,
-    ) {
+    fn set_state(&mut self, state: Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>>) {
         self.state = state.transpose();
     }
 

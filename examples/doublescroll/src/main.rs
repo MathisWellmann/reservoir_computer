@@ -6,7 +6,7 @@ use std::{fs::File, time::Instant};
 use common::{Activation, ReservoirComputer};
 use dialoguer::{theme::ColorfulTheme, Select};
 use lin_reg::{LinReg, TikhonovRegularization};
-use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, VecStorage};
 use next_generation_rcs::{NGRCConstructor, NextGenerationRC, Params as NGRCParams};
 use rc_plot::{plot, PlotGather};
 
@@ -29,7 +29,7 @@ pub(crate) fn main() {
             let val: f64 = r.parse().unwrap();
             row.push(val);
         }
-        let input_row: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>> =
+        let input_row: Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>> =
             Matrix::from_vec_generic(
                 Dim::from_usize(1),
                 Dim::from_usize(row.len() - 1),

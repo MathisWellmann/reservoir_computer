@@ -1,5 +1,5 @@
 use lin_reg::LinReg;
-use nalgebra::{Const, DMatrix, Dynamic, Matrix, MatrixSlice, VecStorage};
+use nalgebra::{Const, DMatrix, Dyn, Matrix, MatrixSlice, VecStorage};
 
 /// The ReservoirComputer trait
 /// N: Number of values to map into Parameters
@@ -14,23 +14,17 @@ pub trait ReservoirComputer<R: LinReg> {
     /// inputs: A Matrix where there are N rows corresponding to the datapoints
     fn train<'a>(
         &mut self,
-        inputs: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
-        targets: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
+        inputs: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        targets: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
     );
 
-    fn update_state<'a>(
-        &mut self,
-        input: &'a MatrixSlice<'a, f64, Const<1>, Dynamic, Const<1>, Dynamic>,
-    );
+    fn update_state<'a>(&mut self, input: &'a MatrixSlice<'a, f64, Const<1>, Dyn, Const<1>, Dyn>);
 
     /// Performs a readout of the current reservoir state
-    fn readout(&self) -> Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>;
+    fn readout(&self) -> Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>>;
 
     /// Sets the internal state matrix
-    fn set_state(
-        &mut self,
-        state: Matrix<f64, Const<1>, Dynamic, VecStorage<f64, Const<1>, Dynamic>>,
-    );
+    fn set_state(&mut self, state: Matrix<f64, Const<1>, Dyn, VecStorage<f64, Const<1>, Dyn>>);
 
     fn readout_matrix(&self) -> &DMatrix<f64>;
 }

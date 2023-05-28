@@ -1,4 +1,4 @@
-use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, VecStorage};
 use nanorand::{Rng, WyRand};
 
 use crate::ReservoirConstructor;
@@ -79,7 +79,7 @@ impl ReservoirConstructor for EUSNConstructor {
 
     fn construct_input_weight_matrix(
         &mut self,
-    ) -> Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> {
+    ) -> Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> {
         Matrix::from_fn_generic(Dim::from_usize(self.reservoir_size), Dim::from_usize(1), |_, _| {
             if self.rng.generate::<f64>() < self.input_sparsity {
                 (self.rng.generate::<f64>() * 2.0 - 1.0) * self.input_weight_scaling

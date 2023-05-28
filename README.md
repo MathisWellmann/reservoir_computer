@@ -1,4 +1,6 @@
 # Reservoir Computers
+:radioactive: This old project has been collecting dust for a bit, so making this public for educational purposes, but don't expect much (It's a CPU implementation afterall).
+
 [Reservoir Computers](https://en.wikipedia.org/wiki/Reservoir_computing) 
 are a type of recurrent neural network with a fixed internal connection matrix.
 The only thing being "trained" in this paradigm is the readout layer, by fitting a linear regression including regularization.
@@ -25,6 +27,7 @@ Examples inculde:
 Its obvious that reservoir computers benefit massively from GPU acceleration due to the heavy use of matmul operations. A GPU variant of each network can be derived fairly easily from the knowledge in this repo. I use [arrayfire-rs](https://github.com/arrayfire/arrayfire-rust) for this acceleration (in separate repo and private for now)
 
 ### TODOS:
+Wrote this a couple of years ago, so there are some things todo, like:
 - benchmark chaotic dynamical systems
 - implement lyapunov time for analysis purposes
 - Make error measure generic and add MAE as well as RMSE, which already exists

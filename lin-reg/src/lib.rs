@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
 
-use nalgebra::{Const, DMatrix, Dynamic, MatrixSlice};
+use nalgebra::{Const, DMatrix, Dyn, MatrixSlice};
 
 mod tikhonov_regularization;
 
@@ -16,7 +16,7 @@ pub trait LinReg: Clone {
     /// targets: Target data having O rows as the output dimensionality
     fn fit_readout<'a>(
         &self,
-        design: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
-        targets: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
+        design: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        targets: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
     ) -> DMatrix<f64>;
 }

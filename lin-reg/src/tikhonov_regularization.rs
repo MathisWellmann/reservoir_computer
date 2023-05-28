@@ -1,4 +1,4 @@
-use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, MatrixSlice};
+use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, MatrixSlice};
 
 use super::LinReg;
 
@@ -14,8 +14,8 @@ pub struct TikhonovRegularization {
 impl LinReg for TikhonovRegularization {
     fn fit_readout<'a>(
         &self,
-        design: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
-        targets: &'a MatrixSlice<'a, f64, Dynamic, Dynamic, Const<1>, Dynamic>,
+        design: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
+        targets: &'a MatrixSlice<'a, f64, Dyn, Dyn, Const<1>, Dyn>,
     ) -> DMatrix<f64> {
         let reg_m: DMatrix<f64> = Matrix::from_diagonal_element_generic(
             Dim::from_usize(design.ncols()),
@@ -62,7 +62,7 @@ mod tests {
             .fit_readout(&design.columns(0, design.ncols()), &targets.columns(0, targets.ncols()));
         info!("readout_matrix: {}", readout_matrix);
 
-        let goal_matrix: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+        let goal_matrix: Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> =
             Matrix::from_vec_generic(Dim::from_usize(3), Dim::from_usize(1), vec![1.0, 1.0, 0.0]);
 
         // round readout
@@ -95,7 +95,7 @@ mod tests {
             .fit_readout(&design.columns(0, design.ncols()), &targets.columns(0, targets.ncols()));
         info!("readout_matrix: {}", readout_matrix);
 
-        let goal_matrix: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+        let goal_matrix: Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> =
             Matrix::from_vec_generic(Dim::from_usize(3), Dim::from_usize(1), vec![1.0, 1.0, 0.0]);
 
         // round readout
@@ -130,7 +130,7 @@ mod tests {
             Matrix::from_vec_generic(Dim::from_usize(1), Dim::from_usize(1), vec![4.0]);
         info!("state: {}, target: {}", state, target);
 
-        let readout: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+        let readout: Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> =
             Matrix::from_vec_generic(Dim::from_usize(3), Dim::from_usize(1), vec![1.0, 1.0, 0.0]);
 
         let o = state * readout;

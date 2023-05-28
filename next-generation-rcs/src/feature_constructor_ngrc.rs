@@ -1,6 +1,6 @@
-use nalgebra::{Const, DMatrix, Dim, Dynamic, Matrix, VecStorage};
+use nalgebra::{Const, DMatrix, Dim, Dyn, Matrix, VecStorage};
 
-use super::{params::Params, FullFeatureConstructor};
+use super::FullFeatureConstructor;
 
 /// The classic next-generation reservoir computer constructor
 #[derive(Clone)]
@@ -58,7 +58,7 @@ impl FullFeatureConstructor for NGRCConstructor {
                         .zip(lin_part.column(span).iter().skip(warmup))
                         .map(|((v_i, v_j), v_s)| v_i * v_j * v_s)
                         .collect();
-                    let column: Matrix<f64, Dynamic, Const<1>, VecStorage<f64, Dynamic, Const<1>>> =
+                    let column: Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>> =
                         Matrix::from_vec_generic(
                             Dim::from_usize(lin_part.nrows() - warmup),
                             Dim::from_usize(1),
