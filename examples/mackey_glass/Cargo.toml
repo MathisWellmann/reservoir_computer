@@ -12,6 +12,7 @@ pretty_env_logger.workspace = true
 nalgebra.workspace = true
 dialoguer.workspace = true
 nanorand = "^0.7"
+time_series_generator = "0.3.1"
 
 # Local deps
 common = { path = "../../common", features = ["environments"] }
